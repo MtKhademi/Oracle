@@ -3,14 +3,17 @@ import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
 import { assetService } from './src/services/assetService';
+import { authService } from './src/services/authService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
+import { AuthScreen } from './src/components/AuthScreen';
 import { HamburgerIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
 import { Toolbar } from './src/components/Toolbar';
+import type { User } from './src/types';
 
 const EXPECTED_IMPORT_HEADERS = ['نام دارایی', 'دسته‌بندی', 'تعداد', 'واحد', 'قیمت واحد (تومان)'];
 
@@ -50,6 +53,15 @@ export default function App() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
+  useEffect(() => {
+    authService.getCurrentUser().then(user => {
+      setCurrentUser(user);
+      setIsAuthChecked(true);
+    });
+  }, []);
 
   useEffect(() => {
     assetService.listAssets().then(stored => {
@@ -58,6 +70,12 @@ export default function App() {
       setIsSample(false);
     });
   }, []);
+
+  const handleLogout = async () => {
+    await authService.logOut();
+    setCurrentUser(null);
+    setIsMenuOpen(false);
+  };
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
 
@@ -125,6 +143,14 @@ export default function App() {
     }
   };
 
+  if (!isAuthChecked) {
+    return <div className="min-h-screen bg-[#f5f6fb] grid place-items-center"><span className="text-[13px] text-[#969eb2]">در حال بارگذاری...</span></div>;
+  }
+
+  if (!currentUser) {
+    return <AuthScreen onAuthenticated={setCurrentUser}/>;
+  }
+
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
       <span className="flex items-center gap-3 text-[22px] font-bold max-[481px]:text-[20px]"><button type="button" onClick={() => setIsMenuOpen(true)} aria-label="باز کردن منو" className="h-[46px] w-[46px] border border-[#ffffff40] bg-[#ffffff15] rounded-[15px] grid place-items-center max-[481px]:h-[41px] max-[481px]:w-[41px] cursor-pointer text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[2px]"><HamburgerIcon/></button><a className="no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[5px] focus-visible:rounded-[10px]" href="./" aria-label="Oracle، صفحه اصلی">Oracle<span className="block text-[11px] font-normal text-[#e0e4ff] mt-[1px]">سرمایه‌های من</span></a></span>
@@ -140,7 +166,7 @@ export default function App() {
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
-    {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }}/>}
+    {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
   </div>;
 }

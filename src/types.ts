@@ -11,3 +11,11 @@ export const emptyProfile: Profile = {
   email: '',
   avatarDataUrl: null,
 };
+
+export type User = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+};

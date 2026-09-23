@@ -59,7 +59,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. |
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e) and `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
@@ -67,8 +67,10 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
-| `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات now opens the profile view (`onOpenProfile` prop, see §6f); تنظیمات/درباره Oracle/راهنما/خروج remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
+| `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
+| `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
+| `src/components/ForgotPasswordModal.tsx` | Two-step password-reset modal (see §6g), reusing the `AddAssetModal` overlay pattern. Step 1 asks for email/phone, calls `authService.requestPasswordReset(identifier)`, and shows the returned `simulatedCode` in a long-lived `toast(...)` (**simulated — not a real email/SMS send**, see §6g). Step 2 asks for the 6-digit code + new password (+ repeat, matched client-side), calls `authService.resetPassword(...)`. Takes only `onClose`. |
 | `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
@@ -78,6 +80,10 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
 | `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
 | `src/services/localProfileService.ts` | The `localProfileService: ProfileService` implementation, backed by `src/profileStorage.ts`'s `loadProfile`/`saveProfile`. |
+| `src/types.ts` (additions) | `User` type (`id`/`fullName`/`email`/`phone`/`passwordHash`) — see §6g. |
+| `src/authStorage.ts` | `loadUsers()`/`saveUsers()` (localStorage key `oracle_users_v1`, an array of `StoredUser` — `User` plus an internal, optional `resetCode`/`resetCodeExpiresAt` pair never exposed outside this file) and `loadSessionUserId()`/`saveSessionUserId()`/`clearSession()` (localStorage key `oracle_session_v1`, holding just the logged-in user's `id`). Same try/catch pattern as `src/storage.ts`/`src/profileStorage.ts`. Only called from `src/services/localAuthService.ts`. |
+| `src/services/authService.ts` | Defines the `AuthService` interface (`signUp`/`logIn`/`logOut`/`getCurrentUser`/`requestPasswordReset`/`resetPassword`, all `Promise`-returning, see §6g) and exports the single `authService` instance — currently `= localAuthService`. Same singleton-swap pattern as `assetService`/`profileService` (see §6d). |
+| `src/services/localAuthService.ts` | The `localAuthService: AuthService` implementation, backed by `src/authStorage.ts`. Hashes passwords with `crypto.subtle.digest('SHA-256', ...)` before ever storing them — plaintext passwords are never written to `localStorage`. `requestPasswordReset` generates a random 6-digit code with a 10-minute expiry stored alongside the user record; a code comment marks exactly where a real email/SMS provider call would replace the simulation (see §6g). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
@@ -172,6 +178,8 @@ type Asset = {
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
+- All of the above (steps 1–6) only render once a user is logged in — see §6g for
+  the login/signup/forgot-password screens shown instead when they are not.
 
 ## 6a. Excel import (fixed template only)
 
@@ -368,6 +376,91 @@ type Asset = {
   singleton-swap pattern as `assetService`/`localAssetService` (see §6d) — swapping
   to a server backend later only means replacing the `profileService` export.
 
+## 6g. Login, signup, forgot-password (auth)
+
+- `App.tsx` calls `authService.getCurrentUser()` once in a mount-time `useEffect`
+  and holds `currentUser` (`User | null`) + `isAuthChecked` (`boolean`) state. While
+  `isAuthChecked` is `false`, a minimal centered "در حال بارگذاری..." screen renders.
+  Once checked, `currentUser === null` renders `<AuthScreen onAuthenticated>`
+  instead of the whole dashboard (header/summary/portfolio/side-drawer/profile —
+  see §6/§6a–§6f are all gated behind being logged in). `onAuthenticated` just
+  sets `currentUser` into state directly (the login/signup call already resolved a
+  full `User`, no extra round-trip needed).
+- `AuthScreen` (`src/components/AuthScreen.tsx`) — a full-page card (same
+  rounded/border/shadow/input tokens as `AddAssetModal`/`ProfileModal`, see §7),
+  centered on the `#f5f6fb` page background, with a two-tab toggle ("ورود"/"ثبت‌نام",
+  plain `useState`, no router/tab library):
+  - **ورود (login)**: "ایمیل یا شماره موبایل" + "رمز عبور" fields, a submit button,
+    and a "رمز عبور را فراموش کرده‌اید؟" link that opens `ForgotPasswordModal`.
+    Calls `authService.logIn({ identifier, password })`; success →
+    `onAuthenticated(user)`; failure → `toast.error(result.error)` (a single
+    generic message, see below — never reveals whether the identifier or the
+    password was wrong).
+  - **ثبت‌نام (signup)**: نام و نام خانوادگی/ایمیل/شماره موبایل/رمز عبور/تکرار رمز
+    عبور fields. Client-side check first: mismatched password/repeat →
+    `toast.error('رمز عبور و تکرارش یکسان نیستند')` without calling the service.
+    Otherwise calls `authService.signUp({...})`; success →
+    `toast.success('ثبت‌نام با موفقیت انجام شد')` then `onAuthenticated(user)`
+    (signup logs the person straight in, no separate login step); failure
+    (duplicate email/phone) → `toast.error(result.error)`.
+- `ForgotPasswordModal` (`src/components/ForgotPasswordModal.tsx`) — reuses the
+  exact `AddAssetModal`/`ProfileModal` overlay pattern (backdrop/Escape/"×"), a
+  local `useState<'request' | 'reset'>` step switch, no routing:
+  - **Step "request"**: "ایمیل یا شماره موبایل" field → calls
+    `authService.requestPasswordReset(identifier)`. Success → shows the returned
+    `simulatedCode` via `toast('کد بازیابی (نمایش موقت تا سرویس پیامک/ایمیل وصل
+    شود): <code>', { duration: 15000 })` and advances to step "reset". Failure
+    (no such user) → `toast.error(result.error)`.
+  - **Step "reset"**: 6-digit code + new password + repeat (client-side match
+    check, same message as signup) → calls
+    `authService.resetPassword(identifier, code, newPassword)`. Success →
+    `toast.success('رمز عبور تغییر کرد')` then `onClose()` (back to the login
+    tab). Failure (bad/expired code) → `toast.error(result.error)`.
+- **Auth data & service layer** (`src/types.ts`/`src/authStorage.ts`/
+  `src/services/authService.ts`/`src/services/localAuthService.ts`) — same
+  singleton-swap pattern as `assetService`/`profileService` (see §6d):
+  - `User` type: `{ id, fullName, email, phone, passwordHash }` (see §4).
+  - `AuthService` interface: `signUp`/`logIn`/`logOut`/`getCurrentUser`/
+    `requestPasswordReset`/`resetPassword`, all `Promise`-returning.
+  - `localAuthService` stores every signed-up user (as `StoredUser`, `User` plus
+    an internal, optional `resetCode`/`resetCodeExpiresAt`) in `localStorage`
+    under `oracle_users_v1`, and the current session's user `id` under a separate
+    key `oracle_session_v1` (see §4). `getCurrentUser()` looks the id up in the
+    users list.
+  - Passwords are **never stored in plaintext** — hashed with
+    `crypto.subtle.digest('SHA-256', ...)` (Web Crypto, no extra dependency)
+    before being written anywhere, both at signup and at reset.
+  - `logIn` matches `identifier` against either `email` (case-insensitive) or
+    `phone` (exact) across all stored users, then compares the SHA-256 hash of
+    the submitted password. On any mismatch (unknown identifier OR wrong
+    password) it returns the **same generic error string**
+    (`'ایمیل/شماره یا رمز عبور اشتباه است'`) — this is intentional, so a caller
+    can't probe which part was wrong.
+  - `signUp` rejects if the email or phone is already registered (case-insensitive
+    email match), otherwise creates the user, immediately calls `saveSessionUserId`
+    (auto-login), and resolves it.
+  - `requestPasswordReset` finds the user by identifier, generates a random
+    6-digit code (`Math.floor(100000 + Math.random() * 900000)`), stores it on
+    that user's record with `Date.now() + 10 minutes` as the expiry, and resolves
+    `{ ok: true, simulatedCode }`.
+  - `resetPassword` checks the submitted code against the stored one and its
+    expiry; on success it re-hashes and replaces `passwordHash` and clears the
+    `resetCode`/`resetCodeExpiresAt` fields (so a code can't be reused after a
+    successful reset, nor after it expires).
+  - `logOut` just removes the `oracle_session_v1` key.
+- **Password reset is simulated, not real** — there is no email/SMS provider
+  connected in this app. The 6-digit code is generated locally and shown directly
+  to the user on-screen (via the `toast(...)` in `ForgotPasswordModal`, see above)
+  instead of being delivered through any real channel. `localAuthService.ts`
+  contains an explicit code comment marking exactly where a real email/SMS
+  provider call would replace this simulation. **Do not treat this as a security
+  boundary** — anyone with access to the browser sees the code directly; this is
+  acceptable only because there is no real user data/money at stake yet and no
+  delivery channel exists. Revisit once a real backend/email/SMS service is
+  integrated.
+- No password-strength meter, CAPTCHA, or other extras were added — kept
+  intentionally minimal per the task.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -461,6 +554,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
+| 2026-09-23 | Owner-requested: built login, signup, and forgot-password (see §6g), gating the whole dashboard behind being logged in. Added `User` type, `src/authStorage.ts` (localStorage keys `oracle_users_v1`/`oracle_session_v1`), and `AuthService`/`localAuthService` (`src/services/`) — same singleton-swap pattern as `assetService`/`profileService` (see §6d). Passwords are SHA-256-hashed via Web Crypto before ever being stored, never plaintext. `AuthScreen` (login/signup tabs) and `ForgotPasswordModal` (two-step: request code, then code+new password) reuse the existing card/input/overlay styling — no new visual pattern invented. **Password-reset codes are simulated** (generated locally, shown directly to the user via a toast) because no real email/SMS provider is connected yet; `localAuthService.ts` marks exactly where that integration would replace the simulation. خروج (logout) in the side drawer now actually calls `authService.logOut()`; تنظیمات/درباره Oracle/راهنما remain placeholders. |
 
 ## 12. Agent playbook (how to progress this app)
 
