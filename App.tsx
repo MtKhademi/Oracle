@@ -1,46 +1,13 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
 import { loadAssets, saveAssets } from './src/storage';
-
-const format = (value: number, decimals = 0) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: decimals }).format(value);
-
-const stripToNumberString = (raw: string) => {
-  let cleaned = raw.replace(/[^\d.]/g, '');
-  const firstDot = cleaned.indexOf('.');
-  if (firstDot !== -1) cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-  return cleaned;
-};
-
-const formatWithThousands = (raw: string) => {
-  const cleaned = stripToNumberString(raw);
-  const [intPart, decPart] = cleaned.split('.');
-  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
-  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
-};
-
-const iconTint: Record<Asset['icon'], string> = {
-  gold: 'text-[#d7a144] bg-[#fff5df]',
-  fund: 'text-[#6e68dc] bg-[#f0edff]',
-  cash: 'text-[#4ab3b4] bg-[#e5f7f6]',
-  usdt: 'text-[#3daf99] bg-[#e6f6f0]',
-  btc: 'text-[#efa451] bg-[#fff1e3]',
-  eth: 'text-[#617cdb] bg-[#ecf0ff]',
-  other: 'text-[#6b7280] bg-[#eef0f3]',
-};
-
-const iconLabel: Record<Asset['icon'], string> = {
-  gold: 'طلا',
-  fund: 'صندوق',
-  cash: 'نقد',
-  usdt: 'تتر',
-  btc: 'بیت‌کوین',
-  eth: 'اتریوم',
-  other: 'سایر',
-};
-
-const iconOptions = Object.keys(iconLabel) as Asset['icon'][];
+import { format } from './src/format';
+import { AddAssetModal } from './src/components/AddAssetModal';
+import { AssetRow } from './src/components/AssetRow';
+import { SummaryCard } from './src/components/SummaryCard';
+import { Toolbar } from './src/components/Toolbar';
 
 const EXPECTED_IMPORT_HEADERS = ['نام دارایی', 'دسته‌بندی', 'تعداد', 'واحد', 'قیمت واحد (تومان)'];
 
@@ -74,142 +41,18 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
   return { assets: parsed, skipped };
 }
 
-function UploadIcon() {
-  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 3v10"/>
-    <path d="m8 9 4 4 4-4"/>
-    <path d="M5 19h14"/>
-  </svg>;
-}
-
-function TrashIcon() {
-  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 7h16"/>
-    <path d="M9 7V4h6v3"/>
-    <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/>
-    <path d="M10 11v6M14 11v6"/>
-  </svg>;
-}
-
-function PlusIcon() {
-  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 5v14M5 12h14"/>
-  </svg>;
-}
-
-function CloseIcon() {
-  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M6 6l12 12M18 6L6 18"/>
-  </svg>;
-}
-
-function PencilIcon() {
-  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="m16.5 3.5 4 4L7 21l-4.5 1L4 17.5Z"/>
-    <path d="m14.5 5.5 4 4"/>
-  </svg>;
-}
-
-const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
-
-function AssetIcon({ type }: { type: string }) {
-  if (type === 'btc' || type === 'usdt') return <span className="font-[Arial,sans-serif] text-[27px] leading-none font-semibold">{type === 'btc' ? '₿' : '₮'}</span>;
-  return <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {type === 'gold' ? <><path d="m7 7-4 11h18L17 7Z"/><path d="M7 7h10M8 14h8M10 10h4"/></> : type === 'cash' ? <><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M4 6V5a2 2 0 0 1 2-2h12v3M21 11h-6v5h6"/><path d="M17 13.5h.01"/></> : type === 'eth' ? <><path d="m12 2 6 10-6 4-6-4Zm-6 13 6 7 6-7-6 4Z"/><path d="M12 2v14M6 12l6-3 6 3"/></> : <><path d="M4 19h16M6 15v-3m6 3V9m6 6V5M4 8l6-4 5 2 5-3"/></>}
-  </svg>;
-}
-
-function AssetRow({ asset, onDelete, onEdit }: { asset: Asset; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftQuantity, setDraftQuantity] = useState(String(asset.quantity));
-  const [draftUnitPrice, setDraftUnitPrice] = useState(String(asset.unitPrice));
-  const [error, setError] = useState<string | null>(null);
-
-  const startEdit = () => {
-    setDraftQuantity(String(asset.quantity));
-    setDraftUnitPrice(String(asset.unitPrice));
-    setError(null);
-    setIsEditing(true);
-  };
-
-  const save = () => {
-    const quantity = Number(draftQuantity);
-    const unitPrice = Number(draftUnitPrice);
-    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) {
-      setError('عدد نامعتبر است.');
-      return;
-    }
-    onEdit(asset.id, quantity, unitPrice);
-    setIsEditing(false);
-  };
-
-  return <li className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center gap-[15px] py-[17px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:p-[14px] [@media(min-width:351px)_and_(max-width:480px)]:gap-[12px] [@media(min-width:351px)_and_(max-width:480px)]:py-[15px] [@media(min-width:351px)_and_(max-width:480px)]:px-[14px] max-[351px]:gap-[9px] max-[351px]:py-[13px] max-[351px]:px-[10px]">
-    <span className={`${assetIconBase} ${iconTint[asset.icon]}`} aria-hidden="true"><AssetIcon type={asset.icon}/></span>
-    <div className="flex-1 min-w-0">
-      <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{asset.name}</h3>
-      {isEditing ? <div className="flex flex-wrap items-center gap-[6px] mt-[6px]">
-        <input type="number" step="any" value={draftQuantity} onChange={e => setDraftQuantity(e.target.value)} className="w-[90px] text-[11px] border border-[#eef0f7] rounded-[8px] px-2 py-1" aria-label={`مقدار ${asset.name}`} />
-        <span className="text-[11px] text-[#999fb2]">{asset.unit}</span>
-        <input type="number" step="any" value={draftUnitPrice} onChange={e => setDraftUnitPrice(e.target.value)} className="w-[110px] text-[11px] border border-[#eef0f7] rounded-[8px] px-2 py-1" aria-label={`قیمت واحد ${asset.name} به تومان`} />
-        {error && <span className="text-[10px] text-[#d95050] w-full">{error}</span>}
-      </div> : <p className="text-[11px] text-[#999fb2] mt-[5px]">{format(asset.quantity, 8)} {asset.unit}</p>}
-    </div>
-    <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
-      {!isEditing && <div className="flex flex-col gap-[5px] items-end"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(asset.quantity * asset.unitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>}
-      <div className="flex gap-[8px]">
-        {isEditing ? <>
-          <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>
-          <button type="button" onClick={() => setIsEditing(false)} className="text-[10px] text-[#9096aa] border border-[#eef0f7] rounded-[8px] px-2 py-1">انصراف</button>
-        </> : <>
-          <button type="button" onClick={startEdit} className="grid place-items-center text-[#77809c] cursor-pointer p-2 rounded-md hover:bg-[#eef0ff] transition-colors" aria-label="ویرایش"><PencilIcon/></button>
-          <button type="button" onClick={() => onDelete(asset.id)} className="grid place-items-center text-[#d95050] cursor-pointer p-2 rounded-md hover:bg-[#fdecec] transition-colors" aria-label="حذف"><TrashIcon/></button>
-        </>}
-      </div>
-    </div>
-  </li>;
-}
-
 export default function App() {
   const [items, setItems] = useState<Asset[]>(() => loadAssets() ?? assets);
   const [isSample, setIsSample] = useState(() => loadAssets() === null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   useEffect(() => { saveAssets(items); }, [items]);
 
-  const [formName, setFormName] = useState('');
-  const [formQuantity, setFormQuantity] = useState('');
-  const [formUnit, setFormUnit] = useState('');
-  const [formUnitPrice, setFormUnitPrice] = useState('');
-  const [formIcon, setFormIcon] = useState<Asset['icon']>('gold');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isAddOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsAddOpen(false); };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isAddOpen]);
-
   const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
 
-  const handleAddSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const quantity = Number(formQuantity);
-    const unitPrice = Number(formUnitPrice);
-    if (!formName.trim() || !formUnit.trim() || !Number.isFinite(quantity) || !Number.isFinite(unitPrice)) {
-      setFormError('نام، مقدار، واحد و قیمت واحد را به‌درستی پر کنید.');
-      return;
-    }
-    const newAsset: Asset = { id: crypto.randomUUID(), name: formName.trim(), quantity, unit: formUnit.trim(), unitPrice, icon: formIcon };
+  const handleAddAsset = (newAsset: Asset) => {
     setItems(prev => [...prev, newAsset]);
     setIsSample(false);
-    setFormName('');
-    setFormQuantity('');
-    setFormUnit('');
-    setFormUnitPrice('');
-    setFormIcon('gold');
-    setFormError(null);
-    setIsAddOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -234,8 +77,6 @@ export default function App() {
       cancel: { label: 'انصراف', onClick: () => {} },
     });
   };
-
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -274,52 +115,14 @@ export default function App() {
       <span className="text-[12px] text-[#e0e4ff] max-[481px]:text-[10px] max-[351px]:hidden">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
-      <section className="bg-white rounded-[22px] pt-[26px] px-8 pb-0 shadow-[0_12px_36px_#2734790b] border border-[#eceef8] min-[1050px]:sticky min-[1050px]:top-[28px] min-[1050px]:p-6 min-[1050px]:pb-0 max-[481px]:pt-[21px] max-[481px]:px-[23px] max-[481px]:pb-0 max-[481px]:rounded-[20px]" aria-labelledby="total-title">
-        <div className="flex justify-between items-center"><span className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8]"><AssetIcon type="cash"/></span>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
-        <h1 id="total-title" className="text-[14px] text-[#7a8097] font-normal mt-5 min-[1050px]:mt-[25px] max-[481px]:mt-4">ارزش کل دارایی‌ها</h1>
-        <div className="flex items-baseline gap-[10px] mt-[5px] mb-[23px] min-[1050px]:flex-wrap min-[1050px]:gap-[0_8px] max-[481px]:mb-[19px]"><strong className="text-[44px] font-bold text-[#4659d9] leading-[1.55] tracking-[-1px] min-[1050px]:text-[35px] [@media(min-width:351px)_and_(max-width:480px)]:text-[35px] max-[351px]:text-[30px]">{format(total)}</strong><span className="text-[13px] text-[#8990a9]">تومان</span></div>
-        <div className="flex justify-between border-t border-[#f0f1f7] py-4 text-[#9096aa] text-[11px]"><span className="flex items-center gap-[7px]"><i className="h-[6px] w-[6px] bg-[#8593ee] rounded-full"/>سرمایه‌ها، کنار هم</span><span>{format(items.length)} دارایی</span></div>
-      </section>
+      <SummaryCard total={total} count={items.length} isSample={isSample}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
-        <div className="flex justify-between items-center px-1 mb-[10px]">
-          <div className="flex gap-[8px]">
-            <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
-            <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
-            <button type="button" onClick={handleClearAllClick} aria-label="پاک کردن همه دارایی‌ها" className="grid place-items-center text-[#d95050] bg-[#fdecec] rounded-[10px] p-2 cursor-pointer hover:bg-[#fbe0e0] transition-colors"><TrashIcon/></button>
-            <button type="button" onClick={() => setIsAddOpen(true)} aria-label="افزودن دارایی جدید" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><PlusIcon/></button>
-          </div>
-        </div>
+        <Toolbar onImportFile={handleImportFile} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
-    {isAddOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={() => setIsAddOpen(false)}>
-      <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="add-asset-title" onClick={e => e.stopPropagation()}>
-        <button type="button" onClick={() => setIsAddOpen(false)} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
-        <h2 id="add-asset-title" className="text-[15px] font-bold mb-4">افزودن دارایی جدید</h2>
-        <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
-          <label className="text-[11px] text-[#7a8097] grid gap-1">نام
-            <input type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="مثلاً سکه بهار آزادی" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-          </label>
-          <label className="text-[11px] text-[#7a8097] grid gap-1">دسته/آیکن
-            <select value={formIcon} onChange={e => setFormIcon(e.target.value as Asset['icon'])} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d] bg-white">
-              {iconOptions.map(key => <option key={key} value={key}>{iconLabel[key]}</option>)}
-            </select>
-          </label>
-          <label className="text-[11px] text-[#7a8097] grid gap-1">مقدار
-            <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-          </label>
-          <label className="text-[11px] text-[#7a8097] grid gap-1">واحد
-            <input type="text" value={formUnit} onChange={e => setFormUnit(e.target.value)} placeholder="گرم/واحد/تومان/USDT/BTC/ETH" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-          </label>
-          <label className="text-[11px] text-[#7a8097] grid gap-1 min-[560px]:col-span-2">قیمت واحد به تومان
-            <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-          </label>
-          {formError && <p className="text-[11px] text-[#d95050] min-[560px]:col-span-2">{formError}</p>}
-          <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2">افزودن دارایی</button>
-        </form>
-      </section>
-    </div>}
+    {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
   </div>;
 }
