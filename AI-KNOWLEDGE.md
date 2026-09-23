@@ -60,19 +60,24 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. |
-| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`App.tsx` — no icon markup duplicated elsewhere. |
+| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e) and `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
-| `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the placeholder menu item list (مشخصات/تنظیمات/درباره Oracle/راهنما/خروج). Takes `onClose` prop; owns its own open/close slide-in animation state and the `Escape`-key listener. |
+| `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات now opens the profile view (`onOpenProfile` prop, see §6f); تنظیمات/درباره Oracle/راهنما/خروج remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
+| `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
+| `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
+| `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
+| `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
+| `src/services/localProfileService.ts` | The `localProfileService: ProfileService` implementation, backed by `src/profileStorage.ts`'s `loadProfile`/`saveProfile`. |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
@@ -166,6 +171,7 @@ type Asset = {
      `تومان`, ویرایش/حذف) — or the empty-state `<p>` when `items` is empty.
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
+  6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
 
 ## 6a. Excel import (fixed template only)
 
@@ -307,16 +313,60 @@ type Asset = {
   close it. A `useEffect` inside `SideDrawer` adds/removes a `keydown` listener that
   closes (`onClose`) on `Escape`, same as `AddAssetModal`. A top-corner "×"
   `CloseIcon` button (same style as the modal's) also closes it.
-- Menu items are a small hardcoded array (icon + label) rendered as a vertical
-  list: `مشخصات` (`UserIcon`), `تنظیمات` (`SettingsIcon`), `درباره Oracle`
-  (`InfoIcon`), `راهنما` (`HelpIcon`) — then, visually separated by a top border
-  divider and in red/danger text (`text-[#d95050]`, matching the app's existing
-  danger-tone convention, see `IconButton`'s `tone="danger"`), `خروج` (`LogoutIcon`).
-  **These are placeholders only** — there is no backend/auth in this app yet, so
-  clicking any item (including خروج) just calls `onClose()` and does nothing else;
-  a code comment above the `menuItems` array in `SideDrawer.tsx` notes this. Do NOT
-  wire up real profile/settings/about/help/logout behavior without an explicit
-  owner request.
+- Menu items: `مشخصات` (`UserIcon`) is wired to `onOpenProfile` (opens the profile
+  modal, see §6f, and closes the drawer first). The rest are a small hardcoded
+  array (icon + label) rendered as a vertical list below it: `تنظیمات`
+  (`SettingsIcon`), `درباره Oracle` (`InfoIcon`), `راهنما` (`HelpIcon`) — then,
+  visually separated by a top border divider and in red/danger text
+  (`text-[#d95050]`, matching the app's existing danger-tone convention, see
+  `IconButton`'s `tone="danger"`), `خروج` (`LogoutIcon`). **These remaining four are
+  still placeholders only** — there is no backend/auth in this app yet, so clicking
+  any of them (including خروج) just calls `onClose()` and does nothing else; a code
+  comment above the `menuItems` array in `SideDrawer.tsx` notes this. Do NOT wire up
+  real settings/about/help/logout behavior without an explicit owner request.
+
+## 6f. Profile view (مشخصات)
+
+- Opened from the side drawer's مشخصات item (see §6e), via `App.tsx`'s
+  `isProfileOpen` (`useState`); the drawer closes first (`onOpenProfile` sets
+  `isMenuOpen` to `false` and `isProfileOpen` to `true` in one go), then
+  `ProfileModal` (`src/components/ProfileModal.tsx`) renders as a sibling after
+  `<main>`, taking only an `onClose` prop.
+- Reuses the exact same overlay pattern as `AddAssetModal` (see §6c): a `fixed
+  inset-0` semi-transparent black backdrop (`bg-black/50`) that closes on click,
+  a centered white card (same rounded/border/shadow tokens, see §7) with a
+  top-corner "×" `CloseIcon` button, `stopPropagation` on the card itself, and a
+  `useEffect`-based `Escape`-key listener — no new overlay pattern invented.
+- On mount, `ProfileModal` calls `profileService.getProfile()` (see §6d/§4 for the
+  service-layer pattern — same shape as `assetService`) and pre-fills its local
+  form state (`fullName`/`phone`/`email`/`avatarDataUrl`) from the result;
+  `getProfile()` resolves `emptyProfile` (all empty strings, `avatarDataUrl: null`)
+  when nothing has been saved yet.
+- Avatar: a circular `w-20 h-20` preview at the top — the stored `avatarDataUrl`
+  `<img>` if set, else `UserAvatarPlaceholderIcon` (see §4). A "تغییر عکس" button
+  below it triggers a visually hidden `<input type="file" accept="image/*">` (same
+  hidden-input-plus-ref-click pattern as the Excel import in `Toolbar`, see §6a).
+  The chosen file is read via `FileReader.readAsDataURL` and the resulting base64
+  data URL is set directly into local state, so the new image previews immediately
+  — no crop/resize step.
+- Below the avatar: three labeled text inputs, same input styling as
+  `AddAssetModal`'s fields (see §6c) — نام و نام خانوادگی (`type="text"`), شماره
+  تماس (`type="tel"`), ایمیل (`type="email"`). No validation beyond the browser's
+  native `type` hints — this is a personal single-user app, saving is never
+  blocked on empty or malformed fields.
+- "ذخیره" button calls `profileService.saveProfile({ fullName, phone, email,
+  avatarDataUrl })`, shows `toast.success('مشخصات ذخیره شد')` (same `sonner`
+  convention as the rest of the app, see §3/§7), then closes the modal.
+- **Storage caveat**: the avatar is stored as a base64 data URL string inside the
+  same `localStorage` JSON blob as the rest of the profile (key
+  `oracle_profile_v1`) — a large source image can meaningfully bloat that blob
+  (data URLs run ~33% larger than the raw file, and `localStorage` typically caps
+  out around 5–10MB per origin). This is accepted for now (no resize/compression
+  step) and is not a concern to fix in this task; revisit only if the owner
+  reports a `localStorage` quota error in practice.
+- `src/services/profileService.ts`/`localProfileService.ts` follow the exact same
+  singleton-swap pattern as `assetService`/`localAssetService` (see §6d) — swapping
+  to a server backend later only means replacing the `profileService` export.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -405,6 +455,7 @@ port 80; use HTTPS before entering real financial data.
 | 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
 | 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
+| 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 
 ## 12. Agent playbook (how to progress this app)
