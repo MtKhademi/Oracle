@@ -6,6 +6,8 @@ import { assetService } from './src/services/assetService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
+import { HamburgerIcon } from './src/components/icons';
+import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
 import { Toolbar } from './src/components/Toolbar';
 
@@ -45,6 +47,7 @@ export default function App() {
   const [items, setItems] = useState<Asset[]>(assets);
   const [isSample, setIsSample] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     assetService.listAssets().then(stored => {
@@ -122,7 +125,7 @@ export default function App() {
 
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
-      <a className="flex items-center gap-3 text-[22px] font-bold no-underline max-[481px]:text-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[5px] focus-visible:rounded-[10px]" href="./" aria-label="Oracle، صفحه اصلی"><span className="h-[46px] w-[46px] border border-[#ffffff40] bg-[#ffffff15] rounded-[15px] grid place-items-center max-[481px]:h-[41px] max-[481px]:w-[41px]"><svg className="w-[30px] h-[30px] block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8 15v-3m4 3V8m4 7v-5"/></svg></span><span>Oracle<span className="block text-[11px] font-normal text-[#e0e4ff] mt-[1px]">سرمایه‌های من</span></span></a>
+      <span className="flex items-center gap-3 text-[22px] font-bold max-[481px]:text-[20px]"><button type="button" onClick={() => setIsMenuOpen(true)} aria-label="باز کردن منو" className="h-[46px] w-[46px] border border-[#ffffff40] bg-[#ffffff15] rounded-[15px] grid place-items-center max-[481px]:h-[41px] max-[481px]:w-[41px] cursor-pointer text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[2px]"><HamburgerIcon/></button><a className="no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[5px] focus-visible:rounded-[10px]" href="./" aria-label="Oracle، صفحه اصلی">Oracle<span className="block text-[11px] font-normal text-[#e0e4ff] mt-[1px]">سرمایه‌های من</span></a></span>
       <span className="text-[12px] text-[#e0e4ff] max-[481px]:text-[10px] max-[351px]:hidden">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
@@ -135,5 +138,6 @@ export default function App() {
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
+    {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)}/>}
   </div>;
 }
