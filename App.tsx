@@ -68,6 +68,15 @@ function UploadIcon() {
   </svg>;
 }
 
+function TrashIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 7h16"/>
+    <path d="M9 7V4h6v3"/>
+    <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/>
+    <path d="M10 11v6M14 11v6"/>
+  </svg>;
+}
+
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
 function AssetIcon({ type }: { type: string }) {
@@ -171,6 +180,19 @@ export default function App() {
     setIsSample(false);
   };
 
+  const clearAllAssets = () => {
+    setItems([]);
+    setIsSample(false);
+    toast.success('همه دارایی‌ها پاک شد');
+  };
+
+  const handleClearAllClick = () => {
+    toast('همه دارایی‌ها پاک شوند؟', {
+      action: { label: 'بله، پاک کن', onClick: clearAllAssets },
+      cancel: { label: 'انصراف', onClick: () => {} },
+    });
+  };
+
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -218,11 +240,14 @@ export default function App() {
       </section>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <div className="flex justify-between items-center px-1 mb-[10px]">
-          <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
-          <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
+          <div className="flex gap-[8px]">
+            <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
+            <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
+            <button type="button" onClick={handleClearAllClick} aria-label="پاک کردن همه دارایی‌ها" className="grid place-items-center text-[#d95050] bg-[#fdecec] rounded-[10px] p-2 cursor-pointer hover:bg-[#fbe0e0] transition-colors"><TrashIcon/></button>
+          </div>
         </div>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
-        <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>
+        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>}
       </section>
       <section className="mt-[20px] bg-white border border-[#eef0f7] rounded-[20px] p-5 max-[481px]:rounded-[16px] max-[481px]:p-4 min-[1050px]:col-span-full" aria-labelledby="add-asset-title">
         <h2 id="add-asset-title" className="text-[15px] font-bold mb-4">افزودن دارایی جدید</h2>
