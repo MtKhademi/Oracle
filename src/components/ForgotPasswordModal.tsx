@@ -52,18 +52,18 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
 
       {step === 'request' ? <form onSubmit={handleRequestSubmit} className="grid gap-[10px]">
         <label className={labelClass}>ایمیل یا شماره موبایل
-          <input type="text" value={identifier} onChange={e => setIdentifier(e.target.value)} className={inputClass} required />
+          <input type="text" name="identifier" id="forgot-identifier" autoComplete="username" value={identifier} onChange={e => setIdentifier(e.target.value)} className={inputClass} required />
         </label>
         <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer">ارسال کد بازیابی</button>
       </form> : <form onSubmit={handleResetSubmit} className="grid gap-[10px]">
         <label className={labelClass}>کد بازیابی
-          <input type="text" inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} className={inputClass} required />
+          <input type="text" inputMode="numeric" name="code" id="forgot-code" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>رمز عبور جدید
-          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required />
+          <input type="password" name="newPassword" id="forgot-new-password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>تکرار رمز عبور جدید
-          <input type="password" value={newPasswordRepeat} onChange={e => setNewPasswordRepeat(e.target.value)} className={inputClass} required />
+          <input type="password" name="newPasswordRepeat" id="forgot-new-password-repeat" autoComplete="new-password" value={newPasswordRepeat} onChange={e => setNewPasswordRepeat(e.target.value)} className={inputClass} required />
         </label>
         <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer">تغییر رمز عبور</button>
       </form>}
