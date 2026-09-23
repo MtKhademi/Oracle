@@ -59,7 +59,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow`/`UploadIcon`/`TrashIcon` components, `parseImportRows()` (fixed-template Excel parser, see §6a), and the default `App` (header + summary + portfolio incl. import/clear-all toolbar + add-asset form + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
+| `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow`/`UploadIcon`/`TrashIcon`/`PlusIcon`/`CloseIcon` components, `parseImportRows()` (fixed-template Excel parser, see §6a), and the default `App` (header + summary + portfolio incl. import/clear-all/add-asset toolbar + add-asset modal, see §6c + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
@@ -123,11 +123,11 @@ type Asset = {
   1. `<header>` → brand link (icon + `Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
   2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
   3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → toolbar (Excel-import
-     button, see §6a, plus a clear-all button, see §6b) above the heading row, then
-     `<ul>` of `AssetRow` items (icon, name + quantity/unit, value + `تومان`,
-     ویرایش/حذف) — or the empty-state `<p>` when `items` is empty.
-  4. Add-asset `<section>` (`aria-labelledby="add-asset-title"`) → inline form (name, icon/category select incl. `other`, quantity, unit, unit price) that validates and appends a new `Asset` with `crypto.randomUUID()`.
-  5. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
+     button, see §6a; clear-all button, see §6b; add-asset button, see §6c) above the
+     heading row, then `<ul>` of `AssetRow` items (icon, name + quantity/unit, value +
+     `تومان`, ویرایش/حذف) — or the empty-state `<p>` when `items` is empty.
+  4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
+  5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
 
 ## 6a. Excel import (fixed template only)
 
@@ -175,6 +175,25 @@ type Asset = {
   persists an explicit empty array to `localStorage`, then shows
   `toast.success('همه دارایی‌ها پاک شد')`. See §6 for the `null` vs `[]` distinction
   this relies on.
+
+## 6c. Add-asset modal
+
+- A third toolbar button (violet `PlusIcon`, same size/style as `UploadIcon`) sits
+  after the clear-all button, `aria-label="افزودن دارایی جدید"`, toggles `isAddOpen`
+  (`useState`) to `true`.
+- The form itself (name, icon/category select incl. `other`, quantity, unit, unit
+  price) and `handleAddSubmit` are unchanged from the original inline version — only
+  relocated. On successful submit, `handleAddSubmit` also sets `isAddOpen` back to
+  `false` (in addition to resetting the form fields, as before) so the modal closes
+  and reopens empty next time.
+- Modal markup (rendered only when `isAddOpen`, as a sibling after `<main>`, not
+  nested inside it): a `fixed inset-0` semi-transparent black backdrop
+  (`bg-black/50`) that closes on click, containing a centered white card (same
+  rounded/border/shadow tokens as other cards — see §7) with a top-corner "×"
+  `CloseIcon` button. Clicking inside the card (`stopPropagation`) does not close it.
+  A `useEffect` keyed on `isAddOpen` adds/removes a `keydown` listener that closes on
+  `Escape` while open.
+- Built with plain React state — no modal/dialog component library.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -246,6 +265,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Owner-requested: added Excel bulk import for assets, locked to one fixed template (5 columns, 7 fixed Persian category labels — see §6a). Added `xlsx` (SheetJS) as a dependency; parsing is 100% client-side (no backend/network). Imported rows are appended to the same `items` state as manual add/edit/delete, so they persist via the existing `localStorage` path. Explicitly not a general-purpose importer — no column auto-detection or other file formats. |
 | 2026-09-23 | Color-coded toasts: enabled `sonner`'s `richColors` on `<Toaster/>` (green/success, yellow/warning, red/error, blue/info). Excel import now uses `toast.warning` for partial imports (some rows skipped) instead of `toast.success`, and `toast.error` when zero rows are importable; full success and format/type errors unchanged. No `toast.info` calls added yet. |
 | 2026-09-23 | Owner-requested: added a "clear all assets" toolbar button (see §6b), confirmed via a `sonner` toast's own action/cancel buttons (not `confirm()`, not a modal). Clearing sets `items` to an explicit `[]`, which persists via the existing `saveAssets()` path and must stay distinct from the `null`/"never touched" sample state. Added an empty-state message reusing the sample-disclaimer text style when the list has zero assets. |
+| 2026-09-23 | Owner-requested: moved the "add asset" form out of its always-visible inline position into a modal (see §6c), opened via a new third toolbar button (`PlusIcon`). Form fields/validation/submit logic unchanged — only relocated; submit now also closes the modal. Modal is hand-built with plain `useState`/Tailwind (backdrop click, "×" button, Escape key) — no dialog/modal library added. |
 
 ## 12. Agent playbook (how to progress this app)
 

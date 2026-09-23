@@ -77,6 +77,18 @@ function TrashIcon() {
   </svg>;
 }
 
+function PlusIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14"/>
+  </svg>;
+}
+
+function CloseIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18"/>
+  </svg>;
+}
+
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
 function AssetIcon({ type }: { type: string }) {
@@ -148,6 +160,14 @@ export default function App() {
   const [formUnitPrice, setFormUnitPrice] = useState('');
   const [formIcon, setFormIcon] = useState<Asset['icon']>('gold');
   const [formError, setFormError] = useState<string | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAddOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsAddOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isAddOpen]);
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
 
@@ -168,6 +188,7 @@ export default function App() {
     setFormUnitPrice('');
     setFormIcon('gold');
     setFormError(null);
+    setIsAddOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -244,12 +265,17 @@ export default function App() {
             <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
             <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
             <button type="button" onClick={handleClearAllClick} aria-label="پاک کردن همه دارایی‌ها" className="grid place-items-center text-[#d95050] bg-[#fdecec] rounded-[10px] p-2 cursor-pointer hover:bg-[#fbe0e0] transition-colors"><TrashIcon/></button>
+            <button type="button" onClick={() => setIsAddOpen(true)} aria-label="افزودن دارایی جدید" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><PlusIcon/></button>
           </div>
         </div>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>}
       </section>
-      <section className="mt-[20px] bg-white border border-[#eef0f7] rounded-[20px] p-5 max-[481px]:rounded-[16px] max-[481px]:p-4 min-[1050px]:col-span-full" aria-labelledby="add-asset-title">
+      {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
+    </main>
+    {isAddOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={() => setIsAddOpen(false)}>
+      <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="add-asset-title" onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={() => setIsAddOpen(false)} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
         <h2 id="add-asset-title" className="text-[15px] font-bold mb-4">افزودن دارایی جدید</h2>
         <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
           <label className="text-[11px] text-[#7a8097] grid gap-1">نام
@@ -273,7 +299,6 @@ export default function App() {
           <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2">افزودن دارایی</button>
         </form>
       </section>
-      {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
-    </main>
+    </div>}
   </div>;
 }
