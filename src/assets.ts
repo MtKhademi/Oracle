@@ -1,4 +1,4 @@
-export type Asset = { id: string; name: string; quantity: number; unit: string; unitPrice: number; icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth' };
+export type Asset = { id: string; name: string; quantity: number; unit: string; unitPrice: number; icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth' | 'other' };
 
 // Illustrative data only, not the user's actual portfolio or current market prices.
 // All unit prices are in toman. Cash has unitPrice = 1.
