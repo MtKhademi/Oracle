@@ -47,6 +47,7 @@ import (by explicit owner constraint).
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`) | ^4.3.3 |
 | Font | @fontsource/vazirmatn | ^5.2.0 |
 | Excel parsing | `xlsx` (SheetJS), client-side only | ^0.18.5 |
+| Password hashing | `js-sha256` (pure JS SHA-256, no Web Crypto API) | ^1.0.0 |
 | Toast/notification | `sonner` (`<Toaster richColors/>` mounted once in `src/main.tsx`) | ^2.0.8 |
 | Runtime | Node.js | 22.13+ |
 
@@ -83,7 +84,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/types.ts` (additions) | `User` type (`id`/`fullName`/`email`/`phone`/`passwordHash`) — see §6g. |
 | `src/authStorage.ts` | `loadUsers()`/`saveUsers()` (localStorage key `oracle_users_v1`, an array of `StoredUser` — `User` plus an internal, optional `resetCode`/`resetCodeExpiresAt` pair never exposed outside this file) and `loadSessionUserId()`/`saveSessionUserId()`/`clearSession()` (localStorage key `oracle_session_v1`, holding just the logged-in user's `id`). Same try/catch pattern as `src/storage.ts`/`src/profileStorage.ts`. Only called from `src/services/localAuthService.ts`. |
 | `src/services/authService.ts` | Defines the `AuthService` interface (`signUp`/`logIn`/`logOut`/`getCurrentUser`/`requestPasswordReset`/`resetPassword`, all `Promise`-returning, see §6g) and exports the single `authService` instance — currently `= localAuthService`. Same singleton-swap pattern as `assetService`/`profileService` (see §6d). |
-| `src/services/localAuthService.ts` | The `localAuthService: AuthService` implementation, backed by `src/authStorage.ts`. Hashes passwords with `crypto.subtle.digest('SHA-256', ...)` before ever storing them — plaintext passwords are never written to `localStorage`. `requestPasswordReset` generates a random 6-digit code with a 10-minute expiry stored alongside the user record; a code comment marks exactly where a real email/SMS provider call would replace the simulation (see §6g). |
+| `src/services/localAuthService.ts` | The `localAuthService: AuthService` implementation, backed by `src/authStorage.ts`. Hashes passwords with `js-sha256`'s `sha256(...)` before ever storing them — plaintext passwords are never written to `localStorage` (see §6g for why this is not `crypto.subtle`). User IDs are generated with a manual UUID v4 built from `crypto.getRandomValues()` (not `crypto.randomUUID()`, same reason). `requestPasswordReset` generates a random 6-digit code with a 10-minute expiry stored alongside the user record; a code comment marks exactly where a real email/SMS provider call would replace the simulation (see §6g). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
@@ -427,9 +428,23 @@ type Asset = {
     under `oracle_users_v1`, and the current session's user `id` under a separate
     key `oracle_session_v1` (see §4). `getCurrentUser()` looks the id up in the
     users list.
-  - Passwords are **never stored in plaintext** — hashed with
-    `crypto.subtle.digest('SHA-256', ...)` (Web Crypto, no extra dependency)
-    before being written anywhere, both at signup and at reset.
+  - Passwords are **never stored in plaintext** — hashed with `js-sha256`'s
+    `sha256(...)` before being written anywhere, both at signup and at reset.
+    **Not** `crypto.subtle.digest(...)` (Web Crypto): `SubtleCrypto` (and also
+    `crypto.randomUUID()`, used for the user `id`) are `[SecureContext]`-only
+    per spec — `undefined`/throwing in a browser unless the page is served
+    over HTTPS or from `localhost`. The app is currently deployed over plain
+    HTTP on a bare IP (see §8) with no secure context, so both would crash
+    `signUp`/`logIn` immediately. `js-sha256` is a pure-JS, dependency-free
+    SHA-256 implementation with no such restriction; the user `id` is built
+    manually as a UUID v4 from `crypto.getRandomValues()` instead (which has
+    no secure-context restriction). Revisit once HTTPS is set up, though
+    there's no need to switch back — both work identically either way.
+  - `signUp` also ignores/drops any stored user record with a missing or
+    empty `passwordHash` when checking for an existing email/phone (see
+    `hasValidPasswordHash` in `localAuthService.ts`) — such a record could
+    only exist from a previous crashed signup attempt and can never log in,
+    so it must not permanently block a fresh signup with the same identifier.
   - `logIn` matches `identifier` against either `email` (case-insensitive) or
     `phone` (exact) across all stored users, then compares the SHA-256 hash of
     the submitted password. On any mismatch (unknown identifier OR wrong
@@ -554,6 +569,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
+| 2026-09-23 | Bugfix: `crypto.subtle.digest(...)` and `crypto.randomUUID()` are both `[SecureContext]`-only per the Web Crypto spec (HTTPS or `localhost` required) — both were `undefined`/throwing on the current plain-HTTP-on-bare-IP deployment (see §8), crashing `signUp` before any account was ever created (so login afterward always failed with "user not found"). Replaced password hashing with `js-sha256` (pure JS, no secure-context requirement, same SHA-256 output — no forced re-hash of any password that had been hashed pre-bug) and the user `id` generator with a manual UUID v4 built from `crypto.getRandomValues()` (also unaffected by secure-context). Also made `signUp` ignore any stored user record with a missing/empty `passwordHash` (only possible from a signup that crashed before completing) so it can't block a fresh signup with the same email/phone. No HTTPS/certbot setup as part of this — that needs a domain, which doesn't exist yet. |
 | 2026-09-23 | Owner-requested: built login, signup, and forgot-password (see §6g), gating the whole dashboard behind being logged in. Added `User` type, `src/authStorage.ts` (localStorage keys `oracle_users_v1`/`oracle_session_v1`), and `AuthService`/`localAuthService` (`src/services/`) — same singleton-swap pattern as `assetService`/`profileService` (see §6d). Passwords are SHA-256-hashed via Web Crypto before ever being stored, never plaintext. `AuthScreen` (login/signup tabs) and `ForgotPasswordModal` (two-step: request code, then code+new password) reuse the existing card/input/overlay styling — no new visual pattern invented. **Password-reset codes are simulated** (generated locally, shown directly to the user via a toast) because no real email/SMS provider is connected yet; `localAuthService.ts` marks exactly where that integration would replace the simulation. خروج (logout) in the side drawer now actually calls `authService.logOut()`; تنظیمات/درباره Oracle/راهنما remain placeholders. |
 
 ## 12. Agent playbook (how to progress this app)
