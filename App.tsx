@@ -13,7 +13,7 @@ export default function App() {
   const total = assets.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
   return <div className="app">
     <header className="header"><div className="header-inner">
-      <a className="brand" href="./" aria-label="دارایی، صفحه اصلی"><span className="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8 15v-3m4 3V8m4 7v-5"/></svg></span><span>دارایی<span className="brand-caption">سرمایه‌های من</span></span></a>
+      <a className="brand" href="./" aria-label="Oracle، صفحه اصلی"><span className="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8 15v-3m4 3V8m4 7v-5"/></svg></span><span>Oracle<span className="brand-caption">سرمایه‌های من</span></span></a>
       <span className="header-note">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main>

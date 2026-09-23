@@ -1,4 +1,4 @@
-# Darayi development
+# Oracle development
 
 - Plain React + TypeScript + Vite web app. Persian RTL; responsive mobile and desktop.
 - Work in one agent. Read README.md and src/assets.ts before changing behavior.
