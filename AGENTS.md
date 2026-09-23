@@ -1,11 +1,9 @@
 # Darayi development
 
-- Persian mobile-first native Expo app. Keep UI RTL, bundled Persian fonts, amounts in toman.
-- Work in one agent. Keep the first version simple and entirely local; no backend, auth or market API.
-- Read README.md and src/domain.ts before changing behavior.
-- Never commit personal spreadsheets, account data or credentials.
-- Demo data is illustrative and must never be persisted as the user's holdings automatically.
-- Imports are explicit-preview upserts by stable ID; reject the whole input on validation errors.
-- Persist before showing success. Do not replace unreadable storage with an empty portfolio.
-- Keep blank cost basis distinct from zero; profit must not include unknown purchase costs.
-- Update README.md when scope or import format changes. Run typecheck, domain tests and an export before delivery.
+- Plain React + TypeScript + Vite web app. Persian RTL; responsive mobile and desktop.
+- Work in one agent. Read README.md and src/assets.ts before changing behavior.
+- User explicitly wants ONLY a toman total and one row per asset. Do not add forms, charts, imports, navigation, backend, native app tooling or other features unless asked.
+- Use light grey, white cards and blue/violet accents matching the supplied references.
+- Static sample values must be clearly identified as samples, never as real holdings or live prices.
+- Never commit private financial data or credentials.
+- Update README.md when behavior changes. Run npm run build before delivery.
