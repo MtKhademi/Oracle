@@ -7,6 +7,7 @@ import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
 import { HamburgerIcon } from './src/components/icons';
+import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
 import { Toolbar } from './src/components/Toolbar';
@@ -48,6 +49,7 @@ export default function App() {
   const [isSample, setIsSample] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     assetService.listAssets().then(stored => {
@@ -138,6 +140,7 @@ export default function App() {
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
-    {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)}/>}
+    {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }}/>}
+    {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
   </div>;
 }
