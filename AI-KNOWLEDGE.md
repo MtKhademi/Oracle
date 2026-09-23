@@ -59,7 +59,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (initialized from `loadAssets()`, falling back to the static `assets` sample, persisted via `saveAssets()` on every change), `isSample`/`isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers. Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. |
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`. All `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`. Used by `Toolbar`/`AssetRow`/`AddAssetModal` via `IconButton` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
@@ -68,8 +68,10 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
-| `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
-| `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
+| `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
+| `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
+| `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
+| `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
@@ -132,14 +134,16 @@ type Asset = {
 - `AddAssetModal` (in `src/components/AddAssetModal.tsx`) — the add-asset modal +
   form; takes `onClose`/`onAdd` props and owns its own form state, validation, and the
   `Escape`-key listener (see §6c for the comma-formatting logic inside it).
-- App-level state: `items` (`Asset[]`, initialized from `loadAssets() ?? assets`,
-  persisted to `localStorage` via `useEffect` on every change) and `isSample`
-  (`boolean`, `true` only if `loadAssets()` returned `null` on first render; flips to
-  `false` permanently once the owner adds, edits, deletes, imports, or clears
-  anything). `loadAssets()` returning `null` (key never written) vs. `[]` (owner
-  explicitly cleared everything) are distinct states — only `null` counts as
-  "untouched sample"; an explicitly saved empty array must never fall back to the
-  `assets` sample again.
+- App-level state: `items` (`Asset[]`, starts as the static `assets` sample; a
+  mount-time `useEffect` calls `assetService.listAssets()` and, if it resolves to
+  non-`null`, replaces `items` with the stored list) and `isSample` (`boolean`,
+  starts `true`, set to `false` either by that mount-time load finding stored data or
+  permanently once the owner adds, edits, deletes, imports, or clears anything —
+  each of those handlers is `async`, awaits the `assetService` call, and sets the
+  returned list into state; see §6d). `assetService.listAssets()` resolving `null`
+  (key never written) vs. `[]` (owner explicitly cleared everything) are distinct
+  states — only `null` counts as "untouched sample"; an explicitly saved empty array
+  must never fall back to the `assets` sample again.
 - When `items` is empty, the portfolio `<ul>` is replaced by a single centered `<p>`
   ("هنوز دارایی‌ای ثبت نشده") reusing the same muted text styles as the sample
   disclaimer paragraph. Total/count naturally show ۰ تومان / ۰ دارایی since both are
@@ -198,11 +202,11 @@ type Asset = {
   `sonner` toast's own `action`/`cancel` buttons: `toast('همه دارایی‌ها پاک
   شوند؟', { action: {...}, cancel: {...} })`. Only the `action` click actually
   clears; `cancel` (and dismissing) does nothing.
-- `clearAllAssets()` sets `items` to `[]` (via `setItems`), which flips `isSample`
-  to `false` and — via the existing `useEffect(() => saveAssets(items), [items])` —
-  persists an explicit empty array to `localStorage`, then shows
-  `toast.success('همه دارایی‌ها پاک شد')`. See §6 for the `null` vs `[]` distinction
-  this relies on.
+- `clearAllAssets()` is `async`: it calls `await assetService.clearAssets()`
+  (which persists an explicit empty array to `localStorage` and resolves `[]`),
+  sets `items` to that result and `isSample` to `false`, then shows
+  `toast.success('همه دارایی‌ها پاک شد')`. See §6/§6d for the `null` vs `[]`
+  distinction this relies on and the service layer generally.
 
 ## 6c. Add-asset modal
 
@@ -236,6 +240,46 @@ type Asset = {
   `Asset.quantity`/`unitPrice` are unaffected. This formatting is local to these two
   inputs only — the summary total, asset rows, etc. keep using
   `Intl.NumberFormat('fa-IR')` via `format()` as before.
+
+## 6d. Service layer (`src/services/`)
+
+- All data operations (list/add/update/delete/import/clear) go through a single
+  `AssetService` interface (`src/services/assetService.ts`) instead of `App.tsx`
+  calling `loadAssets`/`saveAssets` directly:
+  ```ts
+  export interface AssetService {
+    listAssets(): Promise<Asset[] | null>; // null = nothing stored yet (use default sample data)
+    addAsset(asset: Asset): Promise<Asset[]>;
+    updateAsset(id: string, changes: Partial<Asset>): Promise<Asset[]>;
+    deleteAsset(id: string): Promise<Asset[]>;
+    importAssets(assets: Asset[]): Promise<Asset[]>; // appends, like the Excel import
+    clearAssets(): Promise<Asset[]>; // returns []
+  }
+  ```
+  Every method returns a `Promise` (even though the local implementation is
+  synchronous under the hood) so calling code doesn't need to change shape when a
+  real network-backed implementation is swapped in later.
+- `src/services/localAssetService.ts` is the current (and only) implementation,
+  backed by the existing `src/storage.ts` `loadAssets`/`saveAssets` functions —
+  it does not duplicate the `localStorage`/try-catch logic, it just calls into
+  `storage.ts`. Each method reads the current list via `loadAssets()`, applies the
+  change, writes the result back via `saveAssets()`, and resolves with the new full
+  list.
+- `assetService.ts` exports a single instance, `export const assetService:
+  AssetService = localAssetService;` — this one line is the only place that will
+  need to change to point at a server-backed implementation later; no component or
+  `App.tsx` code needs to change.
+- `App.tsx` calls `assetService.listAssets()` once in a mount-time `useEffect`
+  (replacing the old synchronous `loadAssets() ?? assets` initializer) and every
+  handler (`handleAddAsset`, `handleDelete`, `handleEdit`, `clearAllAssets`,
+  `handleImportFile`) is now `async`, `await`s the matching `assetService.xxx(...)`
+  call, and sets the returned full list into `items` state. The local
+  implementation resolves instantly (no network involved yet), so no loading
+  spinners are needed for now — see §6/§6b for how `isSample` is derived from these
+  same calls.
+- `App.tsx`/components never call `loadAssets`/`saveAssets` (or touch
+  `localStorage`) directly anymore — the service layer is the only thing allowed to
+  touch storage.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -310,6 +354,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Owner-requested: moved the "add asset" form out of its always-visible inline position into a modal (see §6c), opened via a new third toolbar button (`PlusIcon`). Form fields/validation/submit logic unchanged — only relocated; submit now also closes the modal. Modal is hand-built with plain `useState`/Tailwind (backdrop click, "×" button, Escape key) — no dialog/modal library added. |
 | 2026-09-23 | Owner-requested: مقدار/قیمت واحد inputs in the add-asset form now show live comma thousands-separators as the owner types (see §6c). Switched those two inputs from `type="number"` to `type="text"`/`inputMode="numeric"`; underlying form state stays a plain comma-free digit string, only the displayed `value` is formatted — no input-masking library added, no change to `Intl.NumberFormat('fa-IR')` formatting used elsewhere (summary total, asset rows). |
 | 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
+| 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
 
 ## 12. Agent playbook (how to progress this app)
 
