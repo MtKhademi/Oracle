@@ -61,8 +61,9 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
 
 function UploadIcon() {
   return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 15V3m0 0-4 4m4-4 4 4"/>
-    <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
+    <path d="M12 3v10"/>
+    <path d="m8 9 4 4 4-4"/>
+    <path d="M5 19h14"/>
   </svg>;
 }
 
@@ -179,6 +180,10 @@ export default function App() {
     if (!file) return;
     setImportError(null);
     setImportMessage(null);
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      setImportError('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
+      return;
+    }
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -215,7 +220,7 @@ export default function App() {
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <div className="flex justify-between items-center px-1 mb-[10px]">
           <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
-          <button type="button" onClick={() => importInputRef.current?.click()} className="flex items-center gap-1.5 text-[11px] text-[#5264e8] bg-[#eef0ff] rounded-[10px] px-3 py-1.5 cursor-pointer hover:bg-[#e2e5ff] transition-colors">ایمپورت اکسل<UploadIcon/></button>
+          <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
           {(importError || importMessage) && <span className={`text-[11px] ${importError ? 'text-[#d95050]' : 'text-[#3daf99]'}`}>{importError ?? importMessage}</span>}
         </div>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
