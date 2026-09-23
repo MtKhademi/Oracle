@@ -59,7 +59,15 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow`/`UploadIcon`/`TrashIcon`/`PlusIcon`/`CloseIcon` components, `parseImportRows()` (fixed-template Excel parser, see §6a), and the default `App` (header + summary + portfolio incl. import/clear-all/add-asset toolbar + add-asset modal, see §6c + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (initialized from `loadAssets()`, falling back to the static `assets` sample, persisted via `saveAssets()` on every change), `isSample`/`isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers. Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. |
+| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`. All `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`. Used by `Toolbar`/`AssetRow`/`AddAssetModal` via `IconButton` — no icon markup duplicated elsewhere. |
+| `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
+| `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
+| `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
+| `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete` callback props. |
+| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
+| `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
+| `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
@@ -94,16 +102,36 @@ type Asset = {
 - The real, owner-entered list (post add/edit/delete) is held in React state in
   `App.tsx` and persisted to `localStorage` via `src/storage.ts` — see §6.
 
-## 6. UI architecture (`App.tsx`)
+## 6. UI architecture (`App.tsx` + `src/components/`)
 
-- `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')`. Quantity rendered with 8 decimals.
-- `AssetIcon({type})`:
+- The UI is split into small reusable components under `src/components/` (see §4);
+  `App.tsx` itself is a thin composition root holding state, storage wiring, and the
+  Excel-import parser only. Any element used more than once (icon buttons, SVG icons,
+  the modal) has exactly one implementation — no duplicated markup.
+- `format(value, decimals = 0)` (in `src/format.ts`) → `Intl.NumberFormat('fa-IR')`.
+  Quantity rendered with 8 decimals.
+- `AssetIcon({type})` (in `src/components/AssetIcon.tsx`):
   - `btc` → `₿`, `usdt` → `₮` (styled span, Arial)
   - otherwise inline SVG: `gold`, `cash`, `eth`, default = bar chart (also used for `other`).
-- `AssetRow` — one asset `<li>`: icon, name, quantity/unit (or, in edit mode, number
-  inputs for quantity + unit price with save/cancel), value, and ویرایش/حذف buttons.
+- `IconButton` (in `src/components/IconButton.tsx`) — the single small icon-button
+  component used everywhere: the toolbar's import/clear-all/add buttons (`variant="filled"`,
+  always-tinted background) and each asset row's edit/delete buttons
+  (`variant="ghost"`, tint only on hover). `tone="neutral"` = blue/violet tint,
+  `tone="danger"` = red tint. Takes `icon`/`onClick`/`ariaLabel` props.
+- `Toolbar` (in `src/components/Toolbar.tsx`) — renders the three `IconButton`s above
+  "دارایی‌های من" plus the hidden file `<input>` for Excel import; takes
+  `onImportFile`/`onClearAll`/`onAdd` callbacks from `App.tsx`.
+- `AssetRow` (in `src/components/AssetRow.tsx`) — one asset `<li>`: icon, name,
+  quantity/unit (or, in edit mode, number inputs for quantity + unit price with
+  save/cancel), value, and edit/delete `IconButton`s (`aria-label="ویرایش"`/`"حذف"`).
   Edit mode is local `useState` per row; only quantity and unit price are editable
   inline (no separate edit page/route). Delete calls the parent's `onDelete(id)`.
+- `SummaryCard` (in `src/components/SummaryCard.tsx`) — the summary card (cash
+  `AssetIcon`, sample badge, big total, footer with asset count); takes
+  `total`/`count`/`isSample` props.
+- `AddAssetModal` (in `src/components/AddAssetModal.tsx`) — the add-asset modal +
+  form; takes `onClose`/`onAdd` props and owns its own form state, validation, and the
+  `Escape`-key listener (see §6c for the comma-formatting logic inside it).
 - App-level state: `items` (`Asset[]`, initialized from `loadAssets() ?? assets`,
   persisted to `localStorage` via `useEffect` on every change) and `isSample`
   (`boolean`, `true` only if `loadAssets()` returned `null` on first render; flips to
@@ -131,11 +159,12 @@ type Asset = {
 
 ## 6a. Excel import (fixed template only)
 
-- Toolbar row above the "دارایی‌های من" heading in the portfolio `<section>`: a single
-  "ایمپورت اکسل" button (violet pill, `UploadIcon` — inline stroke-based upload SVG,
-  matches `AssetIcon` style) that triggers a visually hidden `<input type="file"
+- `Toolbar` (see §6, `src/components/Toolbar.tsx`), above the "دارایی‌های من" heading
+  in the portfolio `<section>`: a single "ایمپورت اکسل" `IconButton` (`tone="neutral"`,
+  `UploadIcon`) that triggers a visually hidden `<input type="file"
   accept=".xlsx,.xls">` via a `ref` + `.click()`. No drag-and-drop zone, no other
-  format support — a plain file picker only.
+  format support — a plain file picker only. The actual parsing/state-update handler
+  (`handleImportFile`) lives in `App.tsx` and is passed down as `onImportFile`.
 - Parsing (`XLSX.read`/`XLSX.utils.sheet_to_json(sheet, { header: 1 })` from the
   `xlsx` npm package, entirely client-side — no backend, no network request):
   1. First sheet only. Row 1 must exactly equal (trimmed) the 5 fixed headers, in
@@ -163,9 +192,8 @@ type Asset = {
 
 ## 6b. Clear all assets
 
-- A second toolbar button (red `TrashIcon`, stroke-based SVG, same size/style as
-  `UploadIcon`/`AssetIcon`) sits next to "ایمپورت اکسل", `aria-label="پاک کردن همه
-  دارایی‌ها"`.
+- A second `Toolbar` `IconButton` (`tone="danger"`, `TrashIcon`) sits next to
+  "ایمپورت اکسل", `aria-label="پاک کردن همه دارایی‌ها"`.
 - No native `confirm()` and no modal/dialog component — confirmation is the
   `sonner` toast's own `action`/`cancel` buttons: `toast('همه دارایی‌ها پاک
   شوند؟', { action: {...}, cancel: {...} })`. Only the `action` click actually
@@ -178,21 +206,22 @@ type Asset = {
 
 ## 6c. Add-asset modal
 
-- A third toolbar button (violet `PlusIcon`, same size/style as `UploadIcon`) sits
-  after the clear-all button, `aria-label="افزودن دارایی جدید"`, toggles `isAddOpen`
-  (`useState`) to `true`.
+- A third `Toolbar` `IconButton` (`tone="neutral"`, `PlusIcon`) sits after the
+  clear-all button, `aria-label="افزودن دارایی جدید"`, toggles `App.tsx`'s
+  `isAddOpen` (`useState`) to `true`; the modal itself is `AddAssetModal` (see §4,
+  §6, `src/components/AddAssetModal.tsx`), rendered only when `isAddOpen`, as a
+  sibling after `<main>`, not nested inside it — taking `onClose`/`onAdd` props.
 - The form itself (name, icon/category select incl. `other`, quantity, unit, unit
-  price) and `handleAddSubmit` are unchanged from the original inline version — only
-  relocated. On successful submit, `handleAddSubmit` also sets `isAddOpen` back to
-  `false` (in addition to resetting the form fields, as before) so the modal closes
-  and reopens empty next time.
-- Modal markup (rendered only when `isAddOpen`, as a sibling after `<main>`, not
-  nested inside it): a `fixed inset-0` semi-transparent black backdrop
-  (`bg-black/50`) that closes on click, containing a centered white card (same
+  price) and its submit handler live inside `AddAssetModal` (own local `useState`,
+  not lifted to `App.tsx`); on successful submit it calls the parent's `onAdd(asset)`
+  then resets its own form fields and calls `onClose()` so the modal closes and
+  reopens empty next time.
+- Modal markup: a `fixed inset-0` semi-transparent black backdrop (`bg-black/50`)
+  that closes on click (calls `onClose`), containing a centered white card (same
   rounded/border/shadow tokens as other cards — see §7) with a top-corner "×"
   `CloseIcon` button. Clicking inside the card (`stopPropagation`) does not close it.
-  A `useEffect` keyed on `isAddOpen` adds/removes a `keydown` listener that closes on
-  `Escape` while open.
+  A `useEffect` inside `AddAssetModal` adds/removes a `keydown` listener on mount that
+  closes (`onClose`) on `Escape` while the modal is open.
 - Built with plain React state — no modal/dialog component library.
 - The مقدار (quantity) and قیمت واحد به تومان (unit price) inputs are `type="text"`
   (with `inputMode="numeric"` for the mobile keypad) instead of `type="number"`, so
@@ -280,6 +309,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Owner-requested: added a "clear all assets" toolbar button (see §6b), confirmed via a `sonner` toast's own action/cancel buttons (not `confirm()`, not a modal). Clearing sets `items` to an explicit `[]`, which persists via the existing `saveAssets()` path and must stay distinct from the `null`/"never touched" sample state. Added an empty-state message reusing the sample-disclaimer text style when the list has zero assets. |
 | 2026-09-23 | Owner-requested: moved the "add asset" form out of its always-visible inline position into a modal (see §6c), opened via a new third toolbar button (`PlusIcon`). Form fields/validation/submit logic unchanged — only relocated; submit now also closes the modal. Modal is hand-built with plain `useState`/Tailwind (backdrop click, "×" button, Escape key) — no dialog/modal library added. |
 | 2026-09-23 | Owner-requested: مقدار/قیمت واحد inputs in the add-asset form now show live comma thousands-separators as the owner types (see §6c). Switched those two inputs from `type="number"` to `type="text"`/`inputMode="numeric"`; underlying form state stays a plain comma-free digit string, only the displayed `value` is formatted — no input-masking library added, no change to `Intl.NumberFormat('fa-IR')` formatting used elsewhere (summary total, asset rows). |
+| 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
 
 ## 12. Agent playbook (how to progress this app)
 
