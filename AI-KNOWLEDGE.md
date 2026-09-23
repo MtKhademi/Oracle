@@ -415,12 +415,15 @@ tag triggers `.github/workflows/deploy.yml`. The runner builds
 `oracle:<release-tag>` from the multi-stage `Dockerfile` (Node.js 22 build,
 Nginx runtime), pipes `docker save` over SSH to
 `oracle-deploy@45.82.137.126`, loads the image, and replaces the `oracle`
-container on port 80. Images remain versioned on the server; no registry is
-needed. The SSH host key is pinned. Required repository secrets are
+container with host port 8580 mapped to Nginx port 80. Images remain versioned
+on the server; no registry is needed. The SSH host key is pinned. Required
+repository secrets are
 `ORACLE_SSH_PRIVATE_KEY` and `ORACLE_SSH_HOST_KEY`; see `DEPLOYMENT.md` for
 Docker Engine, deployment-user, and SSH setup. Browser `localStorage` assets
 are not part of the image. With no domain/TLS yet, the host serves HTTP on
-port 80; use HTTPS before entering real financial data.
+port 8580; use HTTPS before entering real financial data. The port change
+creates a different browser origin; existing assets and profile data in
+`localStorage` at the old port do not appear automatically at the new port.
 
 ## 9. Naming & copy rules
 
@@ -457,6 +460,7 @@ port 80; use HTTPS before entering real financial data.
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
+| 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
 
 ## 12. Agent playbook (how to progress this app)
 
