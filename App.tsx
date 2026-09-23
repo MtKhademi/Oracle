@@ -89,6 +89,13 @@ function CloseIcon() {
   </svg>;
 }
 
+function PencilIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m16.5 3.5 4 4L7 21l-4.5 1L4 17.5Z"/>
+    <path d="m14.5 5.5 4 4"/>
+  </svg>;
+}
+
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
 function AssetIcon({ type }: { type: string }) {
@@ -140,8 +147,8 @@ function AssetRow({ asset, onDelete, onEdit }: { asset: Asset; onDelete: (id: st
           <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>
           <button type="button" onClick={() => setIsEditing(false)} className="text-[10px] text-[#9096aa] border border-[#eef0f7] rounded-[8px] px-2 py-1">انصراف</button>
         </> : <>
-          <button type="button" onClick={startEdit} className="text-[10px] text-[#77809c] cursor-pointer px-2 rounded-md hover:bg-[#eef0ff] transition-colors" aria-label={`ویرایش ${asset.name}`}>ویرایش</button>
-          <button type="button" onClick={() => onDelete(asset.id)} className="text-[10px] text-[#d95050] cursor-pointer px-2 rounded-md hover:bg-[#fdecec] transition-colors" aria-label={`حذف ${asset.name}`}>حذف</button>
+          <button type="button" onClick={startEdit} className="grid place-items-center text-[#77809c] cursor-pointer p-2 rounded-md hover:bg-[#eef0ff] transition-colors" aria-label="ویرایش"><PencilIcon/></button>
+          <button type="button" onClick={() => onDelete(asset.id)} className="grid place-items-center text-[#d95050] cursor-pointer p-2 rounded-md hover:bg-[#fdecec] transition-colors" aria-label="حذف"><TrashIcon/></button>
         </>}
       </div>
     </div>
