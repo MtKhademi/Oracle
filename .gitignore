@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.jks
+*.keystore
+.env*
+!.env.example
+*.xlsx
+*.xls
+*.csv
+*.log
+dist-*/
