@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
-import { loadAssets, saveAssets } from './src/storage';
+import { assetService } from './src/services/assetService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
@@ -42,31 +42,41 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
 }
 
 export default function App() {
-  const [items, setItems] = useState<Asset[]>(() => loadAssets() ?? assets);
-  const [isSample, setIsSample] = useState(() => loadAssets() === null);
+  const [items, setItems] = useState<Asset[]>(assets);
+  const [isSample, setIsSample] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  useEffect(() => { saveAssets(items); }, [items]);
+  useEffect(() => {
+    assetService.listAssets().then(stored => {
+      if (stored === null) return;
+      setItems(stored);
+      setIsSample(false);
+    });
+  }, []);
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
 
-  const handleAddAsset = (newAsset: Asset) => {
-    setItems(prev => [...prev, newAsset]);
+  const handleAddAsset = async (newAsset: Asset) => {
+    const next = await assetService.addAsset(newAsset);
+    setItems(next);
     setIsSample(false);
   };
 
-  const handleDelete = (id: string) => {
-    setItems(prev => prev.filter(asset => asset.id !== id));
+  const handleDelete = async (id: string) => {
+    const next = await assetService.deleteAsset(id);
+    setItems(next);
     setIsSample(false);
   };
 
-  const handleEdit = (id: string, quantity: number, unitPrice: number) => {
-    setItems(prev => prev.map(asset => asset.id === id ? { ...asset, quantity, unitPrice } : asset));
+  const handleEdit = async (id: string, quantity: number, unitPrice: number) => {
+    const next = await assetService.updateAsset(id, { quantity, unitPrice });
+    setItems(next);
     setIsSample(false);
   };
 
-  const clearAllAssets = () => {
-    setItems([]);
+  const clearAllAssets = async () => {
+    const next = await assetService.clearAssets();
+    setItems(next);
     setIsSample(false);
     toast.success('همه دارایی‌ها پاک شد');
   };
@@ -95,12 +105,13 @@ export default function App() {
       toast.error('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
       return;
     }
-    setItems(prev => [...prev, ...result.assets]);
-    if (result.assets.length > 0) setIsSample(false);
     if (result.assets.length === 0) {
       toast.error('هیچ ردیف معتبری برای وارد کردن پیدا نشد');
       return;
     }
+    const next = await assetService.importAssets(result.assets);
+    setItems(next);
+    setIsSample(false);
     const message = `${format(result.assets.length)} دارایی وارد شد`;
     if (result.skipped > 0) {
       toast.warning(`${message}، ${format(result.skipped)} ردیف نامعتبر رد شد`);
