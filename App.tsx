@@ -192,8 +192,16 @@ export default function App() {
     }
     setItems(prev => [...prev, ...result.assets]);
     if (result.assets.length > 0) setIsSample(false);
+    if (result.assets.length === 0) {
+      toast.error('هیچ ردیف معتبری برای وارد کردن پیدا نشد');
+      return;
+    }
     const message = `${format(result.assets.length)} دارایی وارد شد`;
-    toast.success(result.skipped > 0 ? `${message}، ${format(result.skipped)} ردیف نامعتبر رد شد` : message);
+    if (result.skipped > 0) {
+      toast.warning(`${message}، ${format(result.skipped)} ردیف نامعتبر رد شد`);
+    } else {
+      toast.success(message);
+    }
   };
 
   return <div>

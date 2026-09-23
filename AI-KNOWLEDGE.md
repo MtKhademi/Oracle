@@ -47,7 +47,7 @@ import (by explicit owner constraint).
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`) | ^4.3.3 |
 | Font | @fontsource/vazirmatn | ^5.2.0 |
 | Excel parsing | `xlsx` (SheetJS), client-side only | ^0.18.5 |
-| Toast/notification | `sonner` (`<Toaster/>` mounted once in `src/main.tsx`) | ^2.0.8 |
+| Toast/notification | `sonner` (`<Toaster richColors/>` mounted once in `src/main.tsx`) | ^2.0.8 |
 | Runtime | Node.js | 22.13+ |
 
 RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat('fa-IR')`
@@ -58,7 +58,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | File | Responsibility |
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
-| `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center"/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
+| `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow`/`UploadIcon` components, `parseImportRows()` (fixed-template Excel parser, see §6a), and the default `App` (header + summary + portfolio incl. import toolbar + add-asset form + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
@@ -144,10 +144,11 @@ type Asset = {
      `quantity`/`unitPrice` = cols 3/5 as numbers, `unit` = col 4) appended to the
      existing `items` state (never replaces it) — same state/persistence path as the
      manual add/edit/delete form, so `saveAssets()` fires automatically.
-- All three user-facing outcomes (wrong file extension, header mismatch, success —
-  incl. skipped-row count) are shown via `sonner` toasts (`toast.error`/
-  `toast.success`, see §3), not inline page text; the toast library handles its own
-  timing/dismissal.
+- All user-facing outcomes are shown via `sonner` toasts (see §3), not inline page
+  text; the toast library handles its own timing/dismissal. Wrong file extension and
+  header mismatch → `toast.error`. All rows valid → `toast.success`. Some rows
+  skipped as invalid (partial import) → `toast.warning`. Zero rows importable (all
+  invalid) → `toast.error`.
 - This is intentionally a single hardcoded template — do NOT add column
   auto-detection, alternate layouts, CSV, or other spreadsheet formats.
 
@@ -176,6 +177,10 @@ type Asset = {
   `width < 480`, which is off-by-one vs the original inclusive `max-width:480px`
   (`width <= 480`) — hence `481`/`351` are used to keep the exact same breakpoint.
 - Header height: 224px base, 220px (≥1050px), 198px (≤480px).
+- Toast colors (via `sonner`'s `richColors`, see §3/§4): `toast.success` = green,
+  `toast.warning` = yellow, `toast.error` = red, `toast.info` = blue (not yet used,
+  but supported). Follow this same success/warning/error/info mapping for any
+  future toast added to the app.
 
 ## 8. Build & run
 
@@ -215,6 +220,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Migrated styling from hand-written `src/styles.css` to Tailwind CSS v4 (`@tailwindcss/vite`, zero-config). Tooling-only change — no visual/layout change intended, except fixing the low-contrast `.section-heading` label (`#9198ad` → `#656e87`). |
 | 2026-09-23 | Owner-requested: added local persistence (`src/storage.ts`, `localStorage` key `oracle_assets_v1`) plus an in-page add/edit/delete form, so the owner can maintain their real asset list without ever writing real values into git. `src/assets.ts` is now only the default sample fallback. Added `icon: 'other'` category (reuses the default bar-chart icon, neutral grey tint) for assets outside the 6 built-in types. Sample badge/disclaimer now only show while the list is still the untouched default. |
 | 2026-09-23 | Owner-requested: added Excel bulk import for assets, locked to one fixed template (5 columns, 7 fixed Persian category labels — see §6a). Added `xlsx` (SheetJS) as a dependency; parsing is 100% client-side (no backend/network). Imported rows are appended to the same `items` state as manual add/edit/delete, so they persist via the existing `localStorage` path. Explicitly not a general-purpose importer — no column auto-detection or other file formats. |
+| 2026-09-23 | Color-coded toasts: enabled `sonner`'s `richColors` on `<Toaster/>` (green/success, yellow/warning, red/error, blue/info). Excel import now uses `toast.warning` for partial imports (some rows skipped) instead of `toast.success`, and `toast.error` when zero rows are importable; full success and format/type errors unchanged. No `toast.info` calls added yet. |
 
 ## 12. Agent playbook (how to progress this app)
 
