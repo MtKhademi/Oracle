@@ -60,13 +60,14 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). Renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. |
-| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`. All `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`. Used by `Toolbar`/`AssetRow`/`AddAssetModal` via `IconButton` — no icon markup duplicated elsewhere. |
+| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
+| `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the placeholder menu item list (مشخصات/تنظیمات/درباره Oracle/راهنما/خروج). Takes `onClose` prop; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
@@ -152,7 +153,7 @@ type Asset = {
   classes like `.header`/`.summary`/`.asset-row`; identify sections by their JSX/aria
   structure instead.
 - Layout (top → bottom):
-  1. `<header>` → brand link (icon + `Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
+  1. `<header>` → hamburger menu button (opens the side drawer, see §6e) + brand link (`Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
   2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
   3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → toolbar (Excel-import
      button, see §6a; clear-all button, see §6b; add-asset button, see §6c) above the
@@ -281,6 +282,37 @@ type Asset = {
   `localStorage`) directly anymore — the service layer is the only thing allowed to
   touch storage.
 
+## 6e. Header side-menu drawer
+
+- The header icon that used to sit next to the `Oracle` brand text (a bar-chart
+  glyph) is now a hamburger menu button (`HamburgerIcon`, in
+  `src/components/icons.tsx`, three horizontal lines, same box/size/stroke style as
+  the icon it replaced). Clicking it sets `App.tsx`'s `isMenuOpen` (`useState`) to
+  `true`, which renders `SideDrawer` (`src/components/SideDrawer.tsx`) as a sibling
+  after `<main>`, taking an `onClose` prop. The `Oracle` brand text next to it is
+  still a plain `<a href="./">` link — unchanged, unrelated to the drawer.
+- `SideDrawer` reuses the same overlay pattern as `AddAssetModal` (see §6c): a
+  `fixed inset-0` semi-transparent black backdrop (`bg-black/50`) that closes on
+  click. Instead of a centered card, the panel itself is an `<aside>` pinned
+  `absolute top-0 right-0`, full height, fixed width (`w-[280px]`, capped
+  `max-w-[80vw]` for narrow screens), sliding in from the right via a Tailwind
+  `translate-x` transition (`translate-x-full` → `translate-x-0` on a
+  `requestAnimationFrame`-delayed mount flag, so the transition actually animates
+  instead of snapping open). Clicking inside the panel (`stopPropagation`) does not
+  close it. A `useEffect` inside `SideDrawer` adds/removes a `keydown` listener that
+  closes (`onClose`) on `Escape`, same as `AddAssetModal`. A top-corner "×"
+  `CloseIcon` button (same style as the modal's) also closes it.
+- Menu items are a small hardcoded array (icon + label) rendered as a vertical
+  list: `مشخصات` (`UserIcon`), `تنظیمات` (`SettingsIcon`), `درباره Oracle`
+  (`InfoIcon`), `راهنما` (`HelpIcon`) — then, visually separated by a top border
+  divider and in red/danger text (`text-[#d95050]`, matching the app's existing
+  danger-tone convention, see `IconButton`'s `tone="danger"`), `خروج` (`LogoutIcon`).
+  **These are placeholders only** — there is no backend/auth in this app yet, so
+  clicking any item (including خروج) just calls `onClose()` and does nothing else;
+  a code comment above the `menuItems` array in `SideDrawer.tsx` notes this. Do NOT
+  wire up real profile/settings/about/help/logout behavior without an explicit
+  owner request.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -355,6 +387,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Owner-requested: مقدار/قیمت واحد inputs in the add-asset form now show live comma thousands-separators as the owner types (see §6c). Switched those two inputs from `type="number"` to `type="text"`/`inputMode="numeric"`; underlying form state stays a plain comma-free digit string, only the displayed `value` is formatted — no input-masking library added, no change to `Intl.NumberFormat('fa-IR')` formatting used elsewhere (summary total, asset rows). |
 | 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
 | 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
+| 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
 
 ## 12. Agent playbook (how to progress this app)
 
