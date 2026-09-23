@@ -78,6 +78,11 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
 | `AGENTS.md` | Short agent rules + governance + pointer to this file. |
 | `README.md` | Owner-facing Persian run/data notes. |
+| `Dockerfile` | Multi-stage image: Node.js 22 builds the app; Nginx serves only `dist/` on port 80. |
+| `.dockerignore` | Excludes local dependencies, build output, Git metadata, and environment files from Docker build context. |
+| `docker/nginx.conf` | Nginx static-site config with fallback to `index.html`. |
+| `.github/workflows/deploy.yml` | On `release-*` tag push: build a versioned Docker image, send it via SSH, load it on Ubuntu, restart and check the container. Uses two repository secrets for the private key and pinned SSH host key. |
+| `DEPLOYMENT.md` | One-time Ubuntu/Docker/SSH setup, GitHub secret names, and release-tag instructions. |
 
 ## 5. Data model (`src/assets.ts`)
 
@@ -355,6 +360,18 @@ npm run typecheck      # tsc --noEmit
 
 **Run `npm run build` before delivering any change** (typecheck + bundle must pass).
 
+Production deploy: after the PR is merged into `main`, pushing a new `release-*`
+tag triggers `.github/workflows/deploy.yml`. The runner builds
+`oracle:<release-tag>` from the multi-stage `Dockerfile` (Node.js 22 build,
+Nginx runtime), pipes `docker save` over SSH to
+`oracle-deploy@45.82.137.126`, loads the image, and replaces the `oracle`
+container on port 80. Images remain versioned on the server; no registry is
+needed. The SSH host key is pinned. Required repository secrets are
+`ORACLE_SSH_PRIVATE_KEY` and `ORACLE_SSH_HOST_KEY`; see `DEPLOYMENT.md` for
+Docker Engine, deployment-user, and SSH setup. Browser `localStorage` assets
+are not part of the image. With no domain/TLS yet, the host serves HTTP on
+port 80; use HTTPS before entering real financial data.
+
 ## 9. Naming & copy rules
 
 - **Brand = `Oracle`** (package name `oracle`, UI brand, docs title).
@@ -388,6 +405,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
 | 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
+| 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 
 ## 12. Agent playbook (how to progress this app)
 

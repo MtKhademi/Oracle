@@ -1,0 +1,45 @@
+name: Deploy Oracle
+
+on:
+  push:
+    tags:
+      - 'release-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate image tag
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^release-[A-Za-z0-9][A-Za-z0-9_.-]{0,118}$ ]] || {
+            echo 'Release tag must be a Docker-compatible release-* tag'; exit 1;
+          }
+      - name: Build versioned Docker image
+        run: docker build -t "oracle:${GITHUB_REF_NAME}" .
+      - name: Transfer image and restart container
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          SSH_HOST_KEY: ${{ secrets.ORACLE_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_PRIVATE_KEY" || { echo 'Missing ORACLE_SSH_PRIVATE_KEY'; exit 1; }
+          test -n "$SSH_HOST_KEY" || { echo 'Missing ORACLE_SSH_HOST_KEY'; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_HOST_KEY" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+          SSH_OPTIONS=(-i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$HOME/.ssh/known_hosts")
+          docker save "oracle:${GITHUB_REF_NAME}" | gzip -1 | \
+            ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 'gzip -dc | docker load'
+          ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
+            "docker rm -f oracle >/dev/null 2>&1 || true; docker run -d --name oracle --restart unless-stopped -p 80:80 oracle:${GITHUB_REF_NAME}"
+          ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
+            'for attempt in 1 2 3 4 5; do docker exec oracle wget -q -O /dev/null http://127.0.0.1/ && exit 0; sleep 2; done; docker logs oracle; exit 1'
