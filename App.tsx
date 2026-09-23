@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
 import { loadAssets, saveAssets } from './src/storage';
 
@@ -171,17 +172,13 @@ export default function App() {
   };
 
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setImportError(null);
-    setImportMessage(null);
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
-      setImportError('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
+      toast.error('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
       return;
     }
     const buffer = await file.arrayBuffer();
@@ -190,20 +187,14 @@ export default function App() {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
     const result = parseImportRows(rows);
     if (!result) {
-      setImportError('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
+      toast.error('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
       return;
     }
     setItems(prev => [...prev, ...result.assets]);
     if (result.assets.length > 0) setIsSample(false);
     const message = `${format(result.assets.length)} دارایی وارد شد`;
-    setImportMessage(result.skipped > 0 ? `${message}، ${format(result.skipped)} ردیف نامعتبر رد شد` : message);
+    toast.success(result.skipped > 0 ? `${message}، ${format(result.skipped)} ردیف نامعتبر رد شد` : message);
   };
-
-  useEffect(() => {
-    if (!importMessage) return;
-    const timer = setTimeout(() => setImportMessage(null), 5000);
-    return () => clearTimeout(timer);
-  }, [importMessage]);
 
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
@@ -221,7 +212,6 @@ export default function App() {
         <div className="flex justify-between items-center px-1 mb-[10px]">
           <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
           <button type="button" onClick={() => importInputRef.current?.click()} aria-label="ایمپورت اکسل" className="grid place-items-center text-[#5264e8] bg-[#eef0ff] rounded-[10px] p-2 cursor-pointer hover:bg-[#e2e5ff] transition-colors"><UploadIcon/></button>
-          {(importError || importMessage) && <span className={`text-[11px] ${importError ? 'text-[#d95050]' : 'text-[#3daf99]'}`}>{importError ?? importMessage}</span>}
         </div>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>
