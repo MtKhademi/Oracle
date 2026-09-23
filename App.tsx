@@ -6,6 +6,20 @@ import { loadAssets, saveAssets } from './src/storage';
 
 const format = (value: number, decimals = 0) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: decimals }).format(value);
 
+const stripToNumberString = (raw: string) => {
+  let cleaned = raw.replace(/[^\d.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot !== -1) cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+  return cleaned;
+};
+
+const formatWithThousands = (raw: string) => {
+  const cleaned = stripToNumberString(raw);
+  const [intPart, decPart] = cleaned.split('.');
+  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+};
+
 const iconTint: Record<Asset['icon'], string> = {
   gold: 'text-[#d7a144] bg-[#fff5df]',
   fund: 'text-[#6e68dc] bg-[#f0edff]',
@@ -287,13 +301,13 @@ export default function App() {
             </select>
           </label>
           <label className="text-[11px] text-[#7a8097] grid gap-1">مقدار
-            <input type="number" step="any" value={formQuantity} onChange={e => setFormQuantity(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+            <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
           </label>
           <label className="text-[11px] text-[#7a8097] grid gap-1">واحد
             <input type="text" value={formUnit} onChange={e => setFormUnit(e.target.value)} placeholder="گرم/واحد/تومان/USDT/BTC/ETH" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
           </label>
           <label className="text-[11px] text-[#7a8097] grid gap-1 min-[560px]:col-span-2">قیمت واحد به تومان
-            <input type="number" step="any" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+            <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
           </label>
           {formError && <p className="text-[11px] text-[#d95050] min-[560px]:col-span-2">{formError}</p>}
           <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2">افزودن دارایی</button>

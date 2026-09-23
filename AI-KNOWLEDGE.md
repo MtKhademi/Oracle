@@ -194,6 +194,19 @@ type Asset = {
   A `useEffect` keyed on `isAddOpen` adds/removes a `keydown` listener that closes on
   `Escape` while open.
 - Built with plain React state — no modal/dialog component library.
+- The مقدار (quantity) and قیمت واحد به تومان (unit price) inputs are `type="text"`
+  (with `inputMode="numeric"` for the mobile keypad) instead of `type="number"`, so
+  they can show live comma thousands-separators as the owner types (e.g.
+  `1000000` → `1,000,000`). `formQuantity`/`formUnitPrice` state always holds the
+  plain digit string (via `stripToNumberString`, applied on every `onChange` —
+  covers typed and pasted input alike); the comma-formatted text
+  (`formatWithThousands`, using `Number(intPart).toLocaleString('en-US')` on the
+  integer part, decimal part left as-is after the dot) is only computed for the
+  input's displayed `value` at render time. `handleAddSubmit` still does
+  `Number(formQuantity)` on the clean digit string, so validation and the final
+  `Asset.quantity`/`unitPrice` are unaffected. This formatting is local to these two
+  inputs only — the summary total, asset rows, etc. keep using
+  `Intl.NumberFormat('fa-IR')` via `format()` as before.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -266,6 +279,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Color-coded toasts: enabled `sonner`'s `richColors` on `<Toaster/>` (green/success, yellow/warning, red/error, blue/info). Excel import now uses `toast.warning` for partial imports (some rows skipped) instead of `toast.success`, and `toast.error` when zero rows are importable; full success and format/type errors unchanged. No `toast.info` calls added yet. |
 | 2026-09-23 | Owner-requested: added a "clear all assets" toolbar button (see §6b), confirmed via a `sonner` toast's own action/cancel buttons (not `confirm()`, not a modal). Clearing sets `items` to an explicit `[]`, which persists via the existing `saveAssets()` path and must stay distinct from the `null`/"never touched" sample state. Added an empty-state message reusing the sample-disclaimer text style when the list has zero assets. |
 | 2026-09-23 | Owner-requested: moved the "add asset" form out of its always-visible inline position into a modal (see §6c), opened via a new third toolbar button (`PlusIcon`). Form fields/validation/submit logic unchanged — only relocated; submit now also closes the modal. Modal is hand-built with plain `useState`/Tailwind (backdrop click, "×" button, Escape key) — no dialog/modal library added. |
+| 2026-09-23 | Owner-requested: مقدار/قیمت واحد inputs in the add-asset form now show live comma thousands-separators as the owner types (see §6c). Switched those two inputs from `type="number"` to `type="text"`/`inputMode="numeric"`; underlying form state stays a plain comma-free digit string, only the displayed `value` is formatted — no input-masking library added, no change to `Intl.NumberFormat('fa-IR')` formatting used elsewhere (summary total, asset rows). |
 
 ## 12. Agent playbook (how to progress this app)
 
