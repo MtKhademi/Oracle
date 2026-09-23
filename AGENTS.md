@@ -7,3 +7,11 @@
 - Static sample values must be clearly identified as samples, never as real holdings or live prices.
 - Never commit private financial data or credentials.
 - Update README.md when behavior changes. Run npm run build before delivery.
+- Read AI-KNOWLEDGE.md for full app context, constraints, and the agent playbook.
+
+## Governance
+
+- Owner (approver): MtKhademi (GitHub).
+- Admin (maintainer): the AI agent working in this repo, alongside the owner.
+- Progress this app only with the owner; non-trivial changes go via a branch + PR to `main`.
+- Keep AI-KNOWLEDGE.md current whenever behavior, structure, or decisions change.
