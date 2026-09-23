@@ -62,28 +62,28 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
 
       {tab === 'login' ? <form onSubmit={handleLoginSubmit} className="grid gap-[10px]">
         <label className={labelClass}>ایمیل یا شماره موبایل
-          <input type="text" value={loginIdentifier} onChange={e => setLoginIdentifier(e.target.value)} className={inputClass} required />
+          <input type="text" name="identifier" id="login-identifier" autoComplete="username" value={loginIdentifier} onChange={e => setLoginIdentifier(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>رمز عبور
-          <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className={inputClass} required />
+          <input type="password" name="password" id="login-password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className={inputClass} required />
         </label>
         <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ورود</button>
         <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[11px] text-[#5264e8] justify-self-center cursor-pointer hover:underline">رمز عبور را فراموش کرده‌اید؟</button>
       </form> : <form onSubmit={handleSignupSubmit} className="grid gap-[10px]">
         <label className={labelClass}>نام و نام خانوادگی
-          <input type="text" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} className={inputClass} required />
+          <input type="text" name="fullName" id="signup-fullname" autoComplete="name" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>ایمیل
-          <input type="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} className={inputClass} required />
+          <input type="email" name="email" id="signup-email" autoComplete="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>شماره موبایل
-          <input type="tel" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} className={inputClass} required />
+          <input type="tel" name="phone" id="signup-phone" autoComplete="tel" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>رمز عبور
-          <input type="password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} className={inputClass} required />
+          <input type="password" name="password" id="signup-password" autoComplete="new-password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} className={inputClass} required />
         </label>
         <label className={labelClass}>تکرار رمز عبور
-          <input type="password" value={signupPasswordRepeat} onChange={e => setSignupPasswordRepeat(e.target.value)} className={inputClass} required />
+          <input type="password" name="passwordRepeat" id="signup-password-repeat" autoComplete="new-password" value={signupPasswordRepeat} onChange={e => setSignupPasswordRepeat(e.target.value)} className={inputClass} required />
         </label>
         <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ثبت‌نام</button>
       </form>}
