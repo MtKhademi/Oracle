@@ -14,18 +14,25 @@ Keep it current whenever behavior, structure, or decisions change.
 ## 1. What this app is
 
 A single-page, Persian (RTL) asset overview. It shows a light-grey, white-card UI
-with a **total in toman** and **one row per asset**. Values are static samples —
-never the owner's real holdings or live prices. No forms, charts, imports,
-navigation, backend, or native tooling (by explicit owner constraint).
+with a **total in toman** and **one row per asset**. `src/assets.ts` still ships
+static sample data (illustrative only), but the owner can now add/edit/delete their
+own real assets through a small in-page form; those real values are persisted ONLY
+in the browser's `localStorage` (see §4/§5) and are never committed to git. No
+charts, imports, navigation, backend, or native tooling beyond the add/edit/delete
+form (by explicit owner constraint).
 
 ## 2. Hard constraints (do not break)
 
 1. Show ONLY a toman total and one row per asset.
-2. Do NOT add forms, charts, imports, navigation, backend, native tooling, or any
-   other feature **unless the owner explicitly asks**.
+2. Do NOT add charts, imports, navigation, backend, native tooling, or any other
+   feature beyond add/edit/delete of assets **unless the owner explicitly asks**.
 3. Palette: light grey background, white cards, blue/violet accents.
-4. Sample data must always be labeled as a sample ("نمایش نمونه", "مقادیر ... نمونه‌اند").
-5. NEVER commit private financial data or credentials.
+4. The sample badge/disclaimer must only show while the current list is still the
+   untouched static sample data (see §5/§6) — hide it once the owner adds, edits,
+   or deletes anything.
+5. Real asset values entered by the owner must live ONLY in browser `localStorage`
+   (`src/storage.ts`) — never write them into `src/assets.ts` or any committed file.
+6. NEVER commit private financial data or credentials.
 
 ## 3. Tech stack
 
@@ -47,8 +54,9 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Entire UI: `format()` helper, `AssetIcon` component, and the default `App` (header + summary + portfolio + sample note). |
-| `src/assets.ts` | `Asset` type + `assets` sample array (the only data source). |
+| `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow` components, and the default `App` (header + summary + portfolio + add-asset form + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
+| `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
+| `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
@@ -59,35 +67,51 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 
 ```ts
 type Asset = {
-  id: string;            // key
+  id: string;            // key (crypto.randomUUID() for owner-added rows)
   name: string;          // Persian display name
   quantity: number;      // amount held
   unit: string;          // Persian unit label (گرم, واحد, تومان, USDT, ...)
   unitPrice: number;     // price per unit, in toman (cash = 1)
-  icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth';
+  icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth' | 'other';
 };
 ```
 
 - Row value = `quantity × unitPrice` (toman).
-- Page total = `assets.reduce((s,a)=> s + a.quantity*a.unitPrice, 0)`.
+- Page total = `items.reduce((s,a)=> s + a.quantity*a.unitPrice, 0)` over the live
+  `items` state in `App.tsx` (not the raw `assets` import).
 - Cash `unitPrice = 1`, so its row value equals its quantity.
-- 7 sample assets: gold, two gold funds (عیار, گنج), cash, Tether, BTC, ETH.
-- **All values are illustrative.** Keep them clearly marked as samples.
+- `src/assets.ts` ships 7 sample assets (gold, two gold funds, cash, Tether, BTC,
+  ETH) — **illustrative only**, unchanged, used purely as the default when
+  `localStorage` has nothing saved yet.
+- `icon: 'other'` is for anything that doesn't fit the 6 built-in categories (e.g.
+  individual stocks/funds); it reuses the default bar-chart `AssetIcon` SVG with its
+  own neutral grey tint (see §7).
+- The real, owner-entered list (post add/edit/delete) is held in React state in
+  `App.tsx` and persisted to `localStorage` via `src/storage.ts` — see §6.
 
 ## 6. UI architecture (`App.tsx`)
 
 - `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')`. Quantity rendered with 8 decimals.
 - `AssetIcon({type})`:
   - `btc` → `₿`, `usdt` → `₮` (styled span, Arial)
-  - otherwise inline SVG: `gold`, `cash`, `eth`, default = bar chart.
+  - otherwise inline SVG: `gold`, `cash`, `eth`, default = bar chart (also used for `other`).
+- `AssetRow` — one asset `<li>`: icon, name, quantity/unit (or, in edit mode, number
+  inputs for quantity + unit price with save/cancel), value, and ویرایش/حذف buttons.
+  Edit mode is local `useState` per row; only quantity and unit price are editable
+  inline (no separate edit page/route). Delete calls the parent's `onDelete(id)`.
+- App-level state: `items` (`Asset[]`, initialized from `loadAssets() ?? assets`,
+  persisted to `localStorage` via `useEffect` on every change) and `isSample`
+  (`boolean`, `true` only if `loadAssets()` returned `null` on first render; flips to
+  `false` permanently once the owner adds, edits, or deletes anything).
 - Styling is inline Tailwind utility classes (see §7) — there are no longer named CSS
   classes like `.header`/`.summary`/`.asset-row`; identify sections by their JSX/aria
   structure instead.
 - Layout (top → bottom):
   1. `<header>` → brand link (icon + `Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
-  2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge, `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
-  3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → `<ul>` of `<li>` rows (icon, name + quantity/unit, value + `تومان`).
-  4. Trailing `<p>` → disclaimer that values are samples.
+  2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
+  3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → `<ul>` of `AssetRow` items (icon, name + quantity/unit, value + `تومان`, ویرایش/حذف).
+  4. Add-asset `<section>` (`aria-labelledby="add-asset-title"`) → inline form (name, icon/category select incl. `other`, quantity, unit, unit price) that validates and appends a new `Asset` with `crypto.randomUUID()`.
+  5. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -102,7 +126,7 @@ type Asset = {
 - Key tokens (unchanged from the original design):
   - Header/brand: `#5264e8`; accent number: `#4659d9`; dot: `#8593ee`.
   - Page bg: `#f5f6fb`; card: `#fff`; borders: `#eceef8` / `#eef0f7`.
-  - Icon tints: gold `#d7a144/#fff5df`, fund `#6e68dc/#f0edff`, cash `#4ab3b4/#e5f7f6`, usdt `#3daf99/#e6f6f0`, btc `#efa451/#fff1e3`, eth `#617cdb/#ecf0ff`.
+  - Icon tints: gold `#d7a144/#fff5df`, fund `#6e68dc/#f0edff`, cash `#4ab3b4/#e5f7f6`, usdt `#3daf99/#e6f6f0`, btc `#efa451/#fff1e3`, eth `#617cdb/#ecf0ff`, other `#6b7280/#eef0f3` (neutral grey, for anything outside the 6 built-in categories — reuses the default bar-chart `AssetIcon` glyph).
   - `.section-heading` "ارزش به تومان" label was `#9198ad` on white (~2.9:1 contrast,
     fails WCAG AA). Fixed to `#656e87` (~4.7:1, passes AA for small text). This is the
     only intentional color change in the Tailwind migration.
@@ -151,6 +175,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Renamed project **Darayi → Oracle** (package name, docs, UI brand); kept Persian "asset" copy. |
 | 2026-09-23 | Established single-agent governance: AI agent is admin, owner approves via PR. |
 | 2026-09-23 | Migrated styling from hand-written `src/styles.css` to Tailwind CSS v4 (`@tailwindcss/vite`, zero-config). Tooling-only change — no visual/layout change intended, except fixing the low-contrast `.section-heading` label (`#9198ad` → `#656e87`). |
+| 2026-09-23 | Owner-requested: added local persistence (`src/storage.ts`, `localStorage` key `oracle_assets_v1`) plus an in-page add/edit/delete form, so the owner can maintain their real asset list without ever writing real values into git. `src/assets.ts` is now only the default sample fallback. Added `icon: 'other'` category (reuses the default bar-chart icon, neutral grey tint) for assets outside the 6 built-in types. Sample badge/disclaimer now only show while the list is still the untouched default. |
 
 ## 12. Agent playbook (how to progress this app)
 
@@ -165,9 +190,10 @@ For every change:
 
 ## 13. Candidate next steps (NOT approved — needs owner request)
 
-These are ideas only; implement any of them **only when the owner asks**:
-- Persist the owner's real values in the browser (localStorage) — keep them out of git.
-- Editable rows (a small inline edit) while still showing only a toman total.
+- ✅ Done (2026-09-23): Persist the owner's real values in the browser (localStorage) — keep them out of git.
+- ✅ Done (2026-09-23): Editable rows (a small inline edit) while still showing only a toman total.
+
+These remain ideas only; implement any of them **only when the owner asks**:
 - Live price fetch for crypto/gold (requires a data source + key handling).
 - Multiple portfolios / categories, or a debts section.
 - Dark mode.
