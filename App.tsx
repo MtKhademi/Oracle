@@ -77,8 +77,8 @@ function AssetRow({ asset, onDelete, onEdit }: { asset: Asset; onDelete: (id: st
           <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>
           <button type="button" onClick={() => setIsEditing(false)} className="text-[10px] text-[#9096aa] border border-[#eef0f7] rounded-[8px] px-2 py-1">انصراف</button>
         </> : <>
-          <button type="button" onClick={startEdit} className="text-[10px] text-[#77809c]" aria-label={`ویرایش ${asset.name}`}>ویرایش</button>
-          <button type="button" onClick={() => onDelete(asset.id)} className="text-[10px] text-[#d95050]" aria-label={`حذف ${asset.name}`}>حذف</button>
+          <button type="button" onClick={startEdit} className="text-[10px] text-[#77809c] cursor-pointer px-2 rounded-md hover:bg-[#eef0ff] transition-colors" aria-label={`ویرایش ${asset.name}`}>ویرایش</button>
+          <button type="button" onClick={() => onDelete(asset.id)} className="text-[10px] text-[#d95050] cursor-pointer px-2 rounded-md hover:bg-[#fdecec] transition-colors" aria-label={`حذف ${asset.name}`}>حذف</button>
         </>}
       </div>
     </div>
