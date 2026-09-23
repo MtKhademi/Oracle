@@ -1,17 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { CloseIcon, HelpIcon, InfoIcon, LogoutIcon, SettingsIcon, UserIcon } from './icons';
 
-// Placeholder menu items only — none have real functionality yet (no backend/auth
-// in this app) except مشخصات, which opens the profile view (see onOpenProfile).
-// Clicking any of the others just closes the drawer for now; they're stubs for
-// future features (settings page, about page, help page, logout).
+// Placeholder menu items only — none have real functionality yet except
+// مشخصات (opens the profile view, see onOpenProfile) and خروج (logs the user
+// out, see onLogout). Clicking any of the others just closes the drawer for
+// now; they're stubs for future features (settings page, about page, help page).
 const menuItems: { icon: ReactNode; label: string }[] = [
   { icon: <SettingsIcon/>, label: 'تنظیمات' },
   { icon: <InfoIcon/>, label: 'درباره Oracle' },
   { icon: <HelpIcon/>, label: 'راهنما' },
 ];
 
-export function SideDrawer({ onClose, onOpenProfile }: { onClose: () => void; onOpenProfile: () => void }) {
+export function SideDrawer({ onClose, onOpenProfile, onLogout }: { onClose: () => void; onOpenProfile: () => void; onLogout: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function SideDrawer({ onClose, onOpenProfile }: { onClose: () => void; on
           </button>
         </li>)}
         <li className="border-t border-[#eef0f7] mt-2 pt-2">
-          <button type="button" onClick={onClose} className="w-full flex items-center gap-3 text-[13px] text-[#d95050] rounded-[10px] px-3 py-2 hover:bg-[#fdecec] transition-colors">
+          <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 text-[13px] text-[#d95050] rounded-[10px] px-3 py-2 hover:bg-[#fdecec] transition-colors">
             <span className="text-[#d95050] shrink-0"><LogoutIcon/></span>
             خروج
           </button>
