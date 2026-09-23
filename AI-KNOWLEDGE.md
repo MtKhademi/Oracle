@@ -47,6 +47,7 @@ import (by explicit owner constraint).
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`) | ^4.3.3 |
 | Font | @fontsource/vazirmatn | ^5.2.0 |
 | Excel parsing | `xlsx` (SheetJS), client-side only | ^0.18.5 |
+| Toast/notification | `sonner` (`<Toaster/>` mounted once in `src/main.tsx`) | ^2.0.8 |
 | Runtime | Node.js | 22.13+ |
 
 RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat('fa-IR')`
@@ -57,7 +58,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | File | Responsibility |
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
-| `src/main.tsx` | React entry: mounts `<App/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
+| `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center"/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Entire UI: `format()` helper, `AssetIcon`/`AssetRow`/`UploadIcon` components, `parseImportRows()` (fixed-template Excel parser, see §6a), and the default `App` (header + summary + portfolio incl. import toolbar + add-asset form + conditional sample note). Holds the asset list in `useState`, initialized from `loadAssets()` (falling back to the static `assets` sample) and persisted via `saveAssets()` on every change. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage` via `src/storage.ts`, not here. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). |
@@ -143,9 +144,10 @@ type Asset = {
      `quantity`/`unitPrice` = cols 3/5 as numbers, `unit` = col 4) appended to the
      existing `items` state (never replaces it) — same state/persistence path as the
      manual add/edit/delete form, so `saveAssets()` fires automatically.
-- After import, a short inline status message appears next to the toolbar button
-  (e.g. `۵ دارایی وارد شد`, plus `، ۲ ردیف نامعتبر رد شد` if any rows were skipped)
-  and auto-clears after 5s (or immediately on the next import). No toast library.
+- All three user-facing outcomes (wrong file extension, header mismatch, success —
+  incl. skipped-row count) are shown via `sonner` toasts (`toast.error`/
+  `toast.success`, see §3), not inline page text; the toast library handles its own
+  timing/dismissal.
 - This is intentionally a single hardcoded template — do NOT add column
   auto-detection, alternate layouts, CSV, or other spreadsheet formats.
 
