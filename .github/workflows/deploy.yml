@@ -40,6 +40,6 @@ jobs:
           docker save "oracle:${GITHUB_REF_NAME}" | gzip -1 | \
             ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 'gzip -dc | docker load'
           ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
-            "docker rm -f oracle >/dev/null 2>&1 || true; docker run -d --name oracle --restart unless-stopped -p 80:80 oracle:${GITHUB_REF_NAME}"
+            "docker rm -f oracle >/dev/null 2>&1 || true; docker run -d --name oracle --restart unless-stopped -p 8580:80 oracle:${GITHUB_REF_NAME}"
           ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
             'for attempt in 1 2 3 4 5; do docker exec oracle wget -q -O /dev/null http://127.0.0.1/ && exit 0; sleep 2; done; docker logs oracle; exit 1'
