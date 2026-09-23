@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import * as XLSX from 'xlsx';
 import { assets, type Asset } from './src/assets';
 import { loadAssets, saveAssets } from './src/storage';
 
@@ -25,6 +26,45 @@ const iconLabel: Record<Asset['icon'], string> = {
 };
 
 const iconOptions = Object.keys(iconLabel) as Asset['icon'][];
+
+const EXPECTED_IMPORT_HEADERS = ['نام دارایی', 'دسته‌بندی', 'تعداد', 'واحد', 'قیمت واحد (تومان)'];
+
+const importCategoryToIcon: Record<string, Asset['icon']> = {
+  'طلا': 'gold',
+  'صندوق': 'fund',
+  'نقد': 'cash',
+  'تتر': 'usdt',
+  'بیت‌کوین': 'btc',
+  'اتریوم': 'eth',
+  'سایر': 'other',
+};
+
+function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number } | null {
+  const header = (rows[0] ?? []).map(cell => String(cell ?? '').trim());
+  const headerMatches = header.length === EXPECTED_IMPORT_HEADERS.length && EXPECTED_IMPORT_HEADERS.every((h, i) => h === header[i]);
+  if (!headerMatches) return null;
+
+  const parsed: Asset[] = [];
+  let skipped = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    const isEmpty = row.length === 0 || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '');
+    if (isEmpty) break;
+    const quantity = Number(row[2]);
+    if (!Number.isFinite(quantity) || quantity <= 0) break;
+    const icon = importCategoryToIcon[String(row[1] ?? '').trim()];
+    if (!icon) { skipped++; continue; }
+    parsed.push({ id: crypto.randomUUID(), name: String(row[0] ?? '').trim(), quantity, unit: String(row[3] ?? '').trim(), unitPrice: Number(row[4]), icon });
+  }
+  return { assets: parsed, skipped };
+}
+
+function UploadIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 15V3m0 0-4 4m4-4 4 4"/>
+    <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
+  </svg>;
+}
 
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
@@ -129,6 +169,37 @@ export default function App() {
     setIsSample(false);
   };
 
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+
+  const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportError(null);
+    setImportMessage(null);
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+    const result = parseImportRows(rows);
+    if (!result) {
+      setImportError('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
+      return;
+    }
+    setItems(prev => [...prev, ...result.assets]);
+    if (result.assets.length > 0) setIsSample(false);
+    const message = `${format(result.assets.length)} دارایی وارد شد`;
+    setImportMessage(result.skipped > 0 ? `${message}، ${format(result.skipped)} ردیف نامعتبر رد شد` : message);
+  };
+
+  useEffect(() => {
+    if (!importMessage) return;
+    const timer = setTimeout(() => setImportMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [importMessage]);
+
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
       <a className="flex items-center gap-3 text-[22px] font-bold no-underline max-[481px]:text-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[5px] focus-visible:rounded-[10px]" href="./" aria-label="Oracle، صفحه اصلی"><span className="h-[46px] w-[46px] border border-[#ffffff40] bg-[#ffffff15] rounded-[15px] grid place-items-center max-[481px]:h-[41px] max-[481px]:w-[41px]"><svg className="w-[30px] h-[30px] block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8 15v-3m4 3V8m4 7v-5"/></svg></span><span>Oracle<span className="block text-[11px] font-normal text-[#e0e4ff] mt-[1px]">سرمایه‌های من</span></span></a>
@@ -142,6 +213,11 @@ export default function App() {
         <div className="flex justify-between border-t border-[#f0f1f7] py-4 text-[#9096aa] text-[11px]"><span className="flex items-center gap-[7px]"><i className="h-[6px] w-[6px] bg-[#8593ee] rounded-full"/>سرمایه‌ها، کنار هم</span><span>{format(items.length)} دارایی</span></div>
       </section>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
+        <div className="flex justify-between items-center px-1 mb-[10px]">
+          <input ref={importInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" aria-hidden="true" tabIndex={-1} />
+          <button type="button" onClick={() => importInputRef.current?.click()} className="flex items-center gap-1.5 text-[11px] text-[#5264e8] bg-[#eef0ff] rounded-[10px] px-3 py-1.5 cursor-pointer hover:bg-[#e2e5ff] transition-colors">ایمپورت اکسل<UploadIcon/></button>
+          {(importError || importMessage) && <span className={`text-[11px] ${importError ? 'text-[#d95050]' : 'text-[#3daf99]'}`}>{importError ?? importMessage}</span>}
+        </div>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>
       </section>
