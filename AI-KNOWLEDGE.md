@@ -34,6 +34,7 @@ navigation, backend, or native tooling (by explicit owner constraint).
 | UI | React | 19.2.3 |
 | Language | TypeScript (strict) | ^5.9.3 |
 | Bundler/dev server | Vite | ^7.1.0 |
+| Styling | Tailwind CSS v4 (`@tailwindcss/vite`) | ^4.3.3 |
 | Font | @fontsource/vazirmatn | ^5.2.0 |
 | Runtime | Node.js | 22.13+ |
 
@@ -48,7 +49,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/main.tsx` | React entry: mounts `<App/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Entire UI: `format()` helper, `AssetIcon` component, and the default `App` (header + summary + portfolio + sample note). |
 | `src/assets.ts` | `Asset` type + `assets` sample array (the only data source). |
-| `src/styles.css` | All styling, one minified line. |
+| `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
+| `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
 | `tsconfig.json` | Strict TS config; includes `App.tsx` + `src`. |
 | `AGENTS.md` | Short agent rules + governance + pointer to this file. |
 | `README.md` | Owner-facing Persian run/data notes. |
@@ -76,22 +78,41 @@ type Asset = {
 
 - `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')`. Quantity rendered with 8 decimals.
 - `AssetIcon({type})`:
-  - `btc` → `₿`, `usdt` → `₮` (`.coin-letter`)
+  - `btc` → `₿`, `usdt` → `₮` (styled span, Arial)
   - otherwise inline SVG: `gold`, `cash`, `eth`, default = bar chart.
+- Styling is inline Tailwind utility classes (see §7) — there are no longer named CSS
+  classes like `.header`/`.summary`/`.asset-row`; identify sections by their JSX/aria
+  structure instead.
 - Layout (top → bottom):
-  1. `.header` → `.brand` (icon + `Oracle` + caption `سرمایه‌های من`) and `.header-note` (`یک نگاه، همهٔ دارایی‌ها`).
-  2. `.summary` card → sample badge, `ارزش کل دارایی‌ها`, big `.total` (toman), footer with asset count.
-  3. `.portfolio` → `.asset-list` of `.asset-row` (icon, name + quantity/unit, value + `تومان`).
-  4. `.sample-note` → disclaimers that values are samples.
+  1. `<header>` → brand link (icon + `Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
+  2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge, `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
+  3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → `<ul>` of `<li>` rows (icon, name + quantity/unit, value + `تومان`).
+  4. Trailing `<p>` → disclaimer that values are samples.
 
-## 7. Design system (`src/styles.css`)
+## 7. Design system (Tailwind CSS v4)
 
-- One minified line; keep it that way.
-- Key tokens:
+- Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
+  `src/styles.css` is just `@import "tailwindcss";` — no `tailwind.config.*` file needed
+  (v4 + `@tailwindcss/vite` needs zero config for this app). Do NOT add a component
+  library (no DaisyUI/shadcn/Chakra/Mantine) — Tailwind utilities only.
+- None of the exact colors below are default Tailwind palette colors, so they are all
+  expressed with **arbitrary value syntax** (e.g. `bg-[#f5f6fb]`, `text-[#4659d9]`)
+  rather than inventing a new named palette. Keep reusing the same hex literals when
+  touching this UI so tokens stay consistent.
+- Key tokens (unchanged from the original design):
   - Header/brand: `#5264e8`; accent number: `#4659d9`; dot: `#8593ee`.
   - Page bg: `#f5f6fb`; card: `#fff`; borders: `#eceef8` / `#eef0f7`.
   - Icon tints: gold `#d7a144/#fff5df`, fund `#6e68dc/#f0edff`, cash `#4ab3b4/#e5f7f6`, usdt `#3daf99/#e6f6f0`, btc `#efa451/#fff1e3`, eth `#617cdb/#ecf0ff`.
-- Responsive breakpoints: `min-width:1050px` (2-col sticky summary), `max-width:480px`, `max-width:350px`.
+  - `.section-heading` "ارزش به تومان" label was `#9198ad` on white (~2.9:1 contrast,
+    fails WCAG AA). Fixed to `#656e87` (~4.7:1, passes AA for small text). This is the
+    only intentional color change in the Tailwind migration.
+- Responsive breakpoints, expressed as Tailwind arbitrary variants to match the original
+  CSS breakpoints exactly: `min-[1050px]:` (2-col sticky summary), `max-[481px]:`
+  (mirrors the old `max-width:480px`), `max-[351px]:` (mirrors `max-width:350px`), and
+  `[@media(min-width:351px)_and_(max-width:480px)]:` for the narrow phone-only tier.
+  Note: Tailwind's bare `max-[480px]:` compiles to `not (min-width:480px)`, i.e.
+  `width < 480`, which is off-by-one vs the original inclusive `max-width:480px`
+  (`width <= 480`) — hence `481`/`351` are used to keep the exact same breakpoint.
 - Header height: 224px base, 220px (≥1050px), 198px (≤480px).
 
 ## 8. Build & run
@@ -129,6 +150,7 @@ npm run typecheck      # tsc --noEmit
 | 2026-09-23 | Replaced the Expo native app with a plain React + Vite web overview. |
 | 2026-09-23 | Renamed project **Darayi → Oracle** (package name, docs, UI brand); kept Persian "asset" copy. |
 | 2026-09-23 | Established single-agent governance: AI agent is admin, owner approves via PR. |
+| 2026-09-23 | Migrated styling from hand-written `src/styles.css` to Tailwind CSS v4 (`@tailwindcss/vite`, zero-config). Tooling-only change — no visual/layout change intended, except fixing the low-contrast `.section-heading` label (`#9198ad` → `#656e87`). |
 
 ## 12. Agent playbook (how to progress this app)
 
