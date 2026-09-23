@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource/vazirmatn": "^5.2.0",
+    "js-sha256": "^1.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sonner": "^2.0.8",

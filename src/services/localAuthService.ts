@@ -1,13 +1,17 @@
+import { sha256 } from 'js-sha256';
 import { clearSession, loadSessionUserId, loadUsers, saveSessionUserId, saveUsers, type StoredUser } from '../authStorage';
 import type { User } from '../types';
 import type { AuthService } from './authService';
 
 const RESET_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+// Uses `js-sha256` (pure JS, no Web Crypto API) instead of
+// `crypto.subtle.digest(...)`: SubtleCrypto only exists in a "secure context"
+// (HTTPS or localhost) and is `undefined` over plain HTTP, which crashed
+// signUp/logIn entirely on the current HTTP-only deployment. This keeps
+// working identically regardless of HTTP/HTTPS.
 async function hashPassword(password: string): Promise<string> {
-  const bytes = new TextEncoder().encode(password);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return sha256(password);
 }
 
 function toPublicUser(stored: StoredUser): User {
@@ -15,23 +19,47 @@ function toPublicUser(stored: StoredUser): User {
   return user;
 }
 
+// Defensive check for a bugged/half-created record (e.g. left over from a
+// previous crashed signup attempt) — a real user always has a non-empty
+// hash, so treat anything else as unusable and safe to ignore/overwrite.
+function hasValidPasswordHash(u: StoredUser): boolean {
+  return typeof u.passwordHash === 'string' && u.passwordHash.length > 0;
+}
+
+// `crypto.randomUUID()` carries the exact same secure-context restriction as
+// `crypto.subtle` (both are [SecureContext]-only in the spec/browser
+// implementations), so it would also throw on the current HTTP deployment
+// right after the hash above. `crypto.getRandomValues()` has no such
+// restriction, so build a standard v4 UUID from it manually instead.
+function generateUserId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+}
+
 function findByIdentifier(users: StoredUser[], identifier: string): StoredUser | undefined {
   const normalized = identifier.trim().toLowerCase();
-  return users.find(u => u.email.toLowerCase() === normalized || u.phone.trim() === identifier.trim());
+  return users.find(u => hasValidPasswordHash(u) && (u.email.toLowerCase() === normalized || u.phone.trim() === identifier.trim()));
 }
 
 export const localAuthService: AuthService = {
   async signUp({ fullName, email, phone, password }) {
-    const users = loadUsers();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
-    const exists = users.some(u => u.email.toLowerCase() === normalizedEmail || u.phone.trim() === normalizedPhone);
+    // Drop any leftover record with the same email/phone that has no valid
+    // password hash (e.g. from a signup that crashed before hashing/saving
+    // completed) — it can never log in anyway, so it must not block a fresh
+    // signup with the same identifier.
+    const users = loadUsers().filter(u => hasValidPasswordHash(u) || (u.email.toLowerCase() !== normalizedEmail && u.phone.trim() !== normalizedPhone));
+    const exists = users.some(u => hasValidPasswordHash(u) && (u.email.toLowerCase() === normalizedEmail || u.phone.trim() === normalizedPhone));
     if (exists) {
       return { ok: false, error: 'این ایمیل یا شماره موبایل قبلاً ثبت‌نام کرده است' };
     }
     const passwordHash = await hashPassword(password);
     const newUser: StoredUser = {
-      id: crypto.randomUUID(),
+      id: generateUserId(),
       fullName: fullName.trim(),
       email: email.trim(),
       phone: normalizedPhone,
