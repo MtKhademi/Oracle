@@ -1,5 +1,7 @@
 # Oracle development
 
+See TASK-WORKFLOW.md for the required step-by-step process to follow for every task.
+
 - Plain React + TypeScript + Vite web app. Persian RTL; responsive mobile and desktop.
 - Work in one agent. Read README.md and src/assets.ts before changing behavior.
 - User explicitly wants ONLY a toman total and one row per asset. Do not add forms, charts, imports, navigation, backend, native app tooling or other features unless asked.
