@@ -100,8 +100,8 @@ export function TransactionHistoryModal({ asset, isSample, onClose, onTransactio
         <h3 className="text-[13px] font-bold mb-3">ثبت تراکنش جدید</h3>
         <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
           <div className="grid grid-cols-2 border border-[#eef0f7] rounded-[10px] p-1 min-[560px]:col-span-2">
-            <button type="button" onClick={() => setFormType('buy')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'buy' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>خرید</button>
-            <button type="button" onClick={() => setFormType('sell')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'sell' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>فروش</button>
+            <button type="button" onClick={() => setFormType('buy')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'buy' ? 'bg-[#1f9d55] text-white' : 'text-[#7a8097]'}`}>خرید</button>
+            <button type="button" onClick={() => setFormType('sell')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'sell' ? 'bg-[#d95050] text-white' : 'text-[#7a8097]'}`}>فروش</button>
           </div>
           <label className="text-[11px] text-[#7a8097] grid gap-1">مقدار
             <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
