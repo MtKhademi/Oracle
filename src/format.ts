@@ -1,5 +1,19 @@
 export const format = (value: number, decimals = 0) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: decimals }).format(value);
 
+export const stripToNumberString = (raw: string) => {
+  let cleaned = raw.replace(/[^\d.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot !== -1) cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+  return cleaned;
+};
+
+export const formatWithThousands = (raw: string) => {
+  const cleaned = stripToNumberString(raw);
+  const [intPart, decPart] = cleaned.split('.');
+  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+};
+
 const persianDateFormatter = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium' });
 
 export const formatDate = (isoDate: string) => {

@@ -1,22 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Asset } from '../assets';
+import { formatWithThousands, stripToNumberString } from '../format';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getCatalogAssets, getUnitLabel } from '../services/assetCatalog';
 import { AssetPicker } from './AssetPicker';
 import { CloseIcon } from './icons';
-
-const stripToNumberString = (raw: string) => {
-  let cleaned = raw.replace(/[^\d.]/g, '');
-  const firstDot = cleaned.indexOf('.');
-  if (firstDot !== -1) cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-  return cleaned;
-};
-
-const formatWithThousands = (raw: string) => {
-  const cleaned = stripToNumberString(raw);
-  const [intPart, decPart] = cleaned.split('.');
-  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
-  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
-};
 
 const catalogAssets = getCatalogAssets();
 
