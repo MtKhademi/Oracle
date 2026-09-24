@@ -1,0 +1,47 @@
+{
+  "$schema": "oracle-asset-catalog-v1",
+  "categories": [
+    { "id": "gold", "label": "طلا" },
+    { "id": "currency", "label": "ارز" },
+    { "id": "stock", "label": "بورس" },
+    { "id": "cash", "label": "نقد" },
+    { "id": "other", "label": "سایر" }
+  ],
+  "units": [
+    { "id": "gram", "label": "گرم" },
+    { "id": "mesghal", "label": "مثقال" },
+    { "id": "count", "label": "واحد" },
+    { "id": "share", "label": "سهم" },
+    { "id": "toman", "label": "تومان" },
+    { "id": "usdt", "label": "USDT" },
+    { "id": "btc", "label": "BTC" },
+    { "id": "eth", "label": "ETH" },
+    { "id": "usdc", "label": "USDC" },
+    { "id": "bnb", "label": "BNB" }
+  ],
+  "assets": [
+    { "symbol": "GOLD18", "name": "طلای ۱۸ عیار", "category": "gold", "unit": "gram" },
+    { "symbol": "GOLD24", "name": "طلای ۲۴ عیار", "category": "gold", "unit": "gram" },
+    { "symbol": "COIN-EMAMI", "name": "سکه امامی", "category": "gold", "unit": "count" },
+    { "symbol": "COIN-HALF", "name": "نیم سکه", "category": "gold", "unit": "count" },
+    { "symbol": "COIN-QUARTER", "name": "ربع سکه", "category": "gold", "unit": "count" },
+    { "symbol": "SILVER-GRAM", "name": "نقره آبشده", "category": "gold", "unit": "gram" },
+
+    { "symbol": "USDT", "name": "تتر", "category": "currency", "unit": "usdt" },
+    { "symbol": "BTC", "name": "بیت کوین", "category": "currency", "unit": "btc" },
+    { "symbol": "ETH", "name": "اتریوم", "category": "currency", "unit": "eth" },
+    { "symbol": "USDC", "name": "یو اس دی کوین", "category": "currency", "unit": "usdc" },
+    { "symbol": "BNB", "name": "بی ان بی", "category": "currency", "unit": "bnb" },
+
+    { "symbol": "AYAR", "name": "صندوق طلای عیار", "category": "stock", "unit": "count" },
+    { "symbol": "GANJ", "name": "صندوق طلای گنج", "category": "stock", "unit": "count" },
+    { "symbol": "GHAZNJAN", "name": "شیر پاستوریزه پگاه زنجان", "category": "stock", "unit": "share" },
+    { "symbol": "RAHYAB", "name": "رهیاب پیام گستران", "category": "stock", "unit": "share" },
+    { "symbol": "LABAN", "name": "صنایع دامپروری و لبنی رضوی", "category": "stock", "unit": "share" },
+    { "symbol": "FENGHRE", "name": "ذوب گران رنگین فلز", "category": "stock", "unit": "share" },
+    { "symbol": "NOOR", "name": "ص س. پروژه برق خورشیدی", "category": "stock", "unit": "share" },
+    { "symbol": "TALA-FUND", "name": "صندوق س. کالای پارسیان", "category": "stock", "unit": "count" },
+
+    { "symbol": "CASH-TOMAN", "name": "پول نقد", "category": "cash", "unit": "toman" }
+  ]
+}

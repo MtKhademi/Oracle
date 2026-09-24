@@ -44,6 +44,13 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
     const icon = importCategoryToIcon[String(row[1] ?? '').trim()];
     if (!icon) { skipped++; continue; }
     const name = String(row[0] ?? '').trim();
+    // TODO(follow-up task): the add-asset form is now catalog-driven
+    // (src/services/assetCatalog.ts, see AddAssetModal.tsx) and uses a catalog
+    // entry's `symbol` directly as `code`. Excel import still uses the
+    // auto-generated getOrCreateCode(icon, name) registry below — it needs to
+    // be switched to match rows against the catalog (by name, presumably) and
+    // use the matching entry's `symbol` as `code` instead, so imported rows
+    // line up with the same identity as catalog-driven manual adds.
     const code = getOrCreateCode(icon, name);
     parsed.push({ id: crypto.randomUUID(), name, quantity, unit: String(row[3] ?? '').trim(), unitPrice: Number(row[4]), icon, code });
   }
@@ -101,9 +108,23 @@ export default function App() {
   const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
 
   const handleAddAsset = async (newAsset: Asset) => {
+    // Merge-by-code: a catalog-driven add (see AddAssetModal.tsx) whose `code`
+    // (the catalog symbol) matches an asset already in the list is treated as
+    // "I'm adding to what I already have" — quantity is ADDED to the existing
+    // amount (unlike Excel import, which replaces) and unit price is updated to
+    // the newly entered one. No match (or no code) creates a new asset as before.
+    const existing = newAsset.code ? items.find(asset => asset.code === newAsset.code) : undefined;
+    if (existing) {
+      const next = await assetService.updateAsset(existing.id, { quantity: existing.quantity + newAsset.quantity, unitPrice: newAsset.unitPrice });
+      setItems(next);
+      setIsSample(false);
+      toast.success(`مقدار ${existing.name} افزایش یافت`);
+      return;
+    }
     const next = await assetService.addAsset(newAsset);
     setItems(next);
     setIsSample(false);
+    toast.success('دارایی جدید اضافه شد');
   };
 
   const handleDelete = async (id: string) => {
