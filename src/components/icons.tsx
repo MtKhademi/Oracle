@@ -72,6 +72,14 @@ export function LogoutIcon() {
   </svg>;
 }
 
+export function HistoryIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+    <path d="M3 3v5h5"/>
+    <path d="M12 7v5l4 2"/>
+  </svg>;
+}
+
 export function HamburgerIcon() {
   return <svg className="w-[30px] h-[30px] block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
     <path d="M4 7h16M4 12h16M4 17h16"/>
