@@ -107,10 +107,9 @@ type Asset = {
   unit: string;          // Persian unit label (گرم, واحد, تومان, USDT, ...)
   unitPrice: number;     // price per unit, in toman (cash = 1)
   icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth' | 'other';
-  code?: string;          // permanent identity code, see below — optional at the
-                          // type level only because it's assigned lazily by the
-                          // migration in App.tsx, not by the add-asset form or
-                          // Excel import yet (those are follow-up tasks)
+  code?: string;          // permanent identity code, see below — still optional
+                          // at the type level because the Excel import doesn't
+                          // assign it yet (next follow-up task)
 };
 ```
 
@@ -125,9 +124,13 @@ type Asset = {
   `src/services/assetCodeRegistry.ts` (see §4): the same `icon` + `name`
   (case-insensitive, trimmed) always resolves to the same code once assigned,
   new identities get the next unused number for their prefix. This field is
-  purely an internal identity key for now — **not shown anywhere in the UI**,
-  and not yet wired into the Excel import or the add-asset form (both follow-up
-  tasks); only the one-time migration described in §6h assigns it today.
+  purely an internal identity key for now — **not shown anywhere in the UI**.
+  Assigned by: the one-time migration described in §6h (pre-existing/sample
+  assets), and `AddAssetModal`'s submit handler (see §6c) for manually
+  added assets. Editing an asset (see §6, quantity/unit price only) never
+  touches `code` — identity never changes on edit. **Not yet wired into the
+  Excel import** (`parseImportRows` in `App.tsx`, see §6a) — that's the next
+  follow-up task.
 
 - Row value = `quantity × unitPrice` (toman).
 - Page total = `items.reduce((s,a)=> s + a.quantity*a.unitPrice, 0)` over the live
@@ -258,9 +261,12 @@ type Asset = {
   sibling after `<main>`, not nested inside it — taking `onClose`/`onAdd` props.
 - The form itself (name, icon/category select incl. `other`, quantity, unit, unit
   price) and its submit handler live inside `AddAssetModal` (own local `useState`,
-  not lifted to `App.tsx`); on successful submit it calls the parent's `onAdd(asset)`
+  not lifted to `App.tsx`); on successful submit it calls
+  `getOrCreateCode(formIcon, name)` (`src/services/assetCodeRegistry.ts`, see §4/§5)
+  to attach a `code` to the new `Asset` before calling the parent's `onAdd(asset)`,
   then resets its own form fields and calls `onClose()` so the modal closes and
-  reopens empty next time.
+  reopens empty next time. Re-adding an asset with the exact same name+category as
+  an existing one reuses that same code rather than minting a new one.
 - Modal markup: a `fixed inset-0` semi-transparent black backdrop (`bg-black/50`)
   that closes on click (calls `onClose`), containing a centered white card (same
   rounded/border/shadow tokens as other cards — see §7) with a top-corner "×"
@@ -496,13 +502,14 @@ type Asset = {
 - No password-strength meter, CAPTCHA, or other extras were added — kept
   intentionally minimal per the task.
 
-## 6h. Asset identity codes (`code` field, migration only)
+## 6h. Asset identity codes (`code` field, migration)
 
 - See §5 for the `code` field/format and §4 for
-  `src/services/assetCodeRegistry.ts` (`getOrCreateCode`). This section covers
-  only the one-time migration that backfills `code` on assets that predate the
-  field — the Excel import and add-asset form do **not** assign codes yet
-  (follow-up tasks).
+  `src/services/assetCodeRegistry.ts` (`getOrCreateCode`). §6c covers manual
+  add-asset code assignment. This section covers the one-time migration that
+  backfills `code` on assets that predate the field — the Excel import does
+  **not** assign codes yet (next follow-up task); editing an asset never
+  reassigns/changes its `code` (only quantity/unit price are editable, see §6).
 - The mount-time `useEffect` in `App.tsx` that calls `assetService.listAssets()`
   (see §6d) now also assigns codes:
   - If `listAssets()` resolves `null` (untouched sample, see §6/§6d), the static
@@ -616,6 +623,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
 | 2026-09-24 | Owner-requested: added a permanent, unique `code: string` field (`<PREFIX>-<NNNN>`, e.g. `GOLD-0001`) to `Asset` — identity groundwork for a future transaction-history feature (no transaction logic added yet). New `src/services/assetCodeRegistry.ts` (`getOrCreateCode(category, name)`, see §4/§5) generates/looks up codes via two `localStorage` keys: a per-prefix counter (`oracle_code_counters_v1`) and a `category+name` → `code` lookup (`oracle_asset_registry_v1`), so the same real-world asset (same category + name, case-insensitive) always resolves to the same code across separate Excel imports or manual re-entry. A one-time migration in `App.tsx`'s mount-time `listAssets()` effect (see §6h) backfills `code` on any asset missing one — including the 7 static samples, which get codes assigned at runtime rather than hardcoded into `src/assets.ts` — and persists real (non-sample) assets back through `assetService.updateAsset` so it only runs once per asset. The `code` is purely an internal identity field for now: not shown in the UI, and not yet wired into the Excel import or add-asset form (explicit follow-up tasks). |
+| 2026-09-24 | Owner-requested: `AddAssetModal`'s submit handler (see §6c) now calls `getOrCreateCode(formIcon, name)` and attaches the result as the new `Asset`'s `code`, so manually added assets get an identity code immediately instead of only through the migration — re-adding an asset with the same name+category reuses its existing code. Editing an asset (quantity/unit price only, no name/category edit exists) never calls `getOrCreateCode` and never touches `code`, confirming identity is stable across edits. Excel import still does not assign codes (next follow-up task). |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |

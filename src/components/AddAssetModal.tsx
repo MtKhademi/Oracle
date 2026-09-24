@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Asset } from '../assets';
+import { getOrCreateCode } from '../services/assetCodeRegistry';
 import { CloseIcon } from './icons';
 
 const iconLabel: Record<Asset['icon'], string> = {
@@ -50,7 +51,9 @@ export function AddAssetModal({ onClose, onAdd }: { onClose: () => void; onAdd: 
       setFormError('نام، مقدار، واحد و قیمت واحد را به‌درستی پر کنید.');
       return;
     }
-    const newAsset: Asset = { id: crypto.randomUUID(), name: formName.trim(), quantity, unit: formUnit.trim(), unitPrice, icon: formIcon };
+    const name = formName.trim();
+    const code = getOrCreateCode(formIcon, name);
+    const newAsset: Asset = { id: crypto.randomUUID(), name, quantity, unit: formUnit.trim(), unitPrice, icon: formIcon, code };
     onAdd(newAsset);
     setFormName('');
     setFormQuantity('');
