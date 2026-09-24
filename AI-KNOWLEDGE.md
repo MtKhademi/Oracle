@@ -67,7 +67,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
-| `src/components/AddAssetModal.tsx` | The add-asset modal + form (name/category/quantity/unit/unit-price), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs (see §6c). Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
+| `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
+| `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
@@ -290,13 +291,42 @@ type Asset = {
   §6, `src/components/AddAssetModal.tsx`), rendered only when `isAddOpen`, as a
   sibling after `<main>`, not nested inside it — taking `onClose`/`onAdd` props.
 - **Catalog-driven, not free-text.** The old free-typed "نام" input + manual
-  "دسته/آیکن" select were replaced with a single "دارایی" `<select>` populated
-  from `getCatalogAssets()` (`src/services/assetCatalog.ts`, see §4), grouped
-  into `<optgroup>`s by category (`getCategoryLabel(...)` for each group
-  label), listing each catalog entry by its Persian `name`. Picking an entry
-  determines its name, category/icon, and unit all at once — this was an
+  "دسته/آیکن" select were replaced with a single "دارایی" field populated from
+  `getCatalogAssets()` (`src/services/assetCatalog.ts`, see §4). Picking an
+  entry determines its name, category/icon, and unit all at once — this was an
   owner-requested fix to stop free-typed names from creating
   duplicate/inconsistent entries (e.g. "طلا ۱۸" vs "طلای ۱۸ عیار").
+- **Searchable combobox, not a native `<select>`** (`src/components/AssetPicker.tsx`,
+  see §4) — a custom component (plain React state + Tailwind, no external
+  combobox/autocomplete library) replacing an earlier native
+  `<select>`/`<optgroup>` version that forced scrolling through a long list.
+  Takes `selectedSymbol`/`onSelect` props from `AddAssetModal`.
+  - Renders a text `<input role="combobox">` showing the selected asset's name
+    (placeholder `"جستجوی دارایی..."` when nothing is selected). Focusing or
+    clicking it opens a dropdown panel below (`absolute`, same card/border/shadow
+    tokens as the app's other cards — see §7).
+  - Typing filters `getCatalogAssets()` live to entries whose `name` **or**
+    `symbol` contains the typed text — a simple case-insensitive substring
+    match (`.toLowerCase().includes(...)`), no fuzzy-search library; works
+    for Persian names since `toLowerCase()` is a harmless no-op on
+    non-Latin text.
+  - Filtered results stay grouped by category exactly as before, rendered as
+    a plain list with category-label headers (`getCategoryLabel(...)`)
+    instead of `<optgroup>`s. No matches → a small "دارایی‌ای پیدا نشد"
+    message instead of an empty panel.
+  - Clicking a result calls `onSelect(symbol)`, fills the input with that
+    asset's name, and closes the panel — triggering the same
+    auto-fill-unit/`code`-as-`symbol`/merge-on-duplicate-symbol logic
+    described below (unchanged from the previous native-`<select>` version).
+  - Keyboard: `ArrowDown`/`ArrowUp` move a highlighted result (also opens the
+    panel if closed), `Enter` selects the highlighted result, `Escape` closes
+    the panel **without** changing the selection (the input reverts to
+    showing the previously selected asset's name).
+  - Closes on outside click via the same `fixed inset-0` backdrop pattern the
+    app's modals/drawer already use (see `AddAssetModal`/`ProfileModal`/
+    `ForgotPasswordModal`/`SideDrawer`) — a full-screen invisible `fixed
+    inset-0` div behind the dropdown panel, `onClick` closes; the panel itself
+    `stopPropagation`s so clicking inside it doesn't close.
 - **واحد (unit) is now locked**, not free-typed: a read-only/disabled text
   input showing `getUnitLabel(selectedAsset.unit)` for whichever catalog entry
   is currently selected — the unit is determined by the catalog entry, never
@@ -685,6 +715,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-24 | Owner-requested: `AddAssetModal`'s submit handler (see §6c) now calls `getOrCreateCode(formIcon, name)` and attaches the result as the new `Asset`'s `code`, so manually added assets get an identity code immediately instead of only through the migration — re-adding an asset with the same name+category reuses its existing code. Editing an asset (quantity/unit price only, no name/category edit exists) never calls `getOrCreateCode` and never touches `code`, confirming identity is stable across edits. Excel import still does not assign codes (next follow-up task). |
 | 2026-09-24 | Bug fix (owner-reported): re-importing an Excel file (or a fresh export of unchanged holdings) no longer creates duplicate rows. `parseImportRows` (see §6a) now assigns each row a `code` via `getOrCreateCode` at parse time; `assetService.importAssets` (see §6d) merges by that `code` instead of always appending — a match REPLACES the existing asset's `quantity`/`unitPrice` (keeping its `id`, not summed with the old values, since the export reflects the current total holding, not a new purchase), no match appends a new asset as before. `importAssets` now resolves `{ assets, added, updated }`; the post-import toast reports both counts (e.g. `۳ دارایی اضافه شد، ۲ دارایی به‌روزرسانی شد`) instead of one combined "imported" count. Header validation/category mapping and manual add/edit were untouched. |
 | 2026-09-24 | Owner-requested: added a fixed, owner-provided asset catalog (`src/data/assetCatalog.json`, 20 known assets across gold/currency/stock/cash categories, plus `src/services/assetCatalog.ts` — see §4/§5/§6c) and switched the add-asset form (`AddAssetModal`) from a free-typed "نام" input to a catalog-driven `<select>` grouped by category, with واحد (unit) now locked from the catalog entry instead of free-typed. **Catalog symbols are now the source of truth for asset identity**: `Asset.code` for any catalog-driven add is set directly to the selected entry's `symbol` (e.g. `GOLD18`, `USDT`) rather than generated via `getOrCreateCode` — that auto-generated-code path (`assetCodeRegistry.ts`) is kept only as a fallback for non-catalog assets (currently: the one-time pre-catalog migration, see §6h, and the Excel import, see §6a, which is not yet catalog-aware — noted with a `TODO` code comment as the next follow-up task). Added `getAssetIconForCatalogEntry` to map the catalog's 5 categories (gold/currency/stock/cash/other) onto the existing 7 `Asset['icon']` keys so `AssetIcon`/`iconTint` needed no changes. Manually adding a catalog asset that already exists in the list (matched by `code`/`symbol`) now merges — quantity is ADDED to the existing amount (this is a manual "I already have some of this" action, unlike Excel import's replace-on-match behavior) and unit price is updated — instead of creating a duplicate row, with a distinct success toast for the add-new vs. merge-into-existing cases. |
+| 2026-09-24 | Owner-requested: replaced the add-asset form's native `<select>`/`<optgroup>` catalog picker (previous entry above) with a custom searchable combobox, `src/components/AssetPicker.tsx` (see §4/§6c) — a text input that filters the catalog live as the owner types (case-insensitive substring match on name or symbol) instead of forcing a scroll through a long dropdown. Built with plain React state + Tailwind only, **no external combobox/autocomplete library added** (no react-select/downshift/etc.), matching how the rest of this app is built. Supports keyboard use (Up/Down to move a highlighted result, Enter to select, Escape to close without changing the selection), a "دارایی‌ای پیدا نشد" message when nothing matches, and closes on outside click reusing the app's existing `fixed inset-0` backdrop pattern (same one `AddAssetModal`/`ProfileModal`/`ForgotPasswordModal`/`SideDrawer` already use) rather than a new document-click-listener pattern. Results stay grouped by category exactly as before, just rendered as a plain list with category headers instead of `<optgroup>`s. Everything downstream of selection — auto-filled unit, `code` set to the catalog `symbol`, merge-on-duplicate-symbol — is unchanged; only how the asset is picked changed. |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |

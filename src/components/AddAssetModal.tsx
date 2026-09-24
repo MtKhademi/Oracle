@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Asset } from '../assets';
-import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getCatalogAssets, getCategoryLabel, getUnitLabel } from '../services/assetCatalog';
+import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getCatalogAssets, getUnitLabel } from '../services/assetCatalog';
+import { AssetPicker } from './AssetPicker';
 import { CloseIcon } from './icons';
 
 const stripToNumberString = (raw: string) => {
@@ -17,12 +18,7 @@ const formatWithThousands = (raw: string) => {
   return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
 };
 
-// Catalog assets, grouped by category (in the catalog's own category order) —
-// drives the "دارایی" <optgroup>-grouped dropdown below. This replaced the old
-// free-text "نام" input + manual "دسته/آیکن" select: picking a catalog entry now
-// determines name, category/icon, and unit all at once (see assetCatalog.ts).
 const catalogAssets = getCatalogAssets();
-const catalogCategoryIds = [...new Set(catalogAssets.map(asset => asset.category))];
 
 export function AddAssetModal({ onClose, onAdd }: { onClose: () => void; onAdd: (asset: Asset) => void }) {
   const [selectedSymbol, setSelectedSymbol] = useState(catalogAssets[0]?.symbol ?? '');
@@ -71,11 +67,7 @@ export function AddAssetModal({ onClose, onAdd }: { onClose: () => void; onAdd: 
       <h2 id="add-asset-title" className="text-[15px] font-bold mb-4">افزودن دارایی جدید</h2>
       <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
         <label className="text-[11px] text-[#7a8097] grid gap-1 min-[560px]:col-span-2">دارایی
-          <select value={selectedSymbol} onChange={e => setSelectedSymbol(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d] bg-white">
-            {catalogCategoryIds.map(categoryId => <optgroup key={categoryId} label={getCategoryLabel(categoryId)}>
-              {catalogAssets.filter(asset => asset.category === categoryId).map(asset => <option key={asset.symbol} value={asset.symbol}>{asset.name}</option>)}
-            </optgroup>)}
-          </select>
+          <AssetPicker selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol}/>
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">مقدار
           <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
