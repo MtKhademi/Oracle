@@ -81,6 +81,11 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
+| `src/types/transaction.ts` | `TransactionType` (`'buy' \| 'sell'`) and `Transaction` (`id`/`assetId`/`type`/`quantity`/`unitPrice`/`date`/optional `note`) — the durable buy/sell history model for each asset, ready for the follow-up transaction-history UI. |
+| `src/transactionStorage.ts` | `loadTransactions()`/`saveTransactions()` — read/write the transaction list to `localStorage` under key `oracle_transactions_v1`, using the same try/catch-safe array storage pattern as assets/auth/profile. Only called from `src/services/localTransactionService.ts`. |
+| `src/services/transactionService.ts` | Defines the `TransactionService` interface (`listTransactions`/`listTransactionsForAsset`/`addTransaction`/`updateTransaction`/`deleteTransaction`/`deleteTransactionsForAsset`) and exports the single `transactionService` instance — currently `= localTransactionService`, matching the swap-one-line service-layer pattern used by assets/profile/auth. |
+| `src/services/localTransactionService.ts` | The `localTransactionService: TransactionService` implementation, backed by `src/transactionStorage.ts`. Transaction IDs use the same `crypto.randomUUID()` pattern already used for asset rows; add/update reject invalid `quantity <= 0` or `unitPrice < 0`; asset deletion cleanup is triggered by the UI handler in `App.tsx`, not by coupling this service to `localAssetService`. |
+| `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet. Not called anywhere yet — reserved for the transaction-history UI follow-up. |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
 | `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
@@ -154,6 +159,43 @@ type Asset = {
   own neutral grey tint (see §7).
 - The real, owner-entered list (post add/edit/delete) is held in React state in
   `App.tsx` and persisted to `localStorage` via `src/storage.ts` — see §6.
+
+### Transaction model (`src/types/transaction.ts`)
+
+```ts
+type Transaction = {
+  id: string;
+  assetId: string;      // related Asset.id
+  type: 'buy' | 'sell';
+  quantity: number;     // intended to be > 0
+  unitPrice: number;    // toman per unit at transaction time, intended to be >= 0
+  date: string;         // ISO date, e.g. "2026-09-24"
+  note?: string;
+};
+```
+
+- Transactions are stored separately from assets in `localStorage` under
+  `oracle_transactions_v1` via `src/transactionStorage.ts` and
+  `src/services/localTransactionService.ts` (see §4). The current dashboard UI does
+  not show or edit transactions yet; this is service/model groundwork for the
+  follow-up transaction-history UI.
+- `assetId` points to the related `Asset.id` (not `Asset.code`). When an asset is
+  deleted from the current UI, `App.tsx` calls `assetService.deleteAsset(id)` and
+  then `transactionService.deleteTransactionsForAsset(id)`; clear-all similarly
+  deletes transaction rows for every asset that was present before clearing. This
+  keeps the asset and transaction services independent while preventing orphaned
+  transaction rows.
+- `computeHoldingSummary(transactions)` uses weighted-average cost: process by
+  chronological `date` (stable by original array order for tied dates), buys update
+  average cost, sells keep average cost unchanged and add realized P/L as
+  `(sellUnitPrice - currentAverageCost) * sellQuantity`. If bad data sells more
+  than currently held, quantity is clamped at 0 while realized P/L still uses the
+  requested sell quantity.
+- `ensureInitialTransaction(asset)` is a lazy migration helper for pre-existing
+  assets: if an asset has no transactions, it creates one synthetic `buy` for the
+  current `asset.quantity`/`asset.unitPrice` dated today. It is intentionally not
+  called yet; the next UI task should call it when the owner first opens an asset's
+  transaction history.
 
 ## 6. UI architecture (`App.tsx` + `src/components/`)
 
@@ -430,7 +472,13 @@ type Asset = {
   (replacing the old synchronous `loadAssets() ?? assets` initializer) and every
   handler (`handleAddAsset`, `handleDelete`, `handleEdit`, `clearAllAssets`,
   `handleImportFile`) is now `async`, `await`s the matching `assetService.xxx(...)`
-  call, and sets the returned full list into `items` state. The local
+  call, and sets the returned full list into `items` state. `handleDelete` also
+  calls `transactionService.deleteTransactionsForAsset(id)` after deleting the
+  asset, and `clearAllAssets` deletes transaction rows for every asset that was
+  present before clearing, so future transaction history cannot be orphaned when
+  asset rows are removed; this cleanup intentionally lives at the UI action
+  boundary rather than inside `localAssetService`, keeping the services
+  independent. The local
   implementation resolves instantly (no network involved yet), so no loading
   spinners are needed for now — see §6/§6b for how `isSample` is derived from these
   same calls.
@@ -738,6 +786,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-24 | Owner-requested: added a fixed, owner-provided asset catalog (`src/data/assetCatalog.json`, 20 known assets across gold/currency/stock/cash categories, plus `src/services/assetCatalog.ts` — see §4/§5/§6c) and switched the add-asset form (`AddAssetModal`) from a free-typed "نام" input to a catalog-driven `<select>` grouped by category, with واحد (unit) now locked from the catalog entry instead of free-typed. **Catalog symbols are now the source of truth for asset identity**: `Asset.code` for any catalog-driven add is set directly to the selected entry's `symbol` (e.g. `GOLD18`, `USDT`) rather than generated via `getOrCreateCode` — that auto-generated-code path (`assetCodeRegistry.ts`) is kept only as a fallback for non-catalog assets (currently: the one-time pre-catalog migration, see §6h, and the Excel import, see §6a, which is not yet catalog-aware — noted with a `TODO` code comment as the next follow-up task). Added `getAssetIconForCatalogEntry` to map the catalog's 5 categories (gold/currency/stock/cash/other) onto the existing 7 `Asset['icon']` keys so `AssetIcon`/`iconTint` needed no changes. Manually adding a catalog asset that already exists in the list (matched by `code`/`symbol`) now merges — quantity is ADDED to the existing amount (this is a manual "I already have some of this" action, unlike Excel import's replace-on-match behavior) and unit price is updated — instead of creating a duplicate row, with a distinct success toast for the add-new vs. merge-into-existing cases. |
 | 2026-09-24 | Owner-requested: replaced the add-asset form's native `<select>`/`<optgroup>` catalog picker (previous entry above) with a custom searchable combobox, `src/components/AssetPicker.tsx` (see §4/§6c) — a text input that filters the catalog live as the owner types (case-insensitive substring match on name or symbol) instead of forcing a scroll through a long dropdown. Built with plain React state + Tailwind only, **no external combobox/autocomplete library added** (no react-select/downshift/etc.), matching how the rest of this app is built. Supports keyboard use (Up/Down to move a highlighted result, Enter to select, Escape to close without changing the selection), a "دارایی‌ای پیدا نشد" message when nothing matches, and closes on outside click reusing the app's existing `fixed inset-0` backdrop pattern (same one `AddAssetModal`/`ProfileModal`/`ForgotPasswordModal`/`SideDrawer` already use) rather than a new document-click-listener pattern. Results stay grouped by category exactly as before, just rendered as a plain list with category headers instead of `<optgroup>`s. Everything downstream of selection — auto-filled unit, `code` set to the catalog `symbol`, merge-on-duplicate-symbol — is unchanged; only how the asset is picked changed. |
 | 2026-09-24 | Bug fix (owner-reported): `AssetPicker`'s dropdown panel was overflowing outside/beside the `AddAssetModal` card and showing two overlapping scrollbars. Root cause: the card (`<section>` in `AddAssetModal.tsx`) had `overflow-y-auto max-h-[90vh]` directly on it, making it the nearest scrollable/clipping ancestor for the picker's `absolute`-positioned dropdown — the dropdown's own `overflow-y-auto` panel was fighting the card's scrollbar instead of being the only one. Fix: moved the scroll boundary from the card to the modal's outer `fixed inset-0` backdrop (`overflow-y-auto` there instead), with a new inner `min-h-full grid place-items-center` wrapper keeping the card centered; the card itself now has no `overflow`/`max-h` of its own, so it never clips the dropdown, and only the dropdown panel (or, if content overall exceeds the viewport, the backdrop) scrolls — never both competing over the same content. Also bumped the card's `max-w-[440px]→[480px]` and the dropdown panel's `max-h-[220px]→[280px]` (the old value only fit ~2–3 result rows; the new one comfortably shows ~5 without forcing empty space when there are fewer matches). Filter/grouping/keyboard-nav logic in `AssetPicker` untouched — layout/sizing only. See §6c for the updated overlay-pattern note (`AddAssetModal` now intentionally differs from `ProfileModal`/`ForgotPasswordModal` in where the scroll lives, because it's the only modal containing an absolutely-positioned dropdown). |
+| 2026-09-24 | Owner-requested: added the transaction-history data/service foundation (no UI yet): `Transaction`/`TransactionType` in `src/types/transaction.ts`, `src/transactionStorage.ts` with `localStorage` key `oracle_transactions_v1`, `TransactionService`/`localTransactionService` using the same singleton-swap pattern as `AssetService`, and `src/services/transactionCalculations.ts` with weighted-average-cost `computeHoldingSummary(...)` plus `ensureInitialTransaction(asset)` for lazy migration of pre-transaction assets. Transactions relate to assets by `assetId = Asset.id`; deleting one asset or clearing all assets now also calls `transactionService.deleteTransactionsForAsset(...)` from `App.tsx`, deliberately outside `localAssetService` so the two services remain independent. Add/update reject invalid `quantity <= 0` or `unitPrice < 0`. Weighted-average summary processes transactions chronologically, updates average cost only on buys, keeps average cost unchanged on sells, computes realized P/L from sell price minus current average cost, and clamps bad-data oversells so quantity never goes negative. |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
