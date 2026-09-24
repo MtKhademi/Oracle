@@ -29,6 +29,13 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
 
   const selectedAsset = getCatalogAssetBySymbol(selectedSymbol);
 
+  // The dropdown panel is only shown once the owner has actually typed
+  // something — focusing/clicking the input alone must not reveal the full
+  // catalog. `isOpen` still tracks whether the field is "active" (drives
+  // whether the input shows the typed query vs. the selected asset's name),
+  // but the panel itself additionally requires a non-empty, trimmed query.
+  const showPanel = isOpen && query.trim().length > 0;
+
   const filtered = useMemo(() => filterCatalogAssets(query), [query]);
   const groupedFiltered = useMemo(
     () => catalogCategoryIds
@@ -59,10 +66,15 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter') { e.preventDefault(); open(); }
+    if (e.key === 'Escape') {
+      // Close without changing the selection — the input falls back to
+      // showing the (unchanged) selected asset's name once closed.
+      e.preventDefault();
+      close();
       return;
     }
+    // No panel showing (empty query) — nothing to navigate/select yet.
+    if (!showPanel) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex(i => Math.min(i + 1, flatFiltered.length - 1));
@@ -73,11 +85,6 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
       e.preventDefault();
       const asset = flatFiltered[highlightedIndex];
       if (asset) selectAsset(asset);
-    } else if (e.key === 'Escape') {
-      // Close without changing the selection — the input falls back to
-      // showing the (unchanged) selected asset's name once closed.
-      e.preventDefault();
-      close();
     }
   };
 
@@ -85,7 +92,7 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
     <input
       type="text"
       role="combobox"
-      aria-expanded={isOpen}
+      aria-expanded={showPanel}
       aria-autocomplete="list"
       value={isOpen ? query : (selectedAsset?.name ?? '')}
       placeholder="جستجوی دارایی..."
@@ -95,7 +102,7 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
       onKeyDown={handleKeyDown}
       className="relative z-20 border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d] w-full"
     />
-    {isOpen && <>
+    {showPanel && <>
       <div className="fixed inset-0 z-10" onClick={close}/>
       <div className="absolute z-20 mt-1 w-full max-h-[220px] overflow-y-auto bg-white rounded-[14px] border border-[#eceef8] shadow-[0_12px_36px_#2734790b] p-1" onClick={e => e.stopPropagation()}>
         {flatFiltered.length === 0
