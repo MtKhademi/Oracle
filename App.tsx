@@ -5,6 +5,7 @@ import { assets, type Asset } from './src/assets';
 import { assetService } from './src/services/assetService';
 import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { authService } from './src/services/authService';
+import { transactionService } from './src/services/transactionService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
@@ -129,6 +130,7 @@ export default function App() {
 
   const handleDelete = async (id: string) => {
     const next = await assetService.deleteAsset(id);
+    await transactionService.deleteTransactionsForAsset(id);
     setItems(next);
     setIsSample(false);
   };
@@ -140,7 +142,9 @@ export default function App() {
   };
 
   const clearAllAssets = async () => {
+    const idsToDelete = items.map(asset => asset.id);
     const next = await assetService.clearAssets();
+    await Promise.all(idsToDelete.map(id => transactionService.deleteTransactionsForAsset(id)));
     setItems(next);
     setIsSample(false);
     toast.success('همه دارایی‌ها پاک شد');
