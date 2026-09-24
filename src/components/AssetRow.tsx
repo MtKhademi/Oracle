@@ -3,11 +3,11 @@ import type { Asset } from '../assets';
 import { format } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
-import { PencilIcon, TrashIcon } from './icons';
+import { HistoryIcon, PencilIcon, TrashIcon } from './icons';
 
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
-export function AssetRow({ asset, onDelete, onEdit }: { asset: Asset; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void }) {
+export function AssetRow({ asset, onDelete, onEdit, onHistory }: { asset: Asset; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void; onHistory: (id: string) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftQuantity, setDraftQuantity] = useState(String(asset.quantity));
   const [draftUnitPrice, setDraftUnitPrice] = useState(String(asset.unitPrice));
@@ -49,6 +49,7 @@ export function AssetRow({ asset, onDelete, onEdit }: { asset: Asset; onDelete: 
           <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>
           <button type="button" onClick={() => setIsEditing(false)} className="text-[10px] text-[#9096aa] border border-[#eef0f7] rounded-[8px] px-2 py-1">انصراف</button>
         </> : <>
+          <IconButton icon={<HistoryIcon/>} onClick={() => onHistory(asset.id)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
           <IconButton icon={<PencilIcon/>} onClick={startEdit} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>
           <IconButton icon={<TrashIcon/>} onClick={() => onDelete(asset.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>
         </>}

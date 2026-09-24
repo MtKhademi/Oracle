@@ -10,6 +10,7 @@ import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
+import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
 import { HamburgerIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
@@ -64,6 +65,7 @@ export default function App() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
 
@@ -200,6 +202,8 @@ export default function App() {
     return <AuthScreen onAuthenticated={setCurrentUser}/>;
   }
 
+  const historyAsset = historyAssetId ? items.find(asset => asset.id === historyAssetId) : undefined;
+
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
       <span className="flex items-center gap-3 text-[22px] font-bold max-[481px]:text-[20px]"><button type="button" onClick={() => setIsMenuOpen(true)} aria-label="باز کردن منو" className="h-[46px] w-[46px] border border-[#ffffff40] bg-[#ffffff15] rounded-[15px] grid place-items-center max-[481px]:h-[41px] max-[481px]:w-[41px] cursor-pointer text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[2px]"><HamburgerIcon/></button><a className="no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-[5px] focus-visible:rounded-[10px]" href="./" aria-label="Oracle، صفحه اصلی">Oracle<span className="block text-[11px] font-normal text-[#e0e4ff] mt-[1px]">سرمایه‌های من</span></a></span>
@@ -210,12 +214,13 @@ export default function App() {
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <Toolbar onImportFile={handleImportFile} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
-        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit}/>)}</ul>}
+        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
+    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
   </div>;
 }
