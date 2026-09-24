@@ -74,6 +74,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/ForgotPasswordModal.tsx` | Two-step password-reset modal (see §6g), reusing the `AddAssetModal` overlay pattern. Step 1 asks for email/phone, calls `authService.requestPasswordReset(identifier)`, and shows the returned `simulatedCode` in a long-lived `toast(...)` (**simulated — not a real email/SMS send**, see §6g). Step 2 asks for the 6-digit code + new password (+ repeat, matched client-side), calls `authService.resetPassword(...)`. Takes only `onClose`. |
 | `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, used across `App.tsx` and the components above. |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
+| `src/services/assetCodeRegistry.ts` | `getOrCreateCode(category, name): string` — assigns/looks up each asset's permanent `<PREFIX>-<NNNN>` identity code (see §5). Backed by two `localStorage` keys: `oracle_code_counters_v1` (highest `NNNN` issued per prefix, e.g. `{ GOLD: 2, USDT: 1 }`) and `oracle_asset_registry_v1` (`category\|name.trim().toLowerCase()` → already-assigned code). Same try/catch `localStorage` pattern as `storage.ts`/`profileStorage.ts`/`authStorage.ts`. Pure lookup/generation logic only — does not read or write the asset list itself; callers (currently only the migration in `App.tsx`, see §6d/§6h) are responsible for attaching the returned code to an `Asset` and persisting it via `assetService`. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
@@ -106,8 +107,27 @@ type Asset = {
   unit: string;          // Persian unit label (گرم, واحد, تومان, USDT, ...)
   unitPrice: number;     // price per unit, in toman (cash = 1)
   icon: 'gold' | 'fund' | 'cash' | 'usdt' | 'btc' | 'eth' | 'other';
+  code?: string;          // permanent identity code, see below — optional at the
+                          // type level only because it's assigned lazily by the
+                          // migration in App.tsx, not by the add-asset form or
+                          // Excel import yet (those are follow-up tasks)
 };
 ```
+
+- **`code`** — a permanent, unique `<PREFIX>-<NNNN>` identity for the asset (e.g.
+  `GOLD-0001`, `USDT-0002`, `OTHR-0007`), so the same real-world asset keeps
+  mapping to the same record across separate Excel imports or manual re-entry —
+  groundwork for a future transaction-history feature (no transaction logic yet).
+  `PREFIX` is derived from `icon`: `gold→GOLD`, `fund→FUND`, `cash→CASH`,
+  `usdt→USDT`, `btc→BTC`, `eth→ETH`, `other→OTHR`. `NNNN` is a 4-digit
+  zero-padded number, unique within that prefix (`0001`, `0002`, ...). Generated
+  and looked up via `getOrCreateCode(category, name)` in
+  `src/services/assetCodeRegistry.ts` (see §4): the same `icon` + `name`
+  (case-insensitive, trimmed) always resolves to the same code once assigned,
+  new identities get the next unused number for their prefix. This field is
+  purely an internal identity key for now — **not shown anywhere in the UI**,
+  and not yet wired into the Excel import or the add-asset form (both follow-up
+  tasks); only the one-time migration described in §6h assigns it today.
 
 - Row value = `quantity × unitPrice` (toman).
 - Page total = `items.reduce((s,a)=> s + a.quantity*a.unitPrice, 0)` over the live
@@ -476,6 +496,35 @@ type Asset = {
 - No password-strength meter, CAPTCHA, or other extras were added — kept
   intentionally minimal per the task.
 
+## 6h. Asset identity codes (`code` field, migration only)
+
+- See §5 for the `code` field/format and §4 for
+  `src/services/assetCodeRegistry.ts` (`getOrCreateCode`). This section covers
+  only the one-time migration that backfills `code` on assets that predate the
+  field — the Excel import and add-asset form do **not** assign codes yet
+  (follow-up tasks).
+- The mount-time `useEffect` in `App.tsx` that calls `assetService.listAssets()`
+  (see §6d) now also assigns codes:
+  - If `listAssets()` resolves `null` (untouched sample, see §6/§6d), the static
+    `assets` sample is run through `getOrCreateCode(asset.icon, asset.name)` for
+    display only — `items` gets codes, but the sample list itself is **not**
+    written through `assetService` (doing so would turn `oracle_assets_v1`
+    non-null and permanently flip `isSample` to `false` even though the owner
+    hasn't touched anything). The registry mapping is still recorded, though,
+    so if the owner later adds a real asset with the exact same name/category as
+    a sample row, `getOrCreateCode` returns that same code instead of minting a
+    new one.
+  - If `listAssets()` resolves a stored list, any asset missing `code` gets one
+    via `getOrCreateCode`, and is persisted through
+    `assetService.updateAsset(id, { code })` (no new `AssetService` method was
+    added — this reuses the existing partial-update method) so the migration
+    only has to run once per asset; assets that already have a `code` are left
+    untouched.
+- This migration exists purely so the 7 sample assets and any pre-existing real
+  `localStorage` data end up with a code through the exact same
+  `getOrCreateCode` path used for everything else — no codes are hardcoded into
+  `src/assets.ts`.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -566,6 +615,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Structural refactor (owner-requested): broke the previously monolithic `App.tsx` into reusable components under `src/components/` — `IconButton` (single implementation for every small icon button in the app), `AssetIcon`, `Toolbar`, `AssetRow`, `SummaryCard`, `AddAssetModal`, plus `src/format.ts` and `src/components/icons.tsx` (shared SVG icons). Pure refactor — no styling/text/behavior change; `App.tsx` is now just state + storage wiring + Excel-import parsing + composition. |
 | 2026-09-23 | Architectural refactor (owner-requested): introduced a service layer (`src/services/`, see §6d) — `AssetService` interface + `localAssetService` implementation (still backed by `src/storage.ts`/`localStorage`) — sitting between `App.tsx` and storage. Every data operation (add/edit/delete/import/clear/list) now goes through `assetService.xxx(...)` (all `Promise`-returning) instead of `App.tsx` calling `loadAssets`/`saveAssets` directly; handlers became `async`/`await`. Purpose: swapping to a real server backend later only requires replacing the single `assetService` export in `assetService.ts` — no component/`App.tsx` changes needed. No visible behavior/styling change. |
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
+| 2026-09-24 | Owner-requested: added a permanent, unique `code: string` field (`<PREFIX>-<NNNN>`, e.g. `GOLD-0001`) to `Asset` — identity groundwork for a future transaction-history feature (no transaction logic added yet). New `src/services/assetCodeRegistry.ts` (`getOrCreateCode(category, name)`, see §4/§5) generates/looks up codes via two `localStorage` keys: a per-prefix counter (`oracle_code_counters_v1`) and a `category+name` → `code` lookup (`oracle_asset_registry_v1`), so the same real-world asset (same category + name, case-insensitive) always resolves to the same code across separate Excel imports or manual re-entry. A one-time migration in `App.tsx`'s mount-time `listAssets()` effect (see §6h) backfills `code` on any asset missing one — including the 7 static samples, which get codes assigned at runtime rather than hardcoded into `src/assets.ts` — and persists real (non-sample) assets back through `assetService.updateAsset` so it only runs once per asset. The `code` is purely an internal identity field for now: not shown in the UI, and not yet wired into the Excel import or add-asset form (explicit follow-up tasks). |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
