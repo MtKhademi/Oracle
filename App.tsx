@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
 import { assetService } from './src/services/assetService';
+import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { authService } from './src/services/authService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
@@ -64,9 +65,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    assetService.listAssets().then(stored => {
-      if (stored === null) return;
-      setItems(stored);
+    assetService.listAssets().then(async stored => {
+      if (stored === null) {
+        // Nothing saved yet — still showing the static `assets` sample. Run
+        // the same code-assignment path over it (registers each sample's
+        // identity in the code registry, same as real data — see
+        // assetCodeRegistry.ts) without ever persisting the sample list
+        // itself through assetService: doing so would turn
+        // `oracle_assets_v1` non-null and permanently flip `isSample` to
+        // false, even though the owner hasn't actually entered anything.
+        setItems(assets.map(asset => ({ ...asset, code: asset.code ?? getOrCreateCode(asset.icon, asset.name) })));
+        return;
+      }
+      // One-time migration: assign a permanent code to any asset saved
+      // before this field existed, then persist it so this only runs once.
+      let next = stored;
+      for (const asset of stored) {
+        if (asset.code) continue;
+        const code = getOrCreateCode(asset.icon, asset.name);
+        next = await assetService.updateAsset(asset.id, { code });
+      }
+      setItems(next);
       setIsSample(false);
     });
   }, []);
