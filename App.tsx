@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
 import { assetService } from './src/services/assetService';
 import { getOrCreateCode } from './src/services/assetCodeRegistry';
+import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
 import { format } from './src/format';
@@ -18,21 +19,11 @@ import { SummaryCard } from './src/components/SummaryCard';
 import { Toolbar } from './src/components/Toolbar';
 import type { User } from './src/types';
 
-const EXPECTED_IMPORT_HEADERS = ['نام دارایی', 'دسته‌بندی', 'تعداد', 'واحد', 'قیمت واحد (تومان)'];
-
-const importCategoryToIcon: Record<string, Asset['icon']> = {
-  'طلا': 'gold',
-  'صندوق': 'fund',
-  'نقد': 'cash',
-  'تتر': 'usdt',
-  'بیت‌کوین': 'btc',
-  'اتریوم': 'eth',
-  'سایر': 'other',
-};
+const EXPECTED_IMPORT_HEADERS = ['نماد', 'تعداد', 'قیمت واحد (تومان)'];
 
 function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number } | null {
   const header = (rows[0] ?? []).map(cell => String(cell ?? '').trim());
-  const headerMatches = header.length === EXPECTED_IMPORT_HEADERS.length && EXPECTED_IMPORT_HEADERS.every((h, i) => h === header[i]);
+  const headerMatches = header.length >= EXPECTED_IMPORT_HEADERS.length && EXPECTED_IMPORT_HEADERS.every((h, i) => header[i] === h);
   if (!headerMatches) return null;
 
   const parsed: Asset[] = [];
@@ -41,20 +32,20 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
     const row = rows[i] ?? [];
     const isEmpty = row.length === 0 || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '');
     if (isEmpty) break;
-    const quantity = Number(row[2]);
+    const symbol = String(row[0] ?? '').trim();
+    const catalogAsset = getCatalogAssetBySymbol(symbol);
+    if (!catalogAsset) { skipped++; continue; }
+    const quantity = Number(row[1]);
     if (!Number.isFinite(quantity) || quantity <= 0) break;
-    const icon = importCategoryToIcon[String(row[1] ?? '').trim()];
-    if (!icon) { skipped++; continue; }
-    const name = String(row[0] ?? '').trim();
-    // TODO(follow-up task): the add-asset form is now catalog-driven
-    // (src/services/assetCatalog.ts, see AddAssetModal.tsx) and uses a catalog
-    // entry's `symbol` directly as `code`. Excel import still uses the
-    // auto-generated getOrCreateCode(icon, name) registry below — it needs to
-    // be switched to match rows against the catalog (by name, presumably) and
-    // use the matching entry's `symbol` as `code` instead, so imported rows
-    // line up with the same identity as catalog-driven manual adds.
-    const code = getOrCreateCode(icon, name);
-    parsed.push({ id: crypto.randomUUID(), name, quantity, unit: String(row[3] ?? '').trim(), unitPrice: Number(row[4]), icon, code });
+    parsed.push({
+      id: crypto.randomUUID(),
+      name: catalogAsset.name,
+      quantity,
+      unit: getUnitLabel(catalogAsset.unit),
+      unitPrice: Number(row[2]),
+      icon: getAssetIconForCatalogEntry(catalogAsset),
+      code: catalogAsset.symbol,
+    });
   }
   return { assets: parsed, skipped };
 }

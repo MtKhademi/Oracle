@@ -78,7 +78,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
 | `src/data/assetCatalog.json` | Fixed, owner-provided reference catalog of known assets — `categories`/`units` (id + Persian `label`) and `assets` (`symbol`/`name`/`category`/`unit`, category/unit referencing the `categories`/`units` ids). Committed static data (like `src/assets.ts`'s sample array), not owner-entered real values — safe to commit. Drives the add-asset form (see §6c) instead of free-typed names. |
 | `src/services/assetCatalog.ts` | Typed wrapper around `assetCatalog.json` (`CatalogCategory`/`CatalogUnit`/`CatalogAsset` interfaces): `getCatalogAssets()`, `getCatalogAssetBySymbol(symbol)`, `getCategoryLabel(id)`/`getUnitLabel(id)` (Persian label lookups), and `getAssetIconForCatalogEntry(catalogAsset)` (maps a catalog category to the existing `Asset['icon']` key — see §6c). A catalog asset's `symbol` is now its permanent identity `code` (see §5) — this supersedes `assetCodeRegistry.ts`'s auto-generated codes for anything picked from the catalog. |
-| `src/services/assetCodeRegistry.ts` | `getOrCreateCode(category, name): string` — assigns/looks up each asset's permanent `<PREFIX>-<NNNN>` identity code (see §5). Backed by two `localStorage` keys: `oracle_code_counters_v1` (highest `NNNN` issued per prefix, e.g. `{ GOLD: 2, USDT: 1 }`) and `oracle_asset_registry_v1` (`category\|name.trim().toLowerCase()` → already-assigned code). Same try/catch `localStorage` pattern as `storage.ts`/`profileStorage.ts`/`authStorage.ts`. Pure lookup/generation logic only — does not read or write the asset list itself; callers (currently only the migration in `App.tsx`, see §6d/§6h, and the Excel import, see §6a) are responsible for attaching the returned code to an `Asset` and persisting it via `assetService`. **No longer used by `AddAssetModal`** (see §6c) — now only a fallback path for anything outside `assetCatalog.json`. |
+| `src/services/assetCodeRegistry.ts` | `getOrCreateCode(category, name): string` — assigns/looks up each asset's permanent `<PREFIX>-<NNNN>` identity code (see §5). Backed by two `localStorage` keys: `oracle_code_counters_v1` (highest `NNNN` issued per prefix, e.g. `{ GOLD: 2, USDT: 1 }`) and `oracle_asset_registry_v1` (`category\|name.trim().toLowerCase()` → already-assigned code). Same try/catch `localStorage` pattern as `storage.ts`/`profileStorage.ts`/`authStorage.ts`. Pure lookup/generation logic only — does not read or write the asset list itself; its only remaining caller is the one-time migration in `App.tsx` (see §6d/§6h), which attaches the returned code to a legacy asset and persists it via `assetService`. **No longer used by `AddAssetModal`** (see §6c) or the Excel import (see §6a, now catalog-driven) — now only a fallback path for pre-catalog legacy data. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
@@ -140,11 +140,11 @@ type Asset = {
     within that prefix. Generated and looked up via
     `getOrCreateCode(category, name)` in `src/services/assetCodeRegistry.ts`
     (see §4): the same `icon` + `name` (case-insensitive, trimmed) always
-    resolves to the same code once assigned. Still used by: the one-time
+    resolves to the same code once assigned. Used **only** by the one-time
     migration described in §6h (pre-existing/sample assets predating the
-    catalog) and the Excel import (`parseImportRows` in `App.tsx`, see §6a —
-    not yet wired to the catalog, a follow-up task). **No longer called by
-    `AddAssetModal`** — manual adds are now catalog-driven (see §6c).
+    catalog). **No longer called by `AddAssetModal`** (see §6c) or the Excel
+    import (`parseImportRows`, see §6a) — both are now catalog-driven and use
+    the catalog entry's `symbol` as `code`.
   Editing an asset (see §6, quantity/unit price only) never touches `code` —
   identity never changes on edit, regardless of which source assigned it.
 
@@ -277,28 +277,31 @@ type Transaction = {
   (`handleImportFile`) lives in `App.tsx` and is passed down as `onImportFile`.
 - Parsing (`XLSX.read`/`XLSX.utils.sheet_to_json(sheet, { header: 1 })` from the
   `xlsx` npm package, entirely client-side — no backend, no network request):
-  1. First sheet only. Row 1 must exactly equal (trimmed) the 5 fixed headers, in
-     this exact order: `نام دارایی`, `دسته‌بندی`, `تعداد`, `واحد`,
-     `قیمت واحد (تومان)`. Any mismatch → inline error `فرمت فایل با قالب مورد
-     انتظار مطابقت ندارد` and nothing is imported (no partial import).
-  2. From row 2 on, rows are read until the first row that is fully empty or whose
-     `تعداد` (3rd column) is not a positive number — that's where the template's
-     trailing legend/notes text lives, so it's implicitly skipped.
-  3. `دسته‌بندی` must be one of the 7 fixed Persian labels, mapped to the internal
-     `Asset['icon']` key: `طلا→gold`, `صندوق→fund`, `نقد→cash`, `تتر→usdt`,
-     `بیت‌کوین→btc`, `اتریوم→eth`, `سایر→other`. Rows with any other category value
-     are skipped (counted, not fatal) — parsing continues to the next row.
-  4. Each valid row becomes an `Asset` (`id: crypto.randomUUID()`, `name` = col 1,
-     `quantity`/`unitPrice` = cols 3/5 as numbers, `unit` = col 4, `code` =
-     `getOrCreateCode(icon, name)` — see §5/§4). `parseImportRows` itself is unchanged
-     otherwise; only the merge step below changed. **Not yet catalog-aware** — a
-     `TODO` code comment right above the `getOrCreateCode` call in
-     `parseImportRows` (`App.tsx`) marks this: since `AddAssetModal` is now
-     catalog-driven (see §6c) but the Excel import still isn't, an imported row
-     and a manually catalog-added row for the same real asset can currently end
-     up with two different `code`s (fallback-generated vs. catalog `symbol`) and
-     therefore two separate rows instead of merging — wiring import rows to
-     match against `assetCatalog.json` by name is the next follow-up task.
+  1. First sheet only. Row 1's **first 3 headers** must equal (trimmed), in this
+     exact order: `نماد`, `تعداد`, `قیمت واحد (تومان)`. The header check only
+     requires **at least** 3 columns with those exact first-3 values — any
+     additional columns after them (e.g. a human-readable reference-name column)
+     are allowed and simply ignored. Mismatch → `toast.error('فرمت فایل با قالب
+     مورد انتظار مطابقت ندارد')` and nothing is imported (no partial import).
+  2. From row 2 on, the **symbol** is read from column 1
+     (`String(row[0] ?? '').trim()`) and looked up with
+     `getCatalogAssetBySymbol(symbol)` (see §4 `src/services/assetCatalog.ts`) —
+     the **same identity source as the catalog-driven manual add** (§6c): the
+     row's `code` becomes that catalog entry's `symbol`. A symbol with **no
+     matching catalog entry is treated as invalid** — `skipped++` and continue to
+     the next row (same behavior as the old "unknown category" skip path). This is
+     what makes an imported row and a manually catalog-added row for the same
+     real asset carry the **same `code`**, so the merge below actually engages
+     instead of creating a duplicate.
+  3. `quantity` (column 2) is validated as a finite number > 0 — otherwise parsing
+     **stops at that row** (matching the prior behavior for an empty/invalid row,
+     since that's where the template's trailing legend/notes text lives).
+  4. Each valid row becomes an `Asset` built from the catalog entry:
+     `id: crypto.randomUUID()`, `name: catalogAsset.name`, `quantity` = col 2,
+     `unitPrice` = col 3 (as numbers), `unit: getUnitLabel(catalogAsset.unit)`,
+     `icon: getAssetIconForCatalogEntry(catalogAsset)`, and `code:
+     catalogAsset.symbol`. Columns beyond the 3rd are ignored (not read or
+     validated).
 - **Update-or-add by code** (`assetService.importAssets`, see §6d): each parsed row's
   `code` is looked up against the asset already in the list with that same `code`.
   - Match found → that asset's `quantity`/`unitPrice` are **replaced** with the
@@ -681,10 +684,11 @@ type Transaction = {
 
 - See §5 for the `code` field/format and §4 for
   `src/services/assetCodeRegistry.ts` (`getOrCreateCode`). §6c covers manual
-  add-asset code assignment. This section covers the one-time migration that
-  backfills `code` on assets that predate the field — the Excel import does
-  **not** assign codes yet (next follow-up task); editing an asset never
-  reassigns/changes its `code` (only quantity/unit price are editable, see §6).
+  add-asset code assignment and §6a covers the (now catalog-driven) Excel import;
+  both assign `code` directly from the catalog `symbol`. This section covers the
+  one-time migration that backfills `code` on legacy assets that predate the field
+  — editing an asset never reassigns/changes its `code` (only quantity/unit price
+  are editable, see §6).
 - The mount-time `useEffect` in `App.tsx` that calls `assetService.listAssets()`
   (see §6d) now also assigns codes:
   - If `listAssets()` resolves `null` (untouched sample, see §6/§6d), the static
@@ -914,6 +918,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
 | 2026-09-23 | Bugfix: `crypto.subtle.digest(...)` and `crypto.randomUUID()` are both `[SecureContext]`-only per the Web Crypto spec (HTTPS or `localhost` required) — both were `undefined`/throwing on the current plain-HTTP-on-bare-IP deployment (see §8), crashing `signUp` before any account was ever created (so login afterward always failed with "user not found"). Replaced password hashing with `js-sha256` (pure JS, no secure-context requirement, same SHA-256 output — no forced re-hash of any password that had been hashed pre-bug) and the user `id` generator with a manual UUID v4 built from `crypto.getRandomValues()` (also unaffected by secure-context). Also made `signUp` ignore any stored user record with a missing/empty `passwordHash` (only possible from a signup that crashed before completing) so it can't block a fresh signup with the same email/phone. No HTTPS/certbot setup as part of this — that needs a domain, which doesn't exist yet. |
 | 2026-09-23 | Owner-requested: built login, signup, and forgot-password (see §6g), gating the whole dashboard behind being logged in. Added `User` type, `src/authStorage.ts` (localStorage keys `oracle_users_v1`/`oracle_session_v1`), and `AuthService`/`localAuthService` (`src/services/`) — same singleton-swap pattern as `assetService`/`profileService` (see §6d). Passwords are SHA-256-hashed via Web Crypto before ever being stored, never plaintext. `AuthScreen` (login/signup tabs) and `ForgotPasswordModal` (two-step: request code, then code+new password) reuse the existing card/input/overlay styling — no new visual pattern invented. **Password-reset codes are simulated** (generated locally, shown directly to the user via a toast) because no real email/SMS provider is connected yet; `localAuthService.ts` marks exactly where that integration would replace the simulation. خروج (logout) in the side drawer now actually calls `authService.logOut()`; تنظیمات/درباره Oracle/راهنما remain placeholders. |
+| 2026-09-24 | Bug fix (owner-reported): Excel import now resolves each row against the asset catalog **by symbol**, using the same identity — the catalog entry's `symbol` as `code` — as the catalog-driven manual add, so an imported row and a manually catalog-added row for the same real-world asset always carry the same `code` and the existing `importAssets` merge-by-`code` logic (see §6a/§6d) actually engages (updates the existing row instead of creating a duplicate, which the old auto-generated `getOrCreateCode` codes never matched). The import template's header now needs only the first 3 columns in order (`نماد`, `تعداد`, `قیمت واحد (تومان)`), with any extra trailing columns (e.g. a human-readable reference-name column) allowed and ignored; `parseImportRows` looks up `getCatalogAssetBySymbol(symbol)`, skips (counts) rows with no catalog match, reads `quantity` (col 2, must be finite > 0 else parsing stops) and `unitPrice` (col 3), and builds the `Asset` from the catalog entry (`name`/`getUnitLabel(unit)`/`getAssetIconForCatalogEntry`/`symbol`). Removed the now-unused `importCategoryToIcon` mapping and the `getOrCreateCode` call in `parseImportRows` (`getOrCreateCode` is still used by the one-time legacy-asset migration in `App.tsx`'s mount effect); `localAssetService`'s merge logic was untouched, and the import toast wording (no category reference) is unchanged. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
