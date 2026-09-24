@@ -84,9 +84,9 @@ export function TransactionHistoryModal({ asset, isSample, onClose, onTransactio
         <p className="text-[12px] text-[#656e87] leading-[1.9]">هنوز تراکنشی برای این دارایی ثبت نشده است.</p>
         {asset.quantity > 0 && <p className="text-[11px] text-[#969eb2] leading-[1.9] mt-2">تراکنش‌های گذشتهٔ این دارایی هنوز ثبت نشده‌اند.</p>}
       </div> : <ul className="m-0 p-0 list-none grid gap-[8px]">
-        {newestFirst.map(({ transaction }) => <li key={transaction.id} className="border border-[#eef0f7] rounded-[12px] p-3">
+        {newestFirst.map(({ transaction }) => <li key={transaction.id} className={transaction.type === 'buy' ? 'border border-[#c8ecd4] bg-[#f0fdf5] rounded-[12px] p-3' : 'border border-[#f3c8c8] bg-[#fdf0f0] rounded-[12px] p-3'}>
           <div className="flex items-center justify-between gap-2">
-            <span className={transaction.type === 'buy' ? 'text-[11px] font-medium text-[#4659d9] bg-[#eef0ff] rounded-[8px] px-2 py-[2px]' : 'text-[11px] font-medium text-[#77809c] bg-[#f6f7fb] rounded-[8px] px-2 py-[2px]'}>{transaction.type === 'buy' ? 'خرید' : 'فروش'}</span>
+            <span className={transaction.type === 'buy' ? 'text-[11px] font-medium text-[#1f9d55] bg-[#d7f5e0] rounded-[8px] px-2 py-[2px]' : 'text-[11px] font-medium text-[#d95050] bg-[#fde3e3] rounded-[8px] px-2 py-[2px]'}>{transaction.type === 'buy' ? 'خرید' : 'فروش'}</span>
             <span className="text-[11px] text-[#999fb2]">{formatDate(transaction.date)}</span>
           </div>
           <div className="flex items-center justify-between gap-2 mt-2 text-[12px] text-[#2a2f3d]">
