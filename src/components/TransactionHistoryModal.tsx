@@ -1,15 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { transactionService } from '../services/transactionService';
+import { ensureInitialTransaction } from '../services/transactionCalculations';
 import type { Asset } from '../assets';
-import type { Transaction } from '../types/transaction';
-import { format, formatDate } from '../format';
+import type { Transaction, TransactionType } from '../types/transaction';
+import { format, formatDate, formatWithThousands, stripToNumberString } from '../format';
 import { CloseIcon } from './icons';
 
-export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: Asset; isSample: boolean; onClose: () => void }) {
+const todayLocalIso = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+export function TransactionHistoryModal({ asset, isSample, onClose, onTransactionRecorded }: { asset: Asset; isSample: boolean; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number) => void }) {
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
+  const [formType, setFormType] = useState<TransactionType>('buy');
+  const [formQuantity, setFormQuantity] = useState('');
+  const [formUnitPrice, setFormUnitPrice] = useState('');
+  const [formDate, setFormDate] = useState(todayLocalIso());
+  const [formNote, setFormNote] = useState('');
+  // StrictMode (dev) double-invokes this effect; without this guard both passes
+  // would call ensureInitialTransaction before either's synthetic buy commits,
+  // writing two opening buys. Share one in-flight call, list only after it settles.
+  const initialLoadRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    transactionService.listTransactionsForAsset(asset.id).then(setTransactions);
+    let active = true;
+    const assetId = asset.id;
+    if (!initialLoadRef.current) {
+      // Only assets actually holding something get a synthetic opening buy;
+      // a zero-quantity asset would make addTransaction reject (quantity > 0).
+      initialLoadRef.current = asset.quantity > 0 ? ensureInitialTransaction(asset) : Promise.resolve();
+    }
+    // List even if the synthetic-initial-buy path fails (e.g. crypto.randomUUID
+    // unavailable in the non-secure deployed context, see task 6) so the modal
+    // never hangs on the loading state.
+    const listNow = () => {
+      if (active) transactionService.listTransactionsForAsset(assetId).then(setTransactions);
+    };
+    initialLoadRef.current.then(listNow, listNow);
+    return () => { active = false; };
   }, [asset.id]);
 
   useEffect(() => {
@@ -17,6 +48,28 @@ export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: A
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
+
+  const handleAddSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const quantity = Number(formQuantity);
+    const unitPrice = Number(formUnitPrice);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0 || !formDate) {
+      toast.error('مقدار و قیمت واحد را به‌درستی وارد کنید.');
+      return;
+    }
+    try {
+      await transactionService.addTransaction({ assetId: asset.id, type: formType, quantity, unitPrice, date: formDate, note: formNote.trim() || undefined });
+      toast.success('تراکنش ثبت شد');
+      transactionService.listTransactionsForAsset(asset.id).then(setTransactions);
+      setFormQuantity('');
+      setFormUnitPrice('');
+      setFormNote('');
+      setFormDate(todayLocalIso());
+      onTransactionRecorded(asset.id, formType, quantity);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ثبت تراکنش انجام نشد');
+    }
+  };
 
   const newestFirst = (transactions ?? [])
     .map((transaction, index) => ({ transaction, index }))
@@ -43,6 +96,28 @@ export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: A
           {transaction.note && <p className="text-[11px] text-[#9096aa] mt-2">{transaction.note}</p>}
         </li>)}
       </ul>}
+      <div className="mt-5 pt-4 border-t border-[#eef0f7]">
+        <h3 className="text-[13px] font-bold mb-3">ثبت تراکنش جدید</h3>
+        <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
+          <div className="grid grid-cols-2 border border-[#eef0f7] rounded-[10px] p-1 min-[560px]:col-span-2">
+            <button type="button" onClick={() => setFormType('buy')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'buy' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>خرید</button>
+            <button type="button" onClick={() => setFormType('sell')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'sell' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>فروش</button>
+          </div>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">مقدار
+            <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">قیمت واحد به تومان
+            <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ
+            <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">یادداشت (اختیاری)
+            <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2 cursor-pointer">ثبت تراکنش</button>
+        </form>
+      </div>
     </section>
   </div>;
 }

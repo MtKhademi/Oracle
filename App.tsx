@@ -117,17 +117,29 @@ export default function App() {
     // amount (unlike Excel import, which replaces) and unit price is updated to
     // the newly entered one. No match (or no code) creates a new asset as before.
     const existing = newAsset.code ? items.find(asset => asset.code === newAsset.code) : undefined;
+    const today = new Date().toISOString().slice(0, 10);
     if (existing) {
       const next = await assetService.updateAsset(existing.id, { quantity: existing.quantity + newAsset.quantity, unitPrice: newAsset.unitPrice });
+      await transactionService.addTransaction({ assetId: existing.id, type: 'buy', quantity: newAsset.quantity, unitPrice: newAsset.unitPrice, date: today });
       setItems(next);
       setIsSample(false);
       toast.success(`مقدار ${existing.name} افزایش یافت`);
       return;
     }
     const next = await assetService.addAsset(newAsset);
+    await transactionService.addTransaction({ assetId: newAsset.id, type: 'buy', quantity: newAsset.quantity, unitPrice: newAsset.unitPrice, date: today });
     setItems(next);
     setIsSample(false);
     toast.success('دارایی جدید اضافه شد');
+  };
+
+  const handleTransactionRecorded = async (assetId: string, type: 'buy' | 'sell', quantity: number) => {
+    const currentAsset = items.find(asset => asset.id === assetId);
+    if (!currentAsset) return;
+    const newQuantity = type === 'buy' ? currentAsset.quantity + quantity : Math.max(0, currentAsset.quantity - quantity);
+    const next = await assetService.updateAsset(assetId, { quantity: newQuantity });
+    setItems(next);
+    setIsSample(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -221,6 +233,6 @@ export default function App() {
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
-    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
+    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
   </div>;
 }

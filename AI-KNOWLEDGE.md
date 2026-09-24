@@ -60,21 +60,21 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i) for that asset. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (fixed-template Excel parser, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i) for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler that updates that asset's `quantity` via `assetService.updateAsset` (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched) and sets the returned list into `items`. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). |
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e) and `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete`/`onHistory` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
-| `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), including the `stripToNumberString`/`formatWithThousands` comma-formatting logic for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
+| `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
-| `src/components/TransactionHistoryModal.tsx` | Read-only per-asset transaction-history modal (see §6i): loads that asset's transactions via `transactionService.listTransactionsForAsset(...)` on mount, lists them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). Read-only — no add/edit/delete of transactions yet (later tasks). Takes `asset`/`isSample`/`onClose` props. |
+| `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i): on mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Below the list it has an "add transaction" form (see §6i): a خرید/فروش toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (shared `stripToNumberString`/`formatWithThousands` thousands-formatting, see §4 `src/format.ts`), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit — on success it re-fetches the list, resets the form, and calls the `onTransactionRecorded(assetId, type, quantity)` prop so the parent updates the asset's quantity (buy adds, sell subtracts clamped at 0; the asset's `unitPrice` is never changed from here). Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
 | `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
 | `src/components/ForgotPasswordModal.tsx` | Two-step password-reset modal (see §6g), reusing the `AddAssetModal` overlay pattern. Step 1 asks for email/phone, calls `authService.requestPasswordReset(identifier)`, and shows the returned `simulatedCode` in a long-lived `toast(...)` (**simulated — not a real email/SMS send**, see §6g). Step 2 asks for the 6-digit code + new password (+ repeat, matched client-side), calls `authService.resetPassword(...)`. Takes only `onClose`. |
-| `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, plus `formatDate(isoDate)` → `Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium' })` (parses a `YYYY-MM-DD` date as a local date, falling back to the raw string on a non-matching format), used by `App.tsx`, the components above, and the transaction-history modal (see §6i). |
+| `src/format.ts` | Shared `format(value, decimals = 0)` → `Intl.NumberFormat('fa-IR')` helper, plus `formatDate(isoDate)` → `Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium' })` (parses a `YYYY-MM-DD` date as a local date, falling back to the raw string on a non-matching format), plus `stripToNumberString(raw)`/`formatWithThousands(raw)` (the live comma thousands-separators pair for numeric text inputs — plain-digit-string state in, comma-formatted display text out; see §6c), used by `App.tsx`, the components above, `AddAssetModal`, and the transaction-history modal's add-transaction form (see §6i). |
 | `src/assets.ts` | `Asset` type + `assets` sample array. Now the **default/fallback** data only — real owner data lives in `localStorage`, behind the service layer below, not here. |
 | `src/data/assetCatalog.json` | Fixed, owner-provided reference catalog of known assets — `categories`/`units` (id + Persian `label`) and `assets` (`symbol`/`name`/`category`/`unit`, category/unit referencing the `categories`/`units` ids). Committed static data (like `src/assets.ts`'s sample array), not owner-entered real values — safe to commit. Drives the add-asset form (see §6c) instead of free-typed names. |
 | `src/services/assetCatalog.ts` | Typed wrapper around `assetCatalog.json` (`CatalogCategory`/`CatalogUnit`/`CatalogAsset` interfaces): `getCatalogAssets()`, `getCatalogAssetBySymbol(symbol)`, `getCategoryLabel(id)`/`getUnitLabel(id)` (Persian label lookups), and `getAssetIconForCatalogEntry(catalogAsset)` (maps a catalog category to the existing `Asset['icon']` key — see §6c). A catalog asset's `symbol` is now its permanent identity `code` (see §5) — this supersedes `assetCodeRegistry.ts`'s auto-generated codes for anything picked from the catalog. |
@@ -86,7 +86,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/transactionStorage.ts` | `loadTransactions()`/`saveTransactions()` — read/write the transaction list to `localStorage` under key `oracle_transactions_v1`, using the same try/catch-safe array storage pattern as assets/auth/profile. Only called from `src/services/localTransactionService.ts`. |
 | `src/services/transactionService.ts` | Defines the `TransactionService` interface (`listTransactions`/`listTransactionsForAsset`/`addTransaction`/`updateTransaction`/`deleteTransaction`/`deleteTransactionsForAsset`) and exports the single `transactionService` instance — currently `= localTransactionService`, matching the swap-one-line service-layer pattern used by assets/profile/auth. |
 | `src/services/localTransactionService.ts` | The `localTransactionService: TransactionService` implementation, backed by `src/transactionStorage.ts`. Transaction IDs use the same `crypto.randomUUID()` pattern already used for asset rows; add/update reject invalid `quantity <= 0` or `unitPrice < 0`; asset deletion cleanup is triggered by the UI handler in `App.tsx`, not by coupling this service to `localAssetService`. |
-| `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet. Not called anywhere yet — reserved for the transaction-history UI follow-up. |
+| `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet (no-op otherwise). `ensureInitialTransaction` is now called by `TransactionHistoryModal` the first time an asset's history is opened (see §6i); `computeHoldingSummary` is still not used by the UI (the P/L display is a later task). |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
 | `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
@@ -177,10 +177,11 @@ type Transaction = {
 
 - Transactions are stored separately from assets in `localStorage` under
   `oracle_transactions_v1` via `src/transactionStorage.ts` and
-  `src/services/localTransactionService.ts` (see §4). The dashboard UI now shows each
-  asset's transaction history in a read-only modal (see §6i) — opening a history
-  panel does not create, edit, delete, or seed any transactions; recording buys/sells
-  and opening balances land in follow-up tasks 2–5.
+  `src/services/localTransactionService.ts` (see §4). The dashboard UI shows each
+  asset's transaction history in a modal with an add-transaction form (see §6i) —
+  opening a history panel now lazily creates a synthetic initial buy for a
+  quantity-holding asset that has no history yet (`ensureInitialTransaction`, see
+  below); it never edits or deletes transactions.
 - `assetId` points to the related `Asset.id` (not `Asset.code`). When an asset is
   deleted from the current UI, `App.tsx` calls `assetService.deleteAsset(id)` and
   then `transactionService.deleteTransactionsForAsset(id)`; clear-all similarly
@@ -195,11 +196,12 @@ type Transaction = {
   requested sell quantity.
 - `ensureInitialTransaction(asset)` is a lazy migration helper for pre-existing
   assets: if an asset has no transactions, it creates one synthetic `buy` for the
-  current `asset.quantity`/`asset.unitPrice` dated today. It is intentionally not
-  called yet (opening the read-only history modal in §6i deliberately does **not**
-  trigger it, and must keep not doing so); it is reserved for the follow-up task
-  that records the first buy/sell for an existing real asset, which needs a clearly
-  marked *opening-balance* entry rather than a synthetic purchase.
+  current `asset.quantity`/`asset.unitPrice` dated today (a no-op when the asset
+  already has any transactions). It is now called by `TransactionHistoryModal` the
+  first time an asset's history is opened (see §6i), so a legacy real asset with a
+  balance but no history gets a synthetic opening buy on first open. Note this is a
+  *synthetic purchase*, not a separately-marked "opening balance" record — a
+  distinct opening-balance transaction type is a later follow-up.
 
 ## 6. UI architecture (`App.tsx` + `src/components/`)
 
@@ -224,10 +226,10 @@ type Transaction = {
   quantity/unit (or, in edit mode, number inputs for quantity + unit price with
   save/cancel), value, and history/edit/delete `IconButton`s
   (`aria-label="تاریخچه"`/`"ویرایش"`/`"حذف"`).
-  Edit mode is local `useState` per row; only quantity and unit price are editable
-  inline (no separate edit page/route). History calls the parent's `onHistory(id)`
-  (opens the read-only transaction-history modal, see §6i); delete calls
-  `onDelete(id)`.
+   Edit mode is local `useState` per row; only quantity and unit price are editable
+   inline (no separate edit page/route). History calls the parent's `onHistory(id)`
+   (opens the transaction-history modal, see §6i); delete calls
+   `onDelete(id)`.
 - `SummaryCard` (in `src/components/SummaryCard.tsx`) — the summary card (cash
   `AssetIcon`, sample badge, big total, footer with asset count); takes
   `total`/`count`/`isSample` props.
@@ -261,7 +263,7 @@ type Transaction = {
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
-  7. Transaction-history modal (see §6i) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History action was clicked).
+  7. Transaction-history modal (see §6i) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History action was clicked); it lists that asset's transactions and holds the add-transaction form.
 - All of the above (steps 1–6) only render once a user is logged in — see §6g for
   the login/signup/forgot-password screens shown instead when they are not.
 
@@ -440,10 +442,12 @@ type Transaction = {
   (`formatWithThousands`, using `Number(intPart).toLocaleString('en-US')` on the
   integer part, decimal part left as-is after the dot) is only computed for the
   input's displayed `value` at render time. `handleAddSubmit` still does
-  `Number(formQuantity)` on the clean digit string, so validation and the final
-  `Asset.quantity`/`unitPrice` are unaffected. This formatting is local to these two
-  inputs only — the summary total, asset rows, etc. keep using
-  `Intl.NumberFormat('fa-IR')` via `format()` as before.
+   `Number(formQuantity)` on the clean digit string, so validation and the final
+   `Asset.quantity`/`unitPrice` are unaffected. The two helpers live in
+   `src/format.ts` (see §4) and are imported here — the transaction-history
+   modal's add-transaction form (see §6i) reuses the same pair. This formatting is
+   limited to numeric-entry inputs — the summary total, asset rows, etc. keep
+   using `Intl.NumberFormat('fa-IR')` via `format()` as before.
 
 ## 6d. Service layer (`src/services/`)
 
@@ -485,11 +489,16 @@ type Transaction = {
   asset, and `clearAllAssets` deletes transaction rows for every asset that was
   present before clearing, so future transaction history cannot be orphaned when
   asset rows are removed; this cleanup intentionally lives at the UI action
-  boundary rather than inside `localAssetService`, keeping the services
-  independent. The local
-  implementation resolves instantly (no network involved yet), so no loading
-  spinners are needed for now — see §6/§6b for how `isSample` is derived from these
-  same calls.
+   boundary rather than inside `localAssetService`, keeping the services
+   independent. `handleAddAsset` additionally writes a `buy` transaction on both
+   its merge-into-existing and brand-new branches, and `handleTransactionRecorded`
+   (called from the history modal's add-transaction form) writes an
+   asset-quantity update — both also go through the service layer
+   (`transactionService.addTransaction` / `assetService.updateAsset`), so the
+   write paths follow the same pattern (see §6i). The local
+   implementation resolves instantly (no network involved yet), so no loading
+   spinners are needed for now — see §6/§6b for how `isSample` is derived from these
+   same calls.
 - `App.tsx`/components never call `loadAssets`/`saveAssets` (or touch
   `localStorage`) directly anymore — the service layer is the only thing allowed to
   touch storage.
@@ -698,37 +707,83 @@ type Transaction = {
   `getOrCreateCode` path used for everything else — no codes are hardcoded into
   `src/assets.ts`.
 
-## 6i. Transaction history (read-only view)
+## 6i. Transaction history (view + write)
 
-- Each `AssetRow` now shows a third ghost `IconButton` — a clock-with-rewind
+- Each `AssetRow` shows a third ghost `IconButton` — a clock-with-rewind
   `HistoryIcon` (`aria-label="تاریخچه"`, `tone="neutral"`), placed to the right of
   the existing edit/delete buttons (i.e. first in the RTL button row) — that calls
   the row's `onHistory(asset.id)`. `App.tsx` passes `setHistoryAssetId`, so only the
   clicked asset's history opens. This action is visible in the row's default (not
   editing) state, alongside edit/delete; it does not change the dashboard layout,
   which still shows exactly one row per asset and the toman total.
-- `TransactionHistoryModal` (`src/components/TransactionHistoryModal.tsx`) is
-  **read-only in this task**: on mount it calls
-  `transactionService.listTransactionsForAsset(asset.id)` and, once resolved, shows
-  that asset's transactions only (filtered server-side by `assetId` — opening one
-  asset never surfaces another asset's rows). Each row shows the type as a small
+- `TransactionHistoryModal` (`src/components/TransactionHistoryModal.tsx`) shows
+  that asset's transactions only (filtered by `assetId` — opening one asset never
+  surfaces another asset's rows). Each row shows the type as a small
   badge (خرید = buy, blue/violet tint; فروش = sell, neutral grey tint), the date
   formatted in Persian via `formatDate` (§4 `src/format.ts`), the quantity with the
   asset's unit (8 decimals, same as the dashboard), and the price per unit in
   toman. Optional `note` is shown when present.
+- **Lazy opening balance (see §5):** on mount the modal awaits
+  `ensureInitialTransaction(asset)` before listing — a pre-existing asset with a
+  positive `quantity` but no transaction history gets one synthetic initial `buy`
+  (current `quantity`/`unitPrice`, dated today) the first time its history is
+  opened; assets with no holdings or with any existing history are untouched
+  (`ensureInitialTransaction` is a no-op for both). In dev, StrictMode
+  double-invokes the mount effect, so the call is memoized in a
+  `useRef<Promise<void> | null>` shared in-flight promise so it runs exactly once
+  per open; the list is fetched only after that promise settles, and on a failure
+  (e.g. `crypto.randomUUID()` unavailable in the non-secure deployed context — see
+  the secure-context note below) the modal still lists whatever is already stored
+  instead of hanging on the loading state.
+- **Add-transaction form:** below the list, a "ثبت تراکنش جدید" form lets the owner
+  manually log a past or new buy/sell for this asset (backfilling pre-feature
+  purchases, recording a sale, ...). Fields: a خرید/فروش segmented toggle (same
+  tab-toggle styling as `AuthScreen`'s login/signup tabs — `grid grid-cols-2`,
+  active = `bg-[#5264e8] text-white`), a مقدار (quantity) and a قیمت واحد به تومان
+  (unit price) input using the shared `stripToNumberString`/`formatWithThousands`
+  comma-formatting (text inputs, `inputMode="numeric"`, same as `AddAssetModal`,
+  see §6c), a `<input type="date">` defaulting to today (local date), and an
+  optional یادداشت (note) text input; the submit button reads "ثبت تراکنش".
+  On submit: client-side validation requires `quantity > 0` and `unitPrice >= 0`
+  (and a date) — otherwise `toast.error('مقدار و قیمت واحد را به‌درستی وارد
+  کنید.')` and the service is not called. Valid input →
+  `transactionService.addTransaction({ assetId, type, quantity, unitPrice, date,
+  note: note || undefined })`; on success `toast.success('تراکنش ثبت شد')`, the
+  list is re-fetched so the new row appears immediately, the form resets to
+  defaults (date back to today), and the `onTransactionRecorded(assetId, type,
+  quantity)` prop fires. On failure (the service throws, e.g. its internal
+  validation) `toast.error(...)` with the error message and the form is left
+  untouched.
+- **Asset quantity sync:** `App.tsx`'s `handleTransactionRecorded` (passed as
+  `onTransactionRecorded`) looks the asset up in `items` and calls
+  `assetService.updateAsset(assetId, { quantity })` — buy: `current + quantity`;
+  sell: `Math.max(0, current - quantity)` (never negative) — then sets the
+  returned list into `items`. The asset's `unitPrice` is **deliberately never
+  touched** from this flow: the transaction's unit price is only that record's
+  historical trade price (kept in transaction history for future P/L
+  calculation); the live portfolio `unitPrice` still changes only via the
+  pencil-icon edit on the row.
+- **Add-asset writes (see §6c):** `App.tsx`'s `handleAddAsset` now records a `buy`
+  transaction in both branches — the merge-into-existing branch (an
+  already-listed catalog asset) and the brand-new-asset branch:
+  `transactionService.addTransaction({ assetId, type: 'buy', quantity:
+  newAsset.quantity, unitPrice: newAsset.unitPrice, date: <today> })`, i.e. the
+  *entered* quantity (the amount being added, not the new total) at the entered
+  unit price.
 - **Sort:** displayed newest-first (`date` descending, stable by original array
   order for tied dates) — this is display-only; the stored array and the
   chronological `computeHoldingSummary` logic are untouched.
-- **Empty state:** when the asset has no transactions, a centered message reads
-  "هنوز تراکنشی برای این دارایی ثبت نشده است." (no transactions recorded yet) and,
-  when that asset has a positive `quantity`, a second line makes clear the past
-  trades have not been recorded yet ("تراکنش‌های گذشتهٔ این دارایی هنوز ثبت
-  نشده‌اند.") — so a real asset with a balance but no history is never implied to
-  have a fabricated purchase. Sample assets are never seeded here either.
+- **Empty state:** after the lazy opening-balance step, an asset that still has no
+  transactions (currently: zero-quantity assets) shows a centered message "هنوز
+  تراکنشی برای این دارایی ثبت نشده است." (no transactions recorded yet) and, when
+  the quantity is positive, a second line saying past trades have not been
+  recorded yet.
 - **Sample badge:** when `isSample` is true (the list is still the untouched
   static sample), the modal shows the same "نمایش نمونه" badge `SummaryCard` uses,
-  so sample assets' (currently empty) history is clearly labelled as sample, not
-  real holdings.
+  so sample assets' history is clearly labelled as sample, not real holdings.
+  (Sample assets do have quantities, so opening one will also get its synthetic
+  initial buy in `localStorage` — accepted, since sample rows are not real
+  holdings; the badge keeps it clearly labelled.)
 - **Closing:** identical to the app's other modals (`ProfileModal`/
   `AddAssetModal`) — a top-corner "×" `CloseIcon` button, a `useEffect` `keydown`
   listener closing on `Escape`, and a `fixed inset-0 bg-black/50` backdrop that
@@ -736,17 +791,24 @@ type Transaction = {
   variant (`max-h-[90vh] overflow-y-auto` on the `<section>`), matching
   `ProfileModal`/`ForgotPasswordModal`, since this modal has no absolutely
   positioned overlay to clip.
-- **Read-only scope (later tasks):** no buy/sell form, no opening balance, no
-  edit/delete of transactions, and no changes to `Asset.quantity` are introduced
-  here. `ensureInitialTransaction` (see §5) is still not called anywhere.
-  Recording buys/sells, opening balances, and edit/delete land in follow-up
-  tasks 2–5.
-- **Secure-context note:** this task adds **no** new ID-generation path, so it does
-  not touch `crypto.randomUUID()`. The deployed origin
-  (`http://45.82.137.126:8580/`, plain HTTP on a bare IP) is a non-secure context
-  where `crypto.randomUUID()` is `undefined`; existing usages (`localAssetService`,
-  `localTransactionService.addTransaction`, `AddAssetModal`, the Excel import in
-  `App.tsx`) remain for the dedicated cleanup in task 6.
+- **Scope (later tasks):** no edit/delete of transactions, no realized-P/L
+  display (`computeHoldingSummary` is still UI-uncalled), and no separate
+  "opening balance" transaction type yet (the lazy initial entry is a synthetic
+  `buy`).
+- **Intentionally NOT writing transactions:** the pencil-icon manual edit
+  (`handleEdit`) and the Excel import (`handleImportFile`/`importAssets`) still do
+  **not** create transaction records — direct edits are a known open decision
+  (should they log an implicit buy/sell?), and import is a replace-the-current-total
+  snapshot, not a purchase event (see §6a).
+- **Secure-context note:** the add-transaction form (and the `handleAddAsset`
+  writes) rely on `localTransactionService.addTransaction`, whose
+  `crypto.randomUUID()` ID generation is a `[SecureContext]`-only API. The deployed
+  origin (`http://45.82.137.126:8580/`, plain HTTP on a bare IP) is a non-secure
+  context where it is `undefined`, so recording transactions there fails until
+  HTTPS is set up; failures surface as a `toast.error`. All existing
+  `crypto.randomUUID()` usages (`localAssetService`/`AddAssetModal` asset ids, the
+  Excel import, `localTransactionService`) remain for the dedicated cleanup in
+  task 6.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -846,6 +908,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-24 | Bug fix (owner-reported): `AssetPicker`'s dropdown panel was overflowing outside/beside the `AddAssetModal` card and showing two overlapping scrollbars. Root cause: the card (`<section>` in `AddAssetModal.tsx`) had `overflow-y-auto max-h-[90vh]` directly on it, making it the nearest scrollable/clipping ancestor for the picker's `absolute`-positioned dropdown — the dropdown's own `overflow-y-auto` panel was fighting the card's scrollbar instead of being the only one. Fix: moved the scroll boundary from the card to the modal's outer `fixed inset-0` backdrop (`overflow-y-auto` there instead), with a new inner `min-h-full grid place-items-center` wrapper keeping the card centered; the card itself now has no `overflow`/`max-h` of its own, so it never clips the dropdown, and only the dropdown panel (or, if content overall exceeds the viewport, the backdrop) scrolls — never both competing over the same content. Also bumped the card's `max-w-[440px]→[480px]` and the dropdown panel's `max-h-[220px]→[280px]` (the old value only fit ~2–3 result rows; the new one comfortably shows ~5 without forcing empty space when there are fewer matches). Filter/grouping/keyboard-nav logic in `AssetPicker` untouched — layout/sizing only. See §6c for the updated overlay-pattern note (`AddAssetModal` now intentionally differs from `ProfileModal`/`ForgotPasswordModal` in where the scroll lives, because it's the only modal containing an absolutely-positioned dropdown). |
 | 2026-09-24 | Owner-requested: added the transaction-history data/service foundation (no UI yet): `Transaction`/`TransactionType` in `src/types/transaction.ts`, `src/transactionStorage.ts` with `localStorage` key `oracle_transactions_v1`, `TransactionService`/`localTransactionService` using the same singleton-swap pattern as `AssetService`, and `src/services/transactionCalculations.ts` with weighted-average-cost `computeHoldingSummary(...)` plus `ensureInitialTransaction(asset)` for lazy migration of pre-transaction assets. Transactions relate to assets by `assetId = Asset.id`; deleting one asset or clearing all assets now also calls `transactionService.deleteTransactionsForAsset(...)` from `App.tsx`, deliberately outside `localAssetService` so the two services remain independent. Add/update reject invalid `quantity <= 0` or `unitPrice < 0`. Weighted-average summary processes transactions chronologically, updates average cost only on buys, keeps average cost unchanged on sells, computes realized P/L from sell price minus current average cost, and clamps bad-data oversells so quantity never goes negative. |
 | 2026-09-24 | Owner-requested (transaction-history UI, task 1 of a 6-part rollout): added a **read-only** per-asset transaction-history view. Each `AssetRow` now has a "تاریخچه" ghost `IconButton` (new `HistoryIcon`) that opens `TransactionHistoryModal` (new, §6i), which loads `transactionService.listTransactionsForAsset(asset.id)` and lists that asset's transactions newest-first (type badge خرید/فروش, Persian `formatDate` date, quantity+unit, toman price-per-unit, optional note) with a clear empty state. The modal reuses the `ProfileModal` overlay pattern (×/Escape/backdrop). Added a `formatDate(isoDate)` Persian date helper to `src/format.ts` (local-date parse of `YYYY-MM-DD`). Strictly read-only: no buy/sell form, no opening balance, no edit/delete of transactions, and `Asset.quantity` is untouched; the history panel never creates/seeds transactions, and `ensureInitialTransaction` remains uncalled (a balance-with-no-history asset shows an explicit "past trades not yet recorded" empty state instead). Sample assets are shown with the "نمایش نمونه" badge and are never seeded. Verified the deployed origin (`http://45.82.137.126:8580/`) is a plain-HTTP non-secure context; this task adds no new `crypto.randomUUID()` path, leaving the existing secure-context-only ID usages for the task-6 cleanup. Build (`npm run build`) passes. |
+| 2026-09-24 | Owner-requested (transaction-history UI, task 2 of the 6-part rollout): wired transaction **writing** into the app — transactions are now written (a) on every "add asset" action, in `App.tsx`'s `handleAddAsset`, in both branches: the merge-into-existing branch records a `buy` for the **entered** quantity (the amount being added, not the new total) at the entered unit price, and the brand-new-asset branch records a `buy` representing the initial purchase (both dated today, via `transactionService.addTransaction`); and (b) via a new manual "add transaction" form in `TransactionHistoryModal` — a خرید/فروش segmented toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (the comma-formatting helpers `stripToNumberString`/`formatWithThousands` were extracted from `AddAssetModal.tsx` into the shared `src/format.ts` and are now imported by both), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit that validates quantity > 0 / unitPrice >= 0 client-side, then on success re-fetches the list, resets the form, and calls a new `onTransactionRecorded(assetId, type, quantity)` prop so `App.tsx` updates the asset's `quantity` (buy adds; sell subtracts, clamped at 0 — the asset's `unitPrice` is never touched from this flow, which only carries the record's historical trade price for future P/L). Legacy assets get a synthetic initial `buy` transaction **lazily** the first time their history is opened: the modal's mount effect now awaits `ensureInitialTransaction(asset)` before listing (StrictMode double-mount guarded by a memoized shared in-flight promise; on failure it still lists existing rows instead of hanging). **By design, still NOT writing transactions:** manual quantity/price edits via the pencil icon (`handleEdit`) and Excel import (`importAssets`) — direct edits are a known open decision, and import stays a replace-the-current-total snapshot, not a purchase event. Still not in scope: edit/delete of transactions, a distinct "opening balance" transaction type (the lazy entry is a synthetic buy), and the P/L display (`computeHoldingSummary` remains UI-uncalled). Note: recording now relies on `localTransactionService.addTransaction`'s `crypto.randomUUID()`, which fails in the non-secure deployed HTTP context (surfaced as a `toast.error`) until HTTPS is set up — all existing ID usages remain for the task-6 secure-context cleanup. Build (`npm run build`) passes. |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
