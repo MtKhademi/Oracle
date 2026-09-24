@@ -227,14 +227,28 @@ type Asset = {
      `بیت‌کوین→btc`, `اتریوم→eth`, `سایر→other`. Rows with any other category value
      are skipped (counted, not fatal) — parsing continues to the next row.
   4. Each valid row becomes an `Asset` (`id: crypto.randomUUID()`, `name` = col 1,
-     `quantity`/`unitPrice` = cols 3/5 as numbers, `unit` = col 4) appended to the
-     existing `items` state (never replaces it) — same state/persistence path as the
-     manual add/edit/delete form, so `saveAssets()` fires automatically.
+     `quantity`/`unitPrice` = cols 3/5 as numbers, `unit` = col 4, `code` =
+     `getOrCreateCode(icon, name)` — see §5/§4). `parseImportRows` itself is unchanged
+     otherwise; only the merge step below changed.
+- **Update-or-add by code** (`assetService.importAssets`, see §6d): each parsed row's
+  `code` is looked up against the asset already in the list with that same `code`.
+  - Match found → that asset's `quantity`/`unitPrice` are **replaced** with the
+    freshly imported values (its `id` and everything else stay the same) — this is
+    a REPLACE, not an add-to-the-old-numbers; the Excel export is assumed to reflect
+    the current total holding, not a new purchase.
+  - No match → the row is appended as a brand-new asset (new `id`, this `code`),
+    same as before.
+  - This means re-importing the same file (or a fresh export of the same holdings)
+    updates the existing rows in place instead of creating duplicates — the bug the
+    owner reported. `importAssets` now resolves `{ assets, added, updated }` instead
+    of just the new list (see §6d).
 - All user-facing outcomes are shown via `sonner` toasts (see §3), not inline page
   text; the toast library handles its own timing/dismissal. Wrong file extension and
-  header mismatch → `toast.error`. All rows valid → `toast.success`. Some rows
-  skipped as invalid (partial import) → `toast.warning`. Zero rows importable (all
-  invalid) → `toast.error`.
+  header mismatch → `toast.error`. Zero rows importable (all invalid) → `toast.error`.
+  Otherwise the message reports both counts from the merge, e.g. `۳ دارایی اضافه شد،
+  ۲ دارایی به‌روزرسانی شد` (only the non-zero half is included if one bucket is empty)
+  — `toast.success` if nothing was skipped, `toast.warning` if some rows were also
+  skipped as invalid (partial import).
 - This is intentionally a single hardcoded template — do NOT add column
   auto-detection, alternate layouts, CSV, or other spreadsheet formats.
 
@@ -299,7 +313,10 @@ type Asset = {
     addAsset(asset: Asset): Promise<Asset[]>;
     updateAsset(id: string, changes: Partial<Asset>): Promise<Asset[]>;
     deleteAsset(id: string): Promise<Asset[]>;
-    importAssets(assets: Asset[]): Promise<Asset[]>; // appends, like the Excel import
+    // Merges by `code` (see §6a/assetCodeRegistry.ts) instead of always appending:
+    // a matching code replaces that asset's quantity/unitPrice (same id), no match
+    // appends a new asset. added/updated report how many rows landed in each bucket.
+    importAssets(assets: Asset[]): Promise<{ assets: Asset[]; added: number; updated: number }>;
     clearAssets(): Promise<Asset[]>; // returns []
   }
   ```
@@ -311,7 +328,7 @@ type Asset = {
   it does not duplicate the `localStorage`/try-catch logic, it just calls into
   `storage.ts`. Each method reads the current list via `loadAssets()`, applies the
   change, writes the result back via `saveAssets()`, and resolves with the new full
-  list.
+  list (`importAssets` additionally resolves the `added`/`updated` counts — see §6a).
 - `assetService.ts` exports a single instance, `export const assetService:
   AssetService = localAssetService;` — this one line is the only place that will
   need to change to point at a server-backed implementation later; no component or
@@ -624,6 +641,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Owner-requested: replaced the header's bar-chart icon with a hamburger menu button that opens a side drawer (`src/components/SideDrawer.tsx`, see §6e), sliding in from the right, reusing the `AddAssetModal`'s backdrop/Escape/"×" close pattern. Contains 5 placeholder menu items (مشخصات/تنظیمات/درباره Oracle/راهنما, then خروج separated by a divider + red/danger styling) — none have real functionality yet (no backend/auth exists), clicking any of them just closes the drawer. UI shell only; do not wire up real behavior without an explicit owner request. |
 | 2026-09-24 | Owner-requested: added a permanent, unique `code: string` field (`<PREFIX>-<NNNN>`, e.g. `GOLD-0001`) to `Asset` — identity groundwork for a future transaction-history feature (no transaction logic added yet). New `src/services/assetCodeRegistry.ts` (`getOrCreateCode(category, name)`, see §4/§5) generates/looks up codes via two `localStorage` keys: a per-prefix counter (`oracle_code_counters_v1`) and a `category+name` → `code` lookup (`oracle_asset_registry_v1`), so the same real-world asset (same category + name, case-insensitive) always resolves to the same code across separate Excel imports or manual re-entry. A one-time migration in `App.tsx`'s mount-time `listAssets()` effect (see §6h) backfills `code` on any asset missing one — including the 7 static samples, which get codes assigned at runtime rather than hardcoded into `src/assets.ts` — and persists real (non-sample) assets back through `assetService.updateAsset` so it only runs once per asset. The `code` is purely an internal identity field for now: not shown in the UI, and not yet wired into the Excel import or add-asset form (explicit follow-up tasks). |
 | 2026-09-24 | Owner-requested: `AddAssetModal`'s submit handler (see §6c) now calls `getOrCreateCode(formIcon, name)` and attaches the result as the new `Asset`'s `code`, so manually added assets get an identity code immediately instead of only through the migration — re-adding an asset with the same name+category reuses its existing code. Editing an asset (quantity/unit price only, no name/category edit exists) never calls `getOrCreateCode` and never touches `code`, confirming identity is stable across edits. Excel import still does not assign codes (next follow-up task). |
+| 2026-09-24 | Bug fix (owner-reported): re-importing an Excel file (or a fresh export of unchanged holdings) no longer creates duplicate rows. `parseImportRows` (see §6a) now assigns each row a `code` via `getOrCreateCode` at parse time; `assetService.importAssets` (see §6d) merges by that `code` instead of always appending — a match REPLACES the existing asset's `quantity`/`unitPrice` (keeping its `id`, not summed with the old values, since the export reflects the current total holding, not a new purchase), no match appends a new asset as before. `importAssets` now resolves `{ assets, added, updated }`; the post-import toast reports both counts (e.g. `۳ دارایی اضافه شد، ۲ دارایی به‌روزرسانی شد`) instead of one combined "imported" count. Header validation/category mapping and manual add/edit were untouched. |
 | 2026-09-23 | Owner-requested: built an editable profile view (§6f) opened from the side drawer's مشخصات item — نام و نام خانوادگی/شماره تماس/ایمیل + an avatar (stored as a base64 data URL via `FileReader.readAsDataURL`, previewed immediately). Mirrors the asset service-layer pattern: added `Profile` type (`src/types.ts`), `src/profileStorage.ts` (localStorage key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts`), and `ProfileService`/`localProfileService` (`src/services/`, same singleton-swap shape as `AssetService`). `ProfileModal` reuses the exact `AddAssetModal` overlay pattern (backdrop/Escape/"×") — no new modal pattern invented. No validation beyond native input `type` hints (personal single-user app). Only مشخصات was wired up; تنظیمات/درباره Oracle/راهنما/خروج remain placeholders. Noted the large-avatar/localStorage-quota caveat as accepted, not a concern to fix now. |
 | 2026-09-23 | Owner-requested: changed tag-triggered deployment to build a versioned Docker image (`release-*`) and transfer it over SSH to Ubuntu, where the `oracle` Nginx container runs on port 80. This supersedes the earlier plan to rsync `dist/` to host Nginx. Private and pinned host keys remain GitHub repository secrets; `DEPLOYMENT.md` documents Docker/SSH setup and release steps. |
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
