@@ -97,7 +97,10 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
     />
     {isOpen && <>
       <div className="fixed inset-0 z-10" onClick={close}/>
-      <div className="absolute z-20 mt-1 w-full max-h-[220px] overflow-y-auto bg-white rounded-[14px] border border-[#eceef8] shadow-[0_12px_36px_#2734790b] p-1" onClick={e => e.stopPropagation()}>
+      {/* max-h sized to comfortably fit ~5 result rows (each ~36px) plus a
+          category header or two before scrolling kicks in — was 220px,
+          which only fit ~2-3 rows and made the panel look cut off. */}
+      <div className="absolute z-20 mt-1 w-full max-h-[280px] overflow-y-auto bg-white rounded-[14px] border border-[#eceef8] shadow-[0_12px_36px_#2734790b] p-1" onClick={e => e.stopPropagation()}>
         {flatFiltered.length === 0
           ? <p className="text-[11px] text-[#969eb2] text-center py-4">دارایی‌ای پیدا نشد</p>
           : groupedFiltered.map(group => <div key={group.categoryId}>
