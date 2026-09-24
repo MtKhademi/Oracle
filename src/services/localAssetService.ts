@@ -29,10 +29,21 @@ export const localAssetService: AssetService = {
   },
 
   async importAssets(assets: Asset[]) {
-    const current = loadAssets() ?? [];
-    const next = [...current, ...assets];
+    const next = [...(loadAssets() ?? [])];
+    let added = 0;
+    let updated = 0;
+    for (const imported of assets) {
+      const existingIndex = imported.code ? next.findIndex(asset => asset.code === imported.code) : -1;
+      if (existingIndex === -1) {
+        next.push(imported);
+        added++;
+      } else {
+        next[existingIndex] = { ...next[existingIndex], quantity: imported.quantity, unitPrice: imported.unitPrice };
+        updated++;
+      }
+    }
     saveAssets(next);
-    return next;
+    return { assets: next, added, updated };
   },
 
   async clearAssets() {

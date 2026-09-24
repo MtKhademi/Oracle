@@ -6,7 +6,11 @@ export interface AssetService {
   addAsset(asset: Asset): Promise<Asset[]>;
   updateAsset(id: string, changes: Partial<Asset>): Promise<Asset[]>;
   deleteAsset(id: string): Promise<Asset[]>;
-  importAssets(assets: Asset[]): Promise<Asset[]>; // appends, like the Excel import
+  // Merges by `code` (see assetCodeRegistry.ts): an imported asset whose code
+  // matches an asset already in the list updates that asset's quantity/unitPrice
+  // (keeping its id, not adding to the old numbers); any other imported asset is
+  // appended as new. `added`/`updated` report how many rows landed in each bucket.
+  importAssets(assets: Asset[]): Promise<{ assets: Asset[]; added: number; updated: number }>;
   clearAssets(): Promise<Asset[]>; // returns []
 }
 

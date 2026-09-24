@@ -43,7 +43,9 @@ function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number 
     if (!Number.isFinite(quantity) || quantity <= 0) break;
     const icon = importCategoryToIcon[String(row[1] ?? '').trim()];
     if (!icon) { skipped++; continue; }
-    parsed.push({ id: crypto.randomUUID(), name: String(row[0] ?? '').trim(), quantity, unit: String(row[3] ?? '').trim(), unitPrice: Number(row[4]), icon });
+    const name = String(row[0] ?? '').trim();
+    const code = getOrCreateCode(icon, name);
+    parsed.push({ id: crypto.randomUUID(), name, quantity, unit: String(row[3] ?? '').trim(), unitPrice: Number(row[4]), icon, code });
   }
   return { assets: parsed, skipped };
 }
@@ -151,10 +153,13 @@ export default function App() {
       toast.error('هیچ ردیف معتبری برای وارد کردن پیدا نشد');
       return;
     }
-    const next = await assetService.importAssets(result.assets);
+    const { assets: next, added, updated } = await assetService.importAssets(result.assets);
     setItems(next);
     setIsSample(false);
-    const message = `${format(result.assets.length)} دارایی وارد شد`;
+    const parts = [];
+    if (added > 0) parts.push(`${format(added)} دارایی اضافه شد`);
+    if (updated > 0) parts.push(`${format(updated)} دارایی به‌روزرسانی شد`);
+    const message = parts.join('، ');
     if (result.skipped > 0) {
       toast.warning(`${message}، ${format(result.skipped)} ردیف نامعتبر رد شد`);
     } else {
