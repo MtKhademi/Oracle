@@ -14,6 +14,7 @@ import { AddAssetModal } from './src/components/AddAssetModal';
 import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
+import { MarketWatchList } from './src/components/MarketWatchList';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
 import { HamburgerIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
@@ -152,6 +153,7 @@ export default function App() {
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('wallet');
   const prices = useLivePrices();
 
   useEffect(() => {
@@ -322,9 +324,18 @@ export default function App() {
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
-        <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
-        <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
-        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+        <div className="grid grid-cols-2 mb-[15px] min-[1050px]:mb-[19px] border border-[#eef0f7] rounded-[10px] p-1">
+          <button type="button" onClick={() => setActiveSectionTab('wallet')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'wallet' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>کیف پول</button>
+          <button type="button" onClick={() => setActiveSectionTab('market')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'market' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>چشم بازار</button>
+        </div>
+        {activeSectionTab === 'wallet' ? <>
+          <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
+          <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
+          {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+        </> : <>
+          <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">چشم بازار</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
+          <MarketWatchList/>
+        </>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>

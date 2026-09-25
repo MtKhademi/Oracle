@@ -3,6 +3,9 @@ import { mockPriceService } from './mockPriceService';
 export type LivePrices = {
   usdToman: number;      // current price of 1 US dollar, in toman
   goldGramToman: number; // current price of 1 gram of 18-karat gold, in toman
+  btcToman: number;      // current price of 1 bitcoin, in toman
+  ethToman: number;      // current price of 1 ether, in toman
+  updatedAt: number;     // Date.now() when these values were last computed
 };
 
 export interface PriceService {
