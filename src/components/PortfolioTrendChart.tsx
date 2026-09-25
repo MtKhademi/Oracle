@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatDate, format } from '../format';
+import { format } from '../format';
 import { portfolioHistoryService, type PortfolioSnapshot } from '../services/portfolioHistoryService';
 
 const CHART_WIDTH = 600;
@@ -25,6 +25,42 @@ function computeIndexedSeries(history: PortfolioSnapshot[]): Record<SeriesKey, n
     usd: history.map(s => ((s.totalToman / s.usdToman) / firstUsdValue) * 100),
     gold: history.map(s => ((s.totalToman / s.goldGramToman) / firstGoldValue) * 100),
   };
+}
+
+// Whole-day difference between two "YYYY-MM-DD" dates, parsed as local dates
+// (not UTC) so the result isn't off by one for timezones behind UTC.
+function daysBetweenIso(fromIso: string, toIso: string): number {
+  const toLocalTime = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).getTime();
+  };
+  return Math.round((toLocalTime(toIso) - toLocalTime(fromIso)) / 86400000);
+}
+
+function relativeDaysAgoLabel(daysAgo: number): string {
+  return `${format(daysAgo)} روز پیش`;
+}
+
+// The 3 X-axis labels: oldest point, midpoint, and "امروز" (today) for the
+// newest point — relative-time, not calendar dates, so they read at a glance.
+// The oldest-point day-count is computed from the actual oldest/newest dates
+// (naturally "30" once 30 days of history have accumulated — no hardcoding —
+// and correctly smaller if the stored history is shorter than that).
+function buildXAxisLabels(history: PortfolioSnapshot[]): { index: number; text: string }[] {
+  const oldest = history[0];
+  const newest = history[history.length - 1];
+  const midIndex = Math.floor((history.length - 1) / 2);
+  const mid = history[midIndex];
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const oldestDaysAgo = daysBetweenIso(oldest.date, newest.date);
+  const midDaysAgo = daysBetweenIso(mid.date, todayIso);
+
+  return [
+    { index: 0, text: relativeDaysAgoLabel(oldestDaysAgo) },
+    { index: midIndex, text: relativeDaysAgoLabel(midDaysAgo) },
+    { index: history.length - 1, text: 'امروز' },
+  ];
 }
 
 function buildPoints(values: number[], minVal: number, maxVal: number): string {
@@ -74,19 +110,23 @@ export function PortfolioTrendChart({ refreshKey }: { refreshKey?: number }) {
   const minVal = rawMin - pad;
   const maxVal = rawMax + pad;
 
-  const labelIndices = history.length <= 3
-    ? history.map((_, i) => i)
-    : [0, Math.floor((history.length - 1) / 2), history.length - 1];
+  const xAxisLabels = buildXAxisLabels(history);
 
   return card(<>
     <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="w-full h-auto" role="img" aria-label="نمودار روند رشد دارایی نسبت به دلار و طلا">
       {SERIES.map(series => <polyline key={series.key} points={buildPoints(indexed[series.key], minVal, maxVal)} fill="none" stroke={series.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>)}
-      {labelIndices.map(i => {
-        const innerWidth = CHART_WIDTH - PADDING.left - PADDING.right;
-        const x = PADDING.left + (history.length === 1 ? 0 : (i / (history.length - 1)) * innerWidth);
-        return <text key={i} x={x} y={CHART_HEIGHT - 6} fontSize="10" fill="#9096aa" textAnchor="middle">{formatDate(history[i].date)}</text>;
-      })}
     </svg>
+    {/* Rendered as real HTML (not SVG <text>) so the text-[11px] size class
+        below is literal on-screen pixels, unaffected by the SVG viewBox
+        scaling that made the old in-chart date labels unreadable on mobile.
+        dir="ltr" keeps this row left(oldest)-to-right(today), matching the
+        SVG's always-LTR coordinate space, regardless of the page's own RTL
+        direction (otherwise the RTL flex row would visually reverse it). */}
+    <div dir="ltr" className="flex justify-between mt-2">
+      <span className="text-[11px] text-[#9096aa]">{xAxisLabels[0].text}</span>
+      <span className="text-[11px] text-[#9096aa]">{xAxisLabels[1].text}</span>
+      <span className="text-[11px] text-[#9096aa]">{xAxisLabels[2].text}</span>
+    </div>
     <div className="flex flex-col gap-2 mt-4">
       {SERIES.map(series => {
         const latestPercent = indexed[series.key][indexed[series.key].length - 1] - 100;
