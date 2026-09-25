@@ -7,6 +7,8 @@ import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
+import { getEffectiveUnitPrice } from './src/services/livePriceMapping';
+import { useLivePrices } from './src/hooks/useLivePrices';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { ImportModal } from './src/components/ImportModal';
@@ -150,6 +152,7 @@ export default function App() {
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const prices = useLivePrices();
 
   useEffect(() => {
     authService.getCurrentUser().then(user => {
@@ -190,7 +193,7 @@ export default function App() {
     setIsMenuOpen(false);
   };
 
-  const total = items.reduce((sum, asset) => sum + asset.quantity * asset.unitPrice, 0);
+  const total = items.reduce((sum, asset) => sum + asset.quantity * getEffectiveUnitPrice(asset, prices), 0);
 
   const handleAddAsset = async (newAsset: Asset) => {
     // Merge-by-code: a catalog-driven add (see AddAssetModal.tsx) whose `code`
@@ -317,11 +320,11 @@ export default function App() {
       <span className="text-[12px] text-[#e0e4ff] max-[481px]:text-[10px] max-[351px]:hidden">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
-      <SummaryCard total={total} count={items.length} isSample={isSample}/>
+      <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
-        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+        {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
