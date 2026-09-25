@@ -20,20 +20,31 @@ rows, each with its own icon and color — see §6j) and **one row per asset**.
 static sample data (illustrative only), but the owner can now add/edit/delete their
 own real assets through a small in-page form, or bulk-import them from a fixed
 Excel template (see §6a); those real values are persisted ONLY in the browser's
-`localStorage` (see §4/§5) and are never committed to git. No charts, navigation,
-backend, or native tooling beyond add/edit/delete, the fixed-template Excel import,
-and the mock live-price conversions (by explicit owner constraint/request).
+`localStorage` (see §4/§5) and are never committed to git. Below the total, a
+daily-snapshot trend chart (see §6n) compares portfolio growth against USD and
+gold, normalized to "% change since day 1". No navigation, backend, or native
+tooling beyond add/edit/delete, the fixed-template Excel import, the mock
+live-price conversions, the چشم بازار market-watch list, and the
+portfolio-growth trend chart (by explicit owner constraint/request — each
+addition beyond the original toman-total/one-row-per-asset scope was
+individually owner-requested, see §11).
 
 ## 2. Hard constraints (do not break)
 
 1. Show a toman total (plus the owner-requested mock USD/gold-gram line, §6j) and
    one row per asset.
-2. Do NOT add charts, navigation, backend, native tooling, or any other feature
-   beyond add/edit/delete of assets, the fixed-template Excel import (§6a), and the
-   mock live-price conversions (§6j) **unless the owner explicitly asks**. The
-   Excel import must stay locked to the one fixed template — never auto-detect
-   columns or accept other layouts. The USD/gold-gram line is explicitly MOCK
-   data (`mockPriceService`) — never present it as a real market feed.
+2. Do NOT add navigation, backend, native tooling, or any other feature beyond
+   add/edit/delete of assets, the fixed-template Excel import (§6a), the mock
+   live-price conversions (§6j), the چشم بازار market-watch list (§6l/§6m), and
+   the owner-requested portfolio-growth trend chart (§6n) **unless the owner
+   explicitly asks for anything further**. The Excel import must stay locked
+   to the one fixed template — never auto-detect columns or accept other
+   layouts. The USD/gold-gram line and the چشم بازار list are explicitly MOCK
+   data (`mockPriceService`/`mockMarketWatchService`) — never present either as
+   a real market feed. The daily portfolio-history snapshots backing the trend
+   chart (§6n) are real local computations of the real `total`/live mock
+   rates, but the first 30 backfilled days are synthetic/generated — never
+   present that backfilled history as real past data either.
 3. Palette: light grey background, white cards, blue/violet accents.
 4. The sample badge/disclaimer must only show while the current list is still the
    untouched static sample data (see §5/§6) — hide it once the owner adds, edits,
@@ -71,6 +82,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders `MarketWatchList` instead, with no toolbar. |
 | `src/components/MarketWatchList.tsx` | Read-only "چشم بازار" (market watch) list, categorized (see §6m — supersedes the original flat 5-row version from §6l). Calls `useMarketWatch()` itself and groups `snapshot.items` into 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon`), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان", no per-row icon, no edit/delete/history — read-only). One shared "بروزرسانی: HH:mm:ss" label near the top (from `snapshot.updatedAt`), not repeated per row. Shows "در حال دریافت قیمت‌ها..." while `useMarketWatch()` is still `null`. |
+| `src/components/PortfolioTrendChart.tsx` | Card below `SummaryCard` (see §6n) showing a hand-rolled inline-SVG line chart of portfolio growth normalized against USD and gold. Calls `portfolioHistoryService.listHistory()` itself in a `useEffect` (re-fetches when the `refreshKey` prop changes, bumped by `App.tsx` after each snapshot write), computes 3 "% of day 1" index series (toman/usd/gold, all starting at exactly 100), and renders 3 `<polyline>`s (`#5264e8`/`#1f9d55`/`#d7a144`) plus a 3-row legend (colored dot + label + latest %-change badge, green/red via the app's existing buy/sell color convention) and a handful of `formatDate()`-labeled X-axis ticks (first/middle/last). Shows "داده کافی برای نمودار وجود ندارد" when history has fewer than 2 points. No charting library — plain `<svg>`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset`/`prices` + `onEdit`/`onDelete`/`onHistory` callback props. For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`, and edit mode replaces the unit-price `<input>` with a read-only "قیمت زنده" label. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The "ارزش کل دارایی‌ها" heading row also has a small manual-refresh `RefreshIcon` button (see §6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. |
@@ -101,6 +113,9 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/mockMarketWatchService.ts` | The `mockMarketWatchService: MarketWatchService` implementation (see §6m) — entirely mock, 14 seeded items across 4 categories, same in-memory-state/shared-`jitterStep()`/subscriber-`Set`/single-shared-60s-`setInterval` pattern as `mockPriceService.ts` (§6j). Each item has its own fixed absolute toman jitter range (roughly 0.1%-1% of its starting price, fixed-income items much smaller at ≈0.05% — see §6m's table) applied every tick; `updatedAt: Date.now()` stamped on every `jitterStep()` run (both the 60s tick and `refreshNow()`). |
 | `src/hooks/useMarketWatch.ts` | `useMarketWatch(): MarketSnapshot \| null` — same subscribe-on-mount/unsubscribe-on-unmount pattern as `useLivePrices.ts`, pointed at `marketWatchService` instead of `priceService`. Used only by `MarketWatchList` (see §6m). |
 | `src/services/livePriceMapping.ts` | `getLivePriceKeyForAsset(asset)`/`getEffectiveUnitPrice(asset, prices)` (see §6k) — the single source of truth for which specific catalog assets (by `code`, currently only `GOLD18`→`goldGramToman` and `USDT`→`usdToman`) get their unit price computed live from `LivePrices` instead of their stored `Asset.unitPrice`. Used by `App.tsx` (page total) and `AssetRow` (row value + edit-mode unit-price lock). |
+| `src/services/portfolioHistoryService.ts` | Defines `PortfolioSnapshot` (`{ date, totalToman, usdToman, goldGramToman }`, one day's recorded values) and the `PortfolioHistoryService` interface (`listHistory()` oldest-first, `recordSnapshotIfNeeded(...)`, `seedMockHistoryIfEmpty(...)`, see §6n), exporting the single `portfolioHistoryService` instance — currently `= localPortfolioHistoryService`. Same singleton-swap pattern as `assetService`/`priceService`/etc. (see §6d). |
+| `src/services/localPortfolioHistoryService.ts` | The `localPortfolioHistoryService: PortfolioHistoryService` implementation (see §6n), backed by `src/portfolioHistoryStorage.ts`. `recordSnapshotIfNeeded` upserts today's entry (overwrites if already present, so repeated calls the same day just update in place) and caps the stored array at the most recent 90 entries. `seedMockHistoryIfEmpty` is a no-op unless history is empty, in which case it generates 30 synthetic days ending yesterday by walking backwards from the given current values with small daily jitter (`totalToman` ±2%, `usdToman` ±0.3%, `goldGramToman` ±1%). |
+| `src/portfolioHistoryStorage.ts` | `loadPortfolioHistory()`/`savePortfolioHistory()` — read/write the `PortfolioSnapshot[]` to `localStorage` under key `oracle_portfolio_history_v1`, same try/catch-safe pattern as `src/storage.ts` (`loadPortfolioHistory` falls back to `[]` on missing/corrupt data). Only called from `src/services/localPortfolioHistoryService.ts`. |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
 | `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
@@ -278,6 +293,8 @@ type Transaction = {
 - Layout (top → bottom):
   1. `<header>` → hamburger menu button (opens the side drawer, see §6e) + brand link (`Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
   2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
+  2b. `PortfolioTrendChart` (see §6n) — the portfolio-growth-vs-USD/gold trend
+      chart card, directly below the summary section in the same column.
   3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → a "کیف پول"/"چشم بازار"
      tab toggle (see §6l, tab icons added in §6m) above everything else in this
      section, then, on the "کیف پول" tab: the toolbar (Excel-import button, see §6a;
@@ -1225,6 +1242,92 @@ type Transaction = {
   button (clicked from the wallet tab) visibly updates the market tab's
   update-time label on next view.
 
+## 6n. Daily portfolio-history snapshots + a growth-vs-USD/gold trend chart
+
+- **New daily-snapshot history service** — `src/services/portfolioHistoryService.ts`
+  + `src/services/localPortfolioHistoryService.ts` + `src/portfolioHistoryStorage.ts`
+  (see §4), same singleton-swap/`localStorage`-try-catch pattern as every other
+  service in this app (see §6d). `PortfolioSnapshot = { date, totalToman,
+  usdToman, goldGramToman }` — one row per calendar day, `date` an ISO
+  `YYYY-MM-DD` string. Stored under `localStorage` key
+  `oracle_portfolio_history_v1`, capped at the most recent **90 entries**
+  (oldest dropped once exceeded).
+- **`recordSnapshotIfNeeded(totalToman, usdToman, goldGramToman)`** — upserts
+  **today's** entry: if today already has a row (this function was already
+  called once today), it's overwritten in place with the latest values rather
+  than appended again, so calling it repeatedly the same day (e.g. every time
+  `total`/`prices` change) just keeps today's single point current instead of
+  creating duplicates.
+- **`seedMockHistoryIfEmpty(totalToman, usdToman, goldGramToman)`** — a
+  one-time backfill: no-ops if `listHistory()` already has any entries;
+  otherwise generates **30 synthetic daily snapshots** for the 30 days ending
+  **yesterday** (today's real point is recorded separately via
+  `recordSnapshotIfNeeded`, so the two never overlap/duplicate a day), walking
+  *backwards* from the given current values with small day-to-day random
+  jitter — `totalToman` ±2%, `usdToman` ±0.3%, `goldGramToman` ±1% per
+  simulated day — so the backfilled 30 days look like a gently fluctuating
+  plausible history instead of a flat line. **This 30-day backfill is
+  synthetic/generated, not real historical data** — never present it as real
+  past portfolio values.
+- **Wiring in `App.tsx`**: a `useEffect` watches `total`/`prices`; once both
+  are ready (`prices !== null && total > 0`) it awaits
+  `seedMockHistoryIfEmpty(...)` then `recordSnapshotIfNeeded(...)` with the
+  current `total`/`prices.usdToman`/`prices.goldGramToman`. A
+  `lastSnapshotDateRef` (`useRef<string | null>`) guards this so it only
+  actually runs once per calendar date per session — not on every 60s
+  `prices` tick — by comparing today's ISO date against the ref before
+  proceeding, then storing it. After both service calls resolve, `App.tsx`
+  bumps a `historyVersion` counter state, passed to `<PortfolioTrendChart
+  refreshKey={historyVersion}/>` so the chart re-fetches `listHistory()` right
+  after a snapshot changes instead of only once on mount.
+- **`PortfolioTrendChart` (new, `src/components/PortfolioTrendChart.tsx`, see
+  §4)** — rendered directly below `<SummaryCard>` in the same column (`App.tsx`
+  wraps both in one `<div>`, `PortfolioTrendChart` styled with its own
+  `mt-5`/`mt-[19px]` matching the page's existing vertical rhythm, same
+  white-rounded-card/border/shadow/padding tokens as `SummaryCard`). On
+  mount and whenever its `refreshKey` prop changes, it calls
+  `portfolioHistoryService.listHistory()` itself (`useEffect`) rather than
+  receiving history as a prop.
+  - **Normalization**: for each snapshot, `tomanIndex = (totalToman /
+    history[0].totalToman) * 100`; `usdIndex = ((totalToman / usdToman) /
+    (history[0].totalToman / history[0].usdToman)) * 100`; `goldIndex =
+    ((totalToman / goldGramToman) / (history[0].totalToman /
+    history[0].goldGramToman)) * 100` — all three necessarily equal exactly
+    100 on day 1, making otherwise-incomparable units (toman vs. dollars vs.
+    grams) directly comparable as "% change since day 1".
+  - **Rendering**: a hand-rolled inline `<svg viewBox="0 0 600 200">` — **no
+    charting library** — with 3 `<polyline>`s auto-scaled to fit the min/max
+    across all three series (10% padding) on the Y axis and evenly spaced
+    dates on the X axis: portfolio/toman `#5264e8` (brand indigo), USD
+    equivalent `#1f9d55` (green, matching the existing buy/`toast.success`
+    convention), gold equivalent `#d7a144` (matching `iconTint.gold`). Only
+    3 X-axis date labels are drawn (first/middle/last via `formatDate()`,
+    `src/format.ts`) to avoid crowding — all `history.length` points are
+    still plotted on the lines themselves.
+  - **Legend**: below the chart, one row per series — a colored dot, the
+    Persian label ("دارایی من (تومان)" / "معادل دلار" / "معادل گرم طلا"), and
+    that series' latest value expressed as `±X.X٪` relative to day 1 (index
+    value − 100), colored green (`#1f9d55`) when ≥ 0 or red (`#d95050`) when
+    negative — the same green/red convention already used by
+    `TransactionHistoryModal`'s خرید/فروش badges.
+  - **Empty state**: fewer than 2 history points (e.g. right after signup,
+    before the seed/record effect has finished) shows "داده کافی برای نمودار
+    وجود ندارد" instead of an empty/broken chart; a brief "در حال
+    بارگذاری..." shows while `listHistory()` hasn't resolved yet.
+  - Heading: "روند رشد دارایی نسبت به دلار و طلا".
+- **Still built on mock rates**: `usdToman`/`goldGramToman` come from the
+  existing mock `priceService` (§6j) — the trend chart is a real computation
+  over real recorded `total`/mock-rate history, but "real" here means
+  "actually computed from today's real portfolio total each day", not "backed
+  by a real market data source". Never present the USD/gold comparison lines
+  as tracking real market prices.
+- Build (`npm run build`) passes. Manual Playwright/Firefox verification:
+  after seeding, the chart renders 3 polylines + all 3 legend rows with
+  correctly colored ±% badges on both desktop and mobile viewports, sits
+  directly below `SummaryCard` in the page's existing card column, and
+  `localStorage['oracle_portfolio_history_v1']` correctly holds 31 entries
+  (30 backfilled + today) after first load.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -1339,6 +1442,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-25 | Owner-requested (see §6k): GOLD18 (طلای ۱۸ عیار) and USDT (تتر) now derive their unit price **live** from `priceService` instead of their stored/imported `Asset.unitPrice` — their row total AND the overall portfolio total now update automatically on every 60s tick or manual refresh (see §6j), because that's why they can no longer be manually price-edited (their edit-mode unit-price input is replaced with a read-only "قیمت زنده" label; quantity stays editable). New `src/services/livePriceMapping.ts` holds the hardcoded `code → LivePrices key` allow-list (`GOLD18→goldGramToman`, `USDT→usdToman`) plus `getLivePriceKeyForAsset`/`getEffectiveUnitPrice` helpers. `useLivePrices()` moved from being called inside `SummaryCard` to being called once in `App.tsx`, which now computes the page `total` via `getEffectiveUnitPrice` and threads the resulting `prices` prop down into both `SummaryCard` and every `AssetRow` (neither imports/calls the hook itself anymore). `SummaryCard`'s دلار/گرم طلا rows also gained a smaller muted per-unit-rate sub-text ("هر دلار/هر گرم … تومان"). **Every other asset is completely unaffected** — this is a hardcoded two-asset allow-list keyed by catalog `code`, not a general "all catalog assets are live-priced" rule; extending it later is a one-line change to `livePriceMapping.ts`. Build (`npm run build`) passes. |
 | 2026-09-25 | Owner-requested (see §6l): added "کیف پول"/"چشم بازار" tabs above the assets section, plus a new read-only market-watch list. `App.tsx` gained `activeSectionTab: 'wallet' \| 'market'` state and a two-button tab toggle (reusing `AuthScreen`'s exact login/signup tab-toggle styling — no new pattern) above the portfolio section's contents; "کیف پول" renders exactly today's `Toolbar` + asset list unchanged, "چشم بازار" renders new `src/components/MarketWatchList.tsx` instead (no toolbar), with the "دارایی‌های من" heading swapped for "چشم بازار" only on that tab. `SummaryCard`/the portfolio total above the tabs are unaffected either way. Extended the mock `LivePrices` type (`src/services/priceService.ts`) with `btcToman`/`ethToman` (starting values `10,500,000,000`/`360,000,000`, consistent with `src/assets.ts`'s existing sample BTC/ETH rows) and an `updatedAt: number` timestamp; `mockPriceService.ts`'s shared `jitterStep()` now also nudges these two by a fixed absolute toman amount (`±50,000,000`/`±5,000,000`) and stamps `updatedAt: Date.now()` on every run (both the 60s tick and `refreshNow()`), so both the automatic tick and the existing manual-refresh button drive the new list exactly like the existing two rates. `MarketWatchList` calls `useLivePrices()` directly (only ever mounted on the "چشم بازار" tab) and renders 5 rows — تتر/دلار (both reading the same mock `usdToman`, shown separately since they're commonly checked apart)/عیار گرمی (۱۸ عیار)/اتریوم/بیت‌کوین — each with an icon badge, `format()`-ed toman price, and a `new Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' })`-formatted "بروزرسانی: …" label from `prices.updatedAt`; shows "در حال دریافت قیمت‌ها..." while prices haven't resolved yet. `btcToman`/`ethToman` are **not** added to `livePriceMapping.ts`'s live-priced-asset allow-list (§6k) — out of scope for this task. Still entirely **mock** data, same as the rest of §6j. Build (`npm run build`) passes. |
 | 2026-09-25 | Owner-requested (see §6m): added tab icons and turned "چشم بازار" into a categorized market list backed by a brand-new, independent mock feed. Tab toggle (§6l) buttons now show a small icon before each label — new `WalletIcon`/`MarketEyeIcon` (`src/components/icons.tsx`). `MarketWatchList` was rewritten from a flat 5-row list into 4 category sections (`ارزها`/`طلا`/`بورس`/`صندوق‌های درآمد ثابت`, each with its own icon heading — new `CryptoIcon`/`StockIcon`/`FixedIncomeIcon` plus the reused `GoldBarIcon`) holding 14 items total, with one shared update-time label instead of one per row. New `src/services/marketWatchService.ts` + `mockMarketWatchService.ts` (same singleton-swap/shared-`jitterStep()`/60s-interval pattern as `mockPriceService`, see §6j) and `src/hooks/useMarketWatch.ts` (same pattern as `useLivePrices`) — **deliberately independent from `priceService`/`LivePrices`**, so `SummaryCard`'s USD/gold-gram conversions and `AssetRow`'s GOLD18/USDT live pricing (§6j/§6k) were not touched. `SummaryCard`'s existing manual refresh button now calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` so one click refreshes both feeds together. As a side effect, `LivePrices.btcToman`/`ethToman` (added in the §6l task) now have no remaining UI consumer — left in place rather than removed, since touching `priceService`/`mockPriceService` was explicitly out of scope; noted in §6l as a candidate future cleanup. Build (`npm run build`) passes; manual Playwright/Firefox verification confirms tab icons, all 4 categories/14 items, single update-time label, unaffected wallet tab, and that the manual refresh button updates the market tab's timestamp. |
+| 2026-09-25 | Owner-requested (see §6n): added daily portfolio-history snapshots and a growth-vs-USD/gold trend chart below `SummaryCard`. New `src/services/portfolioHistoryService.ts` + `localPortfolioHistoryService.ts` + `src/portfolioHistoryStorage.ts` (same singleton-swap/`localStorage`-try-catch pattern as every other service — see §6d), storing `PortfolioSnapshot[]` under `localStorage` key `oracle_portfolio_history_v1`, capped at 90 entries. `recordSnapshotIfNeeded` upserts today's entry (never duplicates same-day calls); `seedMockHistoryIfEmpty` backfills 30 synthetic days (ending yesterday) with small daily jitter the first time history is empty — clearly synthetic, never presented as real past data. `App.tsx` records/seeds a snapshot once per calendar date (ref-guarded against the 60s price-tick re-running it) once `total`/`prices` are both ready, then bumps a `historyVersion` counter passed to the new `PortfolioTrendChart` component as a `refreshKey` so it re-fetches history right after a snapshot changes. `PortfolioTrendChart` (new, `src/components/PortfolioTrendChart.tsx`) is a hand-rolled inline-SVG line chart — **no charting library added** — plotting 3 series normalized to "% change since day 1" (toman total, toman-total÷usdToman, toman-total÷goldGramToman, all starting at exactly 100) as 3 `<polyline>`s in brand-indigo/green/gold, with a legend (colored dot + label + latest ±% badge in the app's existing green/red convention) and a handful of `formatDate()` X-axis labels; shows a "داده کافی برای نمودار وجود ندارد" empty state below 2 points. Styled as its own card matching `SummaryCard`'s tokens, rendered directly below it in the same column. Still built on the existing mock `usdToman`/`goldGramToman` rates (§6j) — a real computation over real recorded totals, but not backed by a real market data source. Build (`npm run build`) passes; manual Playwright/Firefox verification confirms the chart renders 3 polylines + all 3 legend rows with correctly colored badges on desktop and mobile, and that `localStorage` correctly ends up with 31 entries (30 backfilled + today) after first load. |
 
 ## 12. Agent playbook (how to progress this app)
 
