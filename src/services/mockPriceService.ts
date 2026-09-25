@@ -6,11 +6,11 @@ import type { LivePrices, PriceService } from './priceService';
 // priceService.ts for the single line that would need to change to swap in a
 // server-backed implementation.
 const REFRESH_INTERVAL_MS = 60000;
-const JITTER_RATIO = 0.01; // roughly ±0.5%
+const JITTER_RATIO = 0.02; // roughly ±1%, deliberately visible tick-to-tick
 
 let current: LivePrices = {
-  usdToman: 1000000,
-  goldGramToman: 20000000,
+  usdToman: 230000, // 1 US dollar ≈ 230,000 toman
+  goldGramToman: 24000000, // 1 gram of 18-karat gold ≈ 24,000,000 toman
 };
 
 const subscribers = new Set<(prices: LivePrices) => void>();

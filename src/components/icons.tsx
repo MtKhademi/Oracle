@@ -92,3 +92,14 @@ export function UserAvatarPlaceholderIcon() {
     <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
   </svg>;
 }
+
+export function DollarIcon() {
+  return <span className="font-[Arial,sans-serif] text-[15px] leading-none font-semibold" aria-hidden="true">$</span>;
+}
+
+export function GoldBarIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m7 7-4 11h18L17 7Z"/>
+    <path d="M7 7h10M8 14h8M10 10h4"/>
+  </svg>;
+}
