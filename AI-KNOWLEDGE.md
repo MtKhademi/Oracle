@@ -64,7 +64,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e) and `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
-| `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onImportFile`/`onClearAll`/`onAdd` callback props from `App.tsx`; owns the hidden file `<input>` + its `ref`. |
+| `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the import-mode modal (see §6a) — the hidden file `<input>` now lives in `ImportModeModal`, not here. |
+| `src/components/ImportModeModal.tsx` | The Excel import-mode modal (see §6a): three option buttons/cards — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract) — each with a short title + one-line description; clicking one immediately clicks the hidden `<input type="file" accept=".xlsx,.xls">` this component owns, and when a file is chosen calls `onFileSelected(mode, file)` so the parent closes the modal and processes the file. Reuses the `ProfileModal`/`TransactionHistoryModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onFileSelected` props; owns the pending-mode ref (the mode chosen right before the file picker). |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete`/`onHistory` callback props. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
@@ -79,8 +80,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/data/assetCatalog.json` | Fixed, owner-provided reference catalog of known assets — `categories`/`units` (id + Persian `label`) and `assets` (`symbol`/`name`/`category`/`unit`, category/unit referencing the `categories`/`units` ids). Committed static data (like `src/assets.ts`'s sample array), not owner-entered real values — safe to commit. Drives the add-asset form (see §6c) instead of free-typed names. |
 | `src/services/assetCatalog.ts` | Typed wrapper around `assetCatalog.json` (`CatalogCategory`/`CatalogUnit`/`CatalogAsset` interfaces): `getCatalogAssets()`, `getCatalogAssetBySymbol(symbol)`, `getCategoryLabel(id)`/`getUnitLabel(id)` (Persian label lookups), and `getAssetIconForCatalogEntry(catalogAsset)` (maps a catalog category to the existing `Asset['icon']` key — see §6c). A catalog asset's `symbol` is now its permanent identity `code` (see §5) — this supersedes `assetCodeRegistry.ts`'s auto-generated codes for anything picked from the catalog. |
 | `src/services/assetCodeRegistry.ts` | `getOrCreateCode(category, name): string` — assigns/looks up each asset's permanent `<PREFIX>-<NNNN>` identity code (see §5). Backed by two `localStorage` keys: `oracle_code_counters_v1` (highest `NNNN` issued per prefix, e.g. `{ GOLD: 2, USDT: 1 }`) and `oracle_asset_registry_v1` (`category\|name.trim().toLowerCase()` → already-assigned code). Same try/catch `localStorage` pattern as `storage.ts`/`profileStorage.ts`/`authStorage.ts`. Pure lookup/generation logic only — does not read or write the asset list itself; its only remaining caller is the one-time migration in `App.tsx` (see §6d/§6h), which attaches the returned code to a legacy asset and persists it via `assetService`. **No longer used by `AddAssetModal`** (see §6c) or the Excel import (see §6a, now catalog-driven) — now only a fallback path for pre-catalog legacy data. |
-| `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets`/`clearAssets`, all `Promise`-returning) and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
-| `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
+| `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets(assets, mode)`/`clearAssets`, all `Promise`-returning), the `ImportMode` (`'replace' \| 'add' \| 'subtract'`) and `ImportAssetChange` (`{ assetId, type: 'buy' \| 'sell', quantity, unitPrice }`) types, and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
+| `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. `importAssets` applies the chosen mode per row matched by `code` — `replace` overwrites or appends (no changes), `add` adds the imported quantity (updating unit price) or appends and records a `buy` per row, `subtract` subtracts (clamped at 0, unit price untouched) and records a `sell` per row or skips unmatched rows — and resolves the full `ImportResult` incl. the `changes` transaction list (see §6a/§6d). Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
 | `src/types/transaction.ts` | `TransactionType` (`'buy' \| 'sell'`) and `Transaction` (`id`/`assetId`/`type`/`quantity`/`unitPrice`/`date`/optional `note`) — the durable buy/sell history model for each asset, ready for the follow-up transaction-history UI. |
 | `src/transactionStorage.ts` | `loadTransactions()`/`saveTransactions()` — read/write the transaction list to `localStorage` under key `oracle_transactions_v1`, using the same try/catch-safe array storage pattern as assets/auth/profile. Only called from `src/services/localTransactionService.ts`. |
@@ -220,8 +221,9 @@ type Transaction = {
   (`variant="ghost"`, tint only on hover). `tone="neutral"` = blue/violet tint,
   `tone="danger"` = red tint. Takes `icon`/`onClick`/`ariaLabel` props.
 - `Toolbar` (in `src/components/Toolbar.tsx`) — renders the three `IconButton`s above
-  "دارایی‌های من" plus the hidden file `<input>` for Excel import; takes
-  `onImportFile`/`onClearAll`/`onAdd` callbacks from `App.tsx`.
+  "دارایی‌های من"; the import button opens the import-mode modal (`onOpenImportModal`),
+  so the toolbar no longer owns a file input; takes
+  `onOpenImportModal`/`onClearAll`/`onAdd` callbacks from `App.tsx`.
 - `AssetRow` (in `src/components/AssetRow.tsx`) — one asset `<li>`: icon, name,
   quantity/unit (or, in edit mode, number inputs for quantity + unit price with
   save/cancel), value, and history/edit/delete `IconButton`s
@@ -263,18 +265,26 @@ type Transaction = {
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
-  7. Transaction-history modal (see §6i) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History action was clicked); it lists that asset's transactions and holds the add-transaction form.
-- All of the above (steps 1–6) only render once a user is logged in — see §6g for
+   7. Transaction-history modal (see §6i) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History action was clicked); it lists that asset's transactions and holds the add-transaction form.
+   8. Import-mode modal (see §6a) — rendered as a sibling after `<main>`, only when `isImportModeOpen` is set (the toolbar's Excel-import button was clicked); the user picks replace/add/subtract, which immediately opens the file picker.
+- All of the above (steps 1–8) only render once a user is logged in — see §6g for
   the login/signup/forgot-password screens shown instead when they are not.
 
 ## 6a. Excel import (fixed template only)
 
 - `Toolbar` (see §6, `src/components/Toolbar.tsx`), above the "دارایی‌های من" heading
   in the portfolio `<section>`: a single "ایمپورت اکسل" `IconButton` (`tone="neutral"`,
-  `UploadIcon`) that triggers a visually hidden `<input type="file"
-  accept=".xlsx,.xls">` via a `ref` + `.click()`. No drag-and-drop zone, no other
-  format support — a plain file picker only. The actual parsing/state-update handler
-  (`handleImportFile`) lives in `App.tsx` and is passed down as `onImportFile`.
+  `UploadIcon`) that sets `App.tsx`'s `isImportModeOpen` to `true` (via the
+  `onOpenImportModal` prop), opening `ImportModeModal` (see §4). The user picks one of
+  three import modes — **جایگذاری با دارایی فعلی** (replace: the file reflects the
+  full current snapshot), **اضافه کردن به دارایی فعلی** (add: the file is a batch of
+  purchases to add on top of what's held), or **کم کردن از دارایی فعلی** (subtract:
+  a batch of sales) — and clicking a mode immediately triggers the visually hidden
+  `<input type="file" accept=".xlsx,.xls">` (owned by the modal) via a `ref` +
+  `.click()`. When a file is chosen the modal calls `onFileSelected(mode, file)` and
+  `App.tsx` closes it and processes the file. No drag-and-drop zone, no other format
+  support — a plain file picker only. The actual parsing/state-update handler
+  (`handleImportFile(mode, file)`) lives in `App.tsx`.
 - Parsing (`XLSX.read`/`XLSX.utils.sheet_to_json(sheet, { header: 1 })` from the
   `xlsx` npm package, entirely client-side — no backend, no network request):
   1. First sheet only. Row 1's **first 3 headers** must equal (trimmed), in this
@@ -302,25 +312,46 @@ type Transaction = {
      `icon: getAssetIconForCatalogEntry(catalogAsset)`, and `code:
      catalogAsset.symbol`. Columns beyond the 3rd are ignored (not read or
      validated).
-- **Update-or-add by code** (`assetService.importAssets`, see §6d): each parsed row's
-  `code` is looked up against the asset already in the list with that same `code`.
-  - Match found → that asset's `quantity`/`unitPrice` are **replaced** with the
-    freshly imported values (its `id` and everything else stay the same) — this is
-    a REPLACE, not an add-to-the-old-numbers; the Excel export is assumed to reflect
-    the current total holding, not a new purchase.
-  - No match → the row is appended as a brand-new asset (new `id`, this `code`),
-    same as before.
-  - This means re-importing the same file (or a fresh export of the same holdings)
-    updates the existing rows in place instead of creating duplicates — the bug the
-    owner reported. `importAssets` now resolves `{ assets, added, updated }` instead
-    of just the new list (see §6d).
+- **Apply-by-code, three modes** (`assetService.importAssets(assets, mode)`, see §6d):
+  each parsed row's `code` is looked up against the asset already in the list with
+  that same `code`, and the chosen mode (see the bullet above) decides what happens.
+  - `replace` (the original behavior, for a full snapshot): match found → that
+    asset's `quantity`/`unitPrice` are **replaced** with the freshly imported values
+    (its `id` and everything else stay the same); no match → the row is appended as a
+    brand-new asset (new `id`, this `code`). **No transactions are written** — a
+    snapshot is not a purchase event.
+  - `add` (a batch of purchases): no match → the row is appended as a brand-new
+    asset (new `id`) **and** a `buy` transaction for the imported quantity at the
+    imported unit price is recorded for it; match → the existing asset's `quantity`
+    is **increased** by the imported quantity and its `unitPrice` is updated to the
+    imported one, with a `buy` transaction recorded for the imported amount (same
+    semantics as the manual add-asset flow, see §6c/§6i).
+  - `subtract` (a batch of sales): match → the existing asset's `quantity` is
+    **decreased** by the imported quantity, clamped at 0, and its `unitPrice` is
+    **left unchanged**, with a `sell` transaction recorded for the imported amount at
+    the imported price; no match → the row is **skipped** (`skippedNoMatch++`) and no
+    asset is created — you can't record a sale against an asset you have no record
+    of.
+  - `importAssets` resolves `{ assets, added, updated, skippedNoMatch, changes }`
+    instead of just the new list; `changes` is the per-row transaction list (empty in
+    `replace` mode) that `App.tsx` writes via `transactionService.addTransaction`
+    (dated today), so the imported buys/sells show up in each asset's history like
+    any manually recorded transaction (see §6d/§6i). Re-importing the same file in
+    `replace` mode still updates the existing rows in place instead of creating
+    duplicates — the original bug the owner reported.
 - All user-facing outcomes are shown via `sonner` toasts (see §3), not inline page
   text; the toast library handles its own timing/dismissal. Wrong file extension and
   header mismatch → `toast.error`. Zero rows importable (all invalid) → `toast.error`.
-  Otherwise the message reports both counts from the merge, e.g. `۳ دارایی اضافه شد،
-  ۲ دارایی به‌روزرسانی شد` (only the non-zero half is included if one bucket is empty)
-  — `toast.success` if nothing was skipped, `toast.warning` if some rows were also
-  skipped as invalid (partial import).
+  Otherwise the message reports the merge counts, e.g. `۳ دارایی اضافه شد، ۲ دارایی
+  به‌روزرسانی شد` (only the non-zero halves are included), and appends — when
+  non-zero — a `skippedNoMatch` half (`N ردیف به دلیل نبود دارایی مشابه در فهرست
+  نادیده گرفته شد`, only possible in `subtract` mode) and the invalid-row `skipped`
+  half (`N ردیف نامعتبر رد شد`, unknown symbol / bad quantity — separate from
+  `skippedNoMatch`). `toast.warning` when either skip bucket is non-zero (a
+  `subtract` with skipped rows is a partial sale batch; an invalid-row skip is a
+  partial import), `toast.success` otherwise. A failure writing the recorded
+  transactions (e.g. the non-secure deployed context, see §6i) adds a separate
+  `toast.error` but does not undo the asset-list change that already happened.
 - This is intentionally a single hardcoded template — do NOT add column
   auto-detection, alternate layouts, CSV, or other spreadsheet formats.
 
@@ -463,10 +494,15 @@ type Transaction = {
     addAsset(asset: Asset): Promise<Asset[]>;
     updateAsset(id: string, changes: Partial<Asset>): Promise<Asset[]>;
     deleteAsset(id: string): Promise<Asset[]>;
-    // Merges by `code` (see §6a/assetCodeRegistry.ts) instead of always appending:
-    // a matching code replaces that asset's quantity/unitPrice (same id), no match
-    // appends a new asset. added/updated report how many rows landed in each bucket.
-    importAssets(assets: Asset[]): Promise<{ assets: Asset[]; added: number; updated: number }>;
+    // Merges by `code` (see §6a) instead of always appending; the mode chosen at
+    // import time (see §6a) decides per row: 'replace' overwrites a matched asset's
+    // quantity/unitPrice or appends (no transactions); 'add' adds the imported
+    // quantity (updating unit price) or appends and records a 'buy' per row;
+    // 'subtract' subtracts the imported quantity (clamped at 0, unit price
+    // untouched) and records a 'sell' per row, or skips unmatched rows.
+    // added/updated/skippedNoMatch report how many rows landed in each bucket and
+    // `changes` is the per-row transaction list for 'add'/'subtract'.
+    importAssets(assets: Asset[], mode: ImportMode): Promise<ImportResult>;
     clearAssets(): Promise<Asset[]>; // returns []
   }
   ```
@@ -477,8 +513,9 @@ type Transaction = {
   backed by the existing `src/storage.ts` `loadAssets`/`saveAssets` functions —
   it does not duplicate the `localStorage`/try-catch logic, it just calls into
   `storage.ts`. Each method reads the current list via `loadAssets()`, applies the
-  change, writes the result back via `saveAssets()`, and resolves with the new full
-  list (`importAssets` additionally resolves the `added`/`updated` counts — see §6a).
+   change, writes the result back via `saveAssets()`, and resolves with the new full
+   list (`importAssets` additionally resolves the `added`/`updated`/`skippedNoMatch`
+   counts plus the per-row `changes` transaction list — see §6a).
 - `assetService.ts` exports a single instance, `export const assetService:
   AssetService = localAssetService;` — this one line is the only place that will
   need to change to point at a server-backed implementation later; no component or
@@ -800,16 +837,20 @@ type Transaction = {
   "opening balance" transaction type yet (the lazy initial entry is a synthetic
   `buy`).
 - **Intentionally NOT writing transactions:** the pencil-icon manual edit
-  (`handleEdit`) and the Excel import (`handleImportFile`/`importAssets`) still do
-  **not** create transaction records — direct edits are a known open decision
-  (should they log an implicit buy/sell?), and import is a replace-the-current-total
-  snapshot, not a purchase event (see §6a).
-- **Secure-context note:** the add-transaction form (and the `handleAddAsset`
-  writes) rely on `localTransactionService.addTransaction`, whose
-  `crypto.randomUUID()` ID generation is a `[SecureContext]`-only API. The deployed
-  origin (`http://45.82.137.126:8580/`, plain HTTP on a bare IP) is a non-secure
+  (`handleEdit`) still does **not** create a transaction record — direct edits are a
+  known open decision (should they log an implicit buy/sell?). Excel import now
+  **does** write transactions, but only in `add`/`subtract` modes (a `buy`/`sell` per
+  imported row, see §6a); `replace` mode — the original full-snapshot behavior —
+  writes none, since a snapshot is not a purchase event.
+- **Secure-context note:** the add-transaction form (and the `handleAddAsset` and
+  Excel-import add/subtract transaction writes) rely on
+  `localTransactionService.addTransaction`, whose `crypto.randomUUID()` ID
+  generation is a `[SecureContext]`-only API. The deployed origin
+  (`http://45.82.137.126:8580/`, plain HTTP on a bare IP) is a non-secure
   context where it is `undefined`, so recording transactions there fails until
-  HTTPS is set up; failures surface as a `toast.error`. All existing
+  HTTPS is set up; failures surface as a `toast.error` (for the import, the
+  asset-list change already committed still stands — only the transaction rows
+  fail). All existing
   `crypto.randomUUID()` usages (`localAssetService`/`AddAssetModal` asset ids, the
   Excel import, `localTransactionService`) remain for the dedicated cleanup in
   task 6.
@@ -918,6 +959,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-23 | Owner-requested: changed the Docker host port from 80 to 8580 (`-p 8580:80`) while Nginx inside the image remains on port 80; the app URL is now `http://45.82.137.126:8580/`. Browser storage from port 80 remains at its original origin. |
 | 2026-09-23 | Bugfix: `crypto.subtle.digest(...)` and `crypto.randomUUID()` are both `[SecureContext]`-only per the Web Crypto spec (HTTPS or `localhost` required) — both were `undefined`/throwing on the current plain-HTTP-on-bare-IP deployment (see §8), crashing `signUp` before any account was ever created (so login afterward always failed with "user not found"). Replaced password hashing with `js-sha256` (pure JS, no secure-context requirement, same SHA-256 output — no forced re-hash of any password that had been hashed pre-bug) and the user `id` generator with a manual UUID v4 built from `crypto.getRandomValues()` (also unaffected by secure-context). Also made `signUp` ignore any stored user record with a missing/empty `passwordHash` (only possible from a signup that crashed before completing) so it can't block a fresh signup with the same email/phone. No HTTPS/certbot setup as part of this — that needs a domain, which doesn't exist yet. |
 | 2026-09-23 | Owner-requested: built login, signup, and forgot-password (see §6g), gating the whole dashboard behind being logged in. Added `User` type, `src/authStorage.ts` (localStorage keys `oracle_users_v1`/`oracle_session_v1`), and `AuthService`/`localAuthService` (`src/services/`) — same singleton-swap pattern as `assetService`/`profileService` (see §6d). Passwords are SHA-256-hashed via Web Crypto before ever being stored, never plaintext. `AuthScreen` (login/signup tabs) and `ForgotPasswordModal` (two-step: request code, then code+new password) reuse the existing card/input/overlay styling — no new visual pattern invented. **Password-reset codes are simulated** (generated locally, shown directly to the user via a toast) because no real email/SMS provider is connected yet; `localAuthService.ts` marks exactly where that integration would replace the simulation. خروج (logout) in the side drawer now actually calls `authService.logOut()`; تنظیمات/درباره Oracle/راهنما remain placeholders. |
+| 2026-09-25 | Owner-requested: Excel import now supports **three modes** chosen by the user at import time via a new `ImportModeModal` (`src/components/ImportModeModal.tsx`, see §4/§6a) — the toolbar's "ایمپورت اکسل" button no longer opens a file picker directly (the hidden file input moved from `Toolbar` into the modal); it opens the mode modal, whose three option cards — جایگذاری با دارایی فعلی / اضافه کردن به دارایی فعلی / کم کردن از دارایی فعلی — each immediately open the file picker for that mode, and the chosen file is processed via `onFileSelected(mode, file)`. `assetService.importAssets(assets, mode)` (see §6d) now takes the mode and returns `skippedNoMatch` + a per-row `changes` list: `replace` keeps today's exact behavior (overwrite-or-append, **no** transactions — a snapshot is not a purchase event); `add` increases a matched asset's quantity (updating unit price) or appends, recording a `buy` per row; `subtract` decreases a matched asset's quantity (clamped at 0, unit price untouched) and records a `sell` per row, or skips the row (`skippedNoMatch`) when there is no matching asset to sell. `App.tsx`'s `handleImportFile(mode, file)` writes every `changes` entry via `transactionService.addTransaction` (dated today, `Promise.all`, failures → `toast.error` without undoing the asset-list change) so imported buys/sells show up in each asset's history like manually recorded ones (see §6i). Toasts append `skippedNoMatch`/invalid-`skipped` halves and use `toast.warning` when either is non-zero. Parsing (fixed 3-column template, catalog-symbol resolution, invalid-row skip) is unchanged. Build (`npm run build`) passes. |
 | 2026-09-24 | Bug fix (owner-reported): Excel import now resolves each row against the asset catalog **by symbol**, using the same identity — the catalog entry's `symbol` as `code` — as the catalog-driven manual add, so an imported row and a manually catalog-added row for the same real-world asset always carry the same `code` and the existing `importAssets` merge-by-`code` logic (see §6a/§6d) actually engages (updates the existing row instead of creating a duplicate, which the old auto-generated `getOrCreateCode` codes never matched). The import template's header now needs only the first 3 columns in order (`نماد`, `تعداد`, `قیمت واحد (تومان)`), with any extra trailing columns (e.g. a human-readable reference-name column) allowed and ignored; `parseImportRows` looks up `getCatalogAssetBySymbol(symbol)`, skips (counts) rows with no catalog match, reads `quantity` (col 2, must be finite > 0 else parsing stops) and `unitPrice` (col 3), and builds the `Asset` from the catalog entry (`name`/`getUnitLabel(unit)`/`getAssetIconForCatalogEntry`/`symbol`). Removed the now-unused `importCategoryToIcon` mapping and the `getOrCreateCode` call in `parseImportRows` (`getOrCreateCode` is still used by the one-time legacy-asset migration in `App.tsx`'s mount effect); `localAssetService`'s merge logic was untouched, and the import toast wording (no category reference) is unchanged. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
