@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { format } from '../format';
-import { useLivePrices } from '../hooks/useLivePrices';
-import { priceService } from '../services/priceService';
+import { priceService, type LivePrices } from '../services/priceService';
 import { AssetIcon } from './AssetIcon';
 import { DollarIcon, GoldBarIcon, RefreshIcon } from './icons';
 
 const SPIN_DURATION_MS = 700;
 
-export function SummaryCard({ total, count, isSample }: { total: number; count: number; isSample: boolean }) {
-  const prices = useLivePrices();
+export function SummaryCard({ total, count, isSample, prices }: { total: number; count: number; isSample: boolean; prices: LivePrices | null }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const isFirstPrices = useRef(true);
 
@@ -37,10 +35,12 @@ export function SummaryCard({ total, count, isSample }: { total: number; count: 
       <div className="flex items-center gap-[8px]">
         <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#d7f5e0] text-[#1f9d55] shrink-0"><DollarIcon/></span>
         <span className="text-[13px] font-medium text-[#1f9d55]">≈ {format(total / (prices?.usdToman ?? 1), 2)} دلار</span>
+        <span className="text-[10px] text-[#8fa89a]">هر دلار {format(prices?.usdToman ?? 0)} تومان</span>
       </div>
       <div className="flex items-center gap-[8px]">
         <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#fff5df] text-[#d7a144] shrink-0"><GoldBarIcon/></span>
         <span className="text-[13px] font-medium text-[#d7a144]">≈ {format(total / (prices?.goldGramToman ?? 1), 2)} گرم طلا</span>
+        <span className="text-[10px] text-[#c7b48a]">هر گرم {format(prices?.goldGramToman ?? 0)} تومان</span>
       </div>
     </div>
     <div className="flex justify-between border-t border-[#f0f1f7] py-4 text-[#9096aa] text-[11px]"><span className="flex items-center gap-[7px]"><i className="h-[6px] w-[6px] bg-[#8593ee] rounded-full"/>سرمایه‌ها، کنار هم</span><span>{format(count)} دارایی</span></div>

@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import type { Asset } from '../assets';
 import { format } from '../format';
+import type { LivePrices } from '../services/priceService';
+import { getEffectiveUnitPrice, getLivePriceKeyForAsset } from '../services/livePriceMapping';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { HistoryIcon, PencilIcon, TrashIcon } from './icons';
 
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
-export function AssetRow({ asset, onDelete, onEdit, onHistory }: { asset: Asset; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void; onHistory: (id: string) => void }) {
+export function AssetRow({ asset, prices, onDelete, onEdit, onHistory }: { asset: Asset; prices: LivePrices | null; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void; onHistory: (id: string) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftQuantity, setDraftQuantity] = useState(String(asset.quantity));
   const [draftUnitPrice, setDraftUnitPrice] = useState(String(asset.unitPrice));
   const [error, setError] = useState<string | null>(null);
+
+  const livePriceKey = getLivePriceKeyForAsset(asset);
+  const effectiveUnitPrice = getEffectiveUnitPrice(asset, prices);
 
   const startEdit = () => {
     setDraftQuantity(String(asset.quantity));
@@ -22,8 +27,20 @@ export function AssetRow({ asset, onDelete, onEdit, onHistory }: { asset: Asset;
 
   const save = () => {
     const quantity = Number(draftQuantity);
+    if (!Number.isFinite(quantity)) {
+      setError('عدد نامعتبر است.');
+      return;
+    }
+    if (livePriceKey) {
+      // Live-priced assets aren't manually price-edited — keep the stored
+      // unitPrice untouched (it isn't used for display on this asset, but
+      // keeping it intact avoids losing data).
+      onEdit(asset.id, quantity, asset.unitPrice);
+      setIsEditing(false);
+      return;
+    }
     const unitPrice = Number(draftUnitPrice);
-    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) {
+    if (!Number.isFinite(unitPrice)) {
       setError('عدد نامعتبر است.');
       return;
     }
@@ -38,12 +55,15 @@ export function AssetRow({ asset, onDelete, onEdit, onHistory }: { asset: Asset;
       {isEditing ? <div className="flex flex-wrap items-center gap-[6px] mt-[6px]">
         <input type="number" step="any" value={draftQuantity} onChange={e => setDraftQuantity(e.target.value)} className="w-[90px] text-[11px] border border-[#eef0f7] rounded-[8px] px-2 py-1" aria-label={`مقدار ${asset.name}`} />
         <span className="text-[11px] text-[#999fb2]">{asset.unit}</span>
-        <input type="number" step="any" value={draftUnitPrice} onChange={e => setDraftUnitPrice(e.target.value)} className="w-[110px] text-[11px] border border-[#eef0f7] rounded-[8px] px-2 py-1" aria-label={`قیمت واحد ${asset.name} به تومان`} />
+        {livePriceKey ? <span className="text-[10px] text-[#5264e8] bg-[#eef0ff] rounded-[8px] px-2 py-1">قیمت زنده</span> : <input type="number" step="any" value={draftUnitPrice} onChange={e => setDraftUnitPrice(e.target.value)} className="w-[110px] text-[11px] border border-[#eef0f7] rounded-[8px] px-2 py-1" aria-label={`قیمت واحد ${asset.name} به تومان`} />}
         {error && <span className="text-[10px] text-[#d95050] w-full">{error}</span>}
-      </div> : <p className="text-[11px] text-[#999fb2] mt-[5px]">{format(asset.quantity, 8)} {asset.unit}</p>}
+      </div> : <>
+        <p className="text-[11px] text-[#999fb2] mt-[5px]">{format(asset.quantity, 8)} {asset.unit}</p>
+        {livePriceKey && prices && <p className="text-[10px] text-[#a2a8b9] mt-[2px]">{format(effectiveUnitPrice)} تومان / {asset.unit}</p>}
+      </>}
     </div>
     <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
-      {!isEditing && <div className="flex flex-col gap-[5px] items-end"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(asset.quantity * asset.unitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>}
+      {!isEditing && <div className="flex flex-col gap-[5px] items-end"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(asset.quantity * effectiveUnitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>}
       <div className="flex gap-[8px]">
         {isEditing ? <>
           <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>
