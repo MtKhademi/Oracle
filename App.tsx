@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
@@ -8,6 +8,7 @@ import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } fr
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
 import { getEffectiveUnitPrice } from './src/services/livePriceMapping';
+import { portfolioHistoryService } from './src/services/portfolioHistoryService';
 import { useLivePrices } from './src/hooks/useLivePrices';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
@@ -15,6 +16,7 @@ import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
+import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
 import { HamburgerIcon, MarketEyeIcon, WalletIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
@@ -154,7 +156,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
+  const [historyVersion, setHistoryVersion] = useState(0);
   const prices = useLivePrices();
+  const lastSnapshotDateRef = useRef<string | null>(null);
 
   useEffect(() => {
     authService.getCurrentUser().then(user => {
@@ -196,6 +200,22 @@ export default function App() {
   };
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * getEffectiveUnitPrice(asset, prices), 0);
+
+  // Records/updates today's portfolio snapshot (see
+  // src/services/portfolioHistoryService.ts) once total/prices are both
+  // ready — guarded by a ref so it only re-runs when the calendar date
+  // changes (or on first run this session), not on every 60s price tick.
+  useEffect(() => {
+    if (prices === null || total <= 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (lastSnapshotDateRef.current === today) return;
+    lastSnapshotDateRef.current = today;
+    (async () => {
+      await portfolioHistoryService.seedMockHistoryIfEmpty(total, prices.usdToman, prices.goldGramToman);
+      await portfolioHistoryService.recordSnapshotIfNeeded(total, prices.usdToman, prices.goldGramToman);
+      setHistoryVersion(v => v + 1);
+    })();
+  }, [total, prices]);
 
   const handleAddAsset = async (newAsset: Asset) => {
     // Merge-by-code: a catalog-driven add (see AddAssetModal.tsx) whose `code`
@@ -322,7 +342,10 @@ export default function App() {
       <span className="text-[12px] text-[#e0e4ff] max-[481px]:text-[10px] max-[351px]:hidden">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
-      <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} onOpenWallet={() => setActiveSectionTab('wallet')}/>
+      <div>
+        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} onOpenWallet={() => setActiveSectionTab('wallet')}/>
+        <PortfolioTrendChart refreshKey={historyVersion}/>
+      </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <div className="grid grid-cols-2 mb-[15px] min-[1050px]:mb-[19px] border border-[#eef0f7] rounded-[10px] p-1">
           <button type="button" onClick={() => setActiveSectionTab('wallet')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'wallet' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><WalletIcon/>کیف پول</button>
