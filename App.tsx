@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
-import { assetService, type ImportMode } from './src/services/assetService';
+import { assetService, type ImportEffectiveType, type ImportMode, type ImportRow } from './src/services/assetService';
 import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
-import { ImportModeModal } from './src/components/ImportModeModal';
+import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
@@ -21,41 +21,130 @@ import { Toolbar } from './src/components/Toolbar';
 import type { User } from './src/types';
 
 const EXPECTED_IMPORT_HEADERS = ['نماد', 'تعداد', 'قیمت واحد (تومان)'];
+const ROW_TYPE_VALUES = ['buy', 'sell', 'replace'] as const;
+type RowType = (typeof ROW_TYPE_VALUES)[number];
 
-function parseImportRows(rows: unknown[][]): { assets: Asset[]; skipped: number } | null {
+// One parsed Excel row: the built Asset (catalog-driven) plus its own optional
+// per-row type/date overrides (columns 4-5) — `null` means "not specified,
+// fall back to the modal's chosen default mode / today's date" (see
+// resolveEffectiveType/handleImportFile below).
+interface ParsedImportRow {
+  asset: Asset;
+  rowType: RowType | null;
+  rowDate: string | null;
+}
+
+// Converts a JS Date cell (openpyxl/xlsx gives Date objects for date-formatted
+// cells) to an ISO YYYY-MM-DD string using LOCAL year/month/day — using UTC
+// getters here would shift the date by one day for timezones behind UTC.
+function formatLocalIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Strictly validates an "YYYY-MM-DD" string represents a real calendar date
+// (rejects e.g. "2026-13-40", which `new Date(...)` would otherwise silently
+// roll over into a different, unintended date instead of failing).
+function parseIsoDateStrict(raw: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return raw;
+}
+
+// Resolves the optional تاریخ cell (column 5): `{ date: null, invalid: false }`
+// when empty (fall back to today at effective-date resolution time), `{ date,
+// invalid: false }` when a valid ISO date or Date object, `{ date: null,
+// invalid: true }` when present but unparseable (row must be skipped).
+function resolveRowDate(cell: unknown): { date: string | null; invalid: boolean } {
+  if (cell instanceof Date) return { date: formatLocalIsoDate(cell), invalid: false };
+  const raw = String(cell ?? '').trim();
+  if (raw === '') return { date: null, invalid: false };
+  const iso = parseIsoDateStrict(raw);
+  return iso ? { date: iso, invalid: false } : { date: null, invalid: true };
+}
+
+// Resolves the optional نوع cell (column 4): empty -> null (fall back to the
+// modal's default mode), a recognized literal -> that type, anything else ->
+// invalid (row must be skipped).
+function resolveRowType(cell: unknown): { type: RowType | null; invalid: boolean } {
+  const raw = String(cell ?? '').trim().toLowerCase();
+  if (raw === '') return { type: null, invalid: false };
+  if ((ROW_TYPE_VALUES as readonly string[]).includes(raw)) return { type: raw as RowType, invalid: false };
+  return { type: null, invalid: true };
+}
+
+// New 6-column template: نماد | تعداد | قیمت واحد (تومان) | نوع | تاریخ |
+// نام دارایی (فقط نمایشی). Only the first 3 headers are required to match —
+// columns 4-6 are optional (may be entirely absent from the header row, or
+// present but left empty per row).
+function parseImportRows(rows: unknown[][]): { rows: ParsedImportRow[]; skipped: number } | null {
   const header = (rows[0] ?? []).map(cell => String(cell ?? '').trim());
   const headerMatches = header.length >= EXPECTED_IMPORT_HEADERS.length && EXPECTED_IMPORT_HEADERS.every((h, i) => header[i] === h);
   if (!headerMatches) return null;
 
-  const parsed: Asset[] = [];
+  const parsed: ParsedImportRow[] = [];
   let skipped = 0;
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
     const isEmpty = row.length === 0 || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '');
     if (isEmpty) break;
+
     const symbol = String(row[0] ?? '').trim();
     const catalogAsset = getCatalogAssetBySymbol(symbol);
     if (!catalogAsset) { skipped++; continue; }
+
     const quantity = Number(row[1]);
-    if (!Number.isFinite(quantity) || quantity <= 0) break;
+    if (!Number.isFinite(quantity) || quantity <= 0) break; // matches the legacy trailing-legend-row stop behavior
+
+    const unitPrice = Number(row[2]);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) { skipped++; continue; }
+
+    const { type: rowType, invalid: typeInvalid } = resolveRowType(row[3]);
+    if (typeInvalid) { skipped++; continue; }
+
+    const { date: rowDate, invalid: dateInvalid } = resolveRowDate(row[4]);
+    if (dateInvalid) { skipped++; continue; }
+
+    // row[5] (نام دارایی، فقط نمایشی) is intentionally never read — a
+    // human-reference column only, the catalog entry is the source of truth.
     parsed.push({
-      id: crypto.randomUUID(),
-      name: catalogAsset.name,
-      quantity,
-      unit: getUnitLabel(catalogAsset.unit),
-      unitPrice: Number(row[2]),
-      icon: getAssetIconForCatalogEntry(catalogAsset),
-      code: catalogAsset.symbol,
+      asset: {
+        id: crypto.randomUUID(),
+        name: catalogAsset.name,
+        quantity,
+        unit: getUnitLabel(catalogAsset.unit),
+        unitPrice,
+        icon: getAssetIconForCatalogEntry(catalogAsset),
+        code: catalogAsset.symbol,
+      },
+      rowType,
+      rowDate,
     });
   }
-  return { assets: parsed, skipped };
+  return { rows: parsed, skipped };
+}
+
+// Falls back a row's optional نوع to the modal's chosen default mode:
+// add -> buy, subtract -> sell, replace -> replace.
+function resolveEffectiveType(rowType: RowType | null, defaultMode: ImportMode): ImportEffectiveType {
+  if (rowType) return rowType;
+  if (defaultMode === 'add') return 'buy';
+  if (defaultMode === 'subtract') return 'sell';
+  return 'replace';
 }
 
 export default function App() {
   const [items, setItems] = useState<Asset[]>(assets);
   const [isSample, setIsSample] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isImportModeOpen, setIsImportModeOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
@@ -164,7 +253,7 @@ export default function App() {
     });
   };
 
-  const handleImportFile = async (mode: ImportMode, file: File) => {
+  const handleImportFile = async (defaultMode: ImportMode, file: File) => {
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
       toast.error('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
       return;
@@ -178,17 +267,22 @@ export default function App() {
       toast.error('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
       return;
     }
-    if (result.assets.length === 0) {
+    if (result.rows.length === 0) {
       toast.error('هیچ ردیف معتبری برای وارد کردن پیدا نشد');
       return;
     }
-    const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(result.assets, mode);
+    const today = new Date().toISOString().slice(0, 10);
+    const importRows: ImportRow[] = result.rows.map(row => ({
+      asset: row.asset,
+      effectiveType: resolveEffectiveType(row.rowType, defaultMode),
+      effectiveDate: row.rowDate ?? today,
+    }));
+    const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(importRows);
     setItems(next);
     setIsSample(false);
     if (changes.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
       try {
-        await Promise.all(changes.map(change => transactionService.addTransaction({ assetId: change.assetId, type: change.type, quantity: change.quantity, unitPrice: change.unitPrice, date: today })));
+        await Promise.all(changes.map(change => transactionService.addTransaction({ assetId: change.assetId, type: change.type, quantity: change.quantity, unitPrice: change.unitPrice, date: change.date })));
       } catch {
         toast.error('ثبت تراکنش‌های واردشده انجام نشد');
       }
@@ -197,14 +291,14 @@ export default function App() {
     if (added > 0) parts.push(`${format(added)} دارایی اضافه شد`);
     if (updated > 0) parts.push(`${format(updated)} دارایی به‌روزرسانی شد`);
     let message = parts.join('، ');
-    if (skippedNoMatch > 0) message += `، ${format(skippedNoMatch)} ردیف به دلیل نبود دارایی مشابه در فهرست نادیده گرفته شد`;
+    if (skippedNoMatch > 0) message += `، ${format(skippedNoMatch)} ردیف بابت نبود دارایی مشابه نادیده گرفته شد`;
     if (result.skipped > 0) message += `، ${format(result.skipped)} ردیف نامعتبر رد شد`;
-    if (mode === 'subtract' && skippedNoMatch > 0 || result.skipped > 0) {
+    if (skippedNoMatch > 0 || result.skipped > 0) {
       toast.warning(message);
     } else {
       toast.success(message);
     }
-    setIsImportModeOpen(false);
+    setIsImportModalOpen(false);
   };
 
   if (!isAuthChecked) {
@@ -225,14 +319,14 @@ export default function App() {
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <SummaryCard total={total} count={items.length} isSample={isSample}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
-        <Toolbar onOpenImportModal={() => setIsImportModeOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
+        <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
-    {isImportModeOpen && <ImportModeModal onClose={() => setIsImportModeOpen(false)} onFileSelected={handleImportFile}/>}
+    {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onSubmit={handleImportFile}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}

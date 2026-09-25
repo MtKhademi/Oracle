@@ -1,4 +1,3 @@
-import type { Asset } from '../assets';
 import { loadAssets, saveAssets } from '../storage';
 import type { AssetService, ImportAssetChange } from './assetService';
 
@@ -28,32 +27,32 @@ export const localAssetService: AssetService = {
     return next;
   },
 
-  async importAssets(assets: Asset[], mode) {
+  async importAssets(rows) {
     const next = [...(loadAssets() ?? [])];
     const changes: ImportAssetChange[] = [];
     let added = 0;
     let updated = 0;
     let skippedNoMatch = 0;
-    for (const imported of assets) {
+    for (const { asset: imported, effectiveType, effectiveDate } of rows) {
       const existingIndex = imported.code ? next.findIndex(asset => asset.code === imported.code) : -1;
-      if (mode === 'subtract' && existingIndex === -1) {
+      if (effectiveType === 'sell' && existingIndex === -1) {
         skippedNoMatch++;
         continue;
       }
       if (existingIndex === -1) {
         next.push(imported);
         added++;
-        if (mode === 'add') {
-          changes.push({ assetId: imported.id, type: 'buy', quantity: imported.quantity, unitPrice: imported.unitPrice });
+        if (effectiveType === 'buy') {
+          changes.push({ assetId: imported.id, type: 'buy', quantity: imported.quantity, unitPrice: imported.unitPrice, date: effectiveDate });
         }
       } else {
         const existing = next[existingIndex];
-        if (mode === 'add') {
+        if (effectiveType === 'buy') {
           next[existingIndex] = { ...existing, quantity: existing.quantity + imported.quantity, unitPrice: imported.unitPrice };
-          changes.push({ assetId: existing.id, type: 'buy', quantity: imported.quantity, unitPrice: imported.unitPrice });
-        } else if (mode === 'subtract') {
+          changes.push({ assetId: existing.id, type: 'buy', quantity: imported.quantity, unitPrice: imported.unitPrice, date: effectiveDate });
+        } else if (effectiveType === 'sell') {
           next[existingIndex] = { ...existing, quantity: Math.max(0, existing.quantity - imported.quantity) };
-          changes.push({ assetId: existing.id, type: 'sell', quantity: imported.quantity, unitPrice: imported.unitPrice });
+          changes.push({ assetId: existing.id, type: 'sell', quantity: imported.quantity, unitPrice: imported.unitPrice, date: effectiveDate });
         } else {
           next[existingIndex] = { ...existing, quantity: imported.quantity, unitPrice: imported.unitPrice };
         }
