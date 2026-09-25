@@ -14,21 +14,25 @@ Keep it current whenever behavior, structure, or decisions change.
 ## 1. What this app is
 
 A single-page, Persian (RTL) asset overview. It shows a light-grey, white-card UI
-with a **total in toman** and **one row per asset**. `src/assets.ts` still ships
+with a **total in toman** (plus, since 2026-09-25, a small mock USD/gold-gram
+equivalent — see §6j) and **one row per asset**. `src/assets.ts` still ships
 static sample data (illustrative only), but the owner can now add/edit/delete their
 own real assets through a small in-page form, or bulk-import them from a fixed
 Excel template (see §6a); those real values are persisted ONLY in the browser's
 `localStorage` (see §4/§5) and are never committed to git. No charts, navigation,
-backend, or native tooling beyond add/edit/delete and the fixed-template Excel
-import (by explicit owner constraint).
+backend, or native tooling beyond add/edit/delete, the fixed-template Excel import,
+and the mock live-price conversions (by explicit owner constraint/request).
 
 ## 2. Hard constraints (do not break)
 
-1. Show ONLY a toman total and one row per asset.
+1. Show a toman total (plus the owner-requested mock USD/gold-gram line, §6j) and
+   one row per asset.
 2. Do NOT add charts, navigation, backend, native tooling, or any other feature
-   beyond add/edit/delete of assets and the fixed-template Excel import (§6a)
-   **unless the owner explicitly asks**. The Excel import must stay locked to the
-   one fixed template — never auto-detect columns or accept other layouts.
+   beyond add/edit/delete of assets, the fixed-template Excel import (§6a), and the
+   mock live-price conversions (§6j) **unless the owner explicitly asks**. The
+   Excel import must stay locked to the one fixed template — never auto-detect
+   columns or accept other layouts. The USD/gold-gram line is explicitly MOCK
+   data (`mockPriceService`) — never present it as a real market feed.
 3. Palette: light grey background, white cards, blue/violet accents.
 4. The sample badge/disclaimer must only show while the current list is still the
    untouched static sample data (see §5/§6) — hide it once the owner adds, edits,
@@ -67,7 +71,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete`/`onHistory` callback props. |
-| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. |
+| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. Also calls `useLivePrices()` (see §4/§6j) and, once prices resolve, renders a small muted secondary line below the toman total converting it to USD and gold grams — `null` (not yet loaded) renders nothing extra, with an equal-height empty spacer so the layout doesn't shift when prices arrive. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i): on mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Below the list it has an "add transaction" form (see §6i): a خرید/فروش toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (shared `stripToNumberString`/`formatWithThousands` thousands-formatting, see §4 `src/format.ts`), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit — on success it re-fetches the list, resets the form, and calls the `onTransactionRecorded(assetId, type, quantity)` prop so the parent updates the asset's quantity (buy adds, sell subtracts clamped at 0; the asset's `unitPrice` is never changed from here). Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
@@ -88,6 +92,9 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/transactionService.ts` | Defines the `TransactionService` interface (`listTransactions`/`listTransactionsForAsset`/`addTransaction`/`updateTransaction`/`deleteTransaction`/`deleteTransactionsForAsset`) and exports the single `transactionService` instance — currently `= localTransactionService`, matching the swap-one-line service-layer pattern used by assets/profile/auth. |
 | `src/services/localTransactionService.ts` | The `localTransactionService: TransactionService` implementation, backed by `src/transactionStorage.ts`. Transaction IDs use the same `crypto.randomUUID()` pattern already used for asset rows; add/update reject invalid `quantity <= 0` or `unitPrice < 0`; asset deletion cleanup is triggered by the UI handler in `App.tsx`, not by coupling this service to `localAssetService`. |
 | `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet (no-op otherwise). `ensureInitialTransaction` is now called by `TransactionHistoryModal` the first time an asset's history is opened (see §6i); `computeHoldingSummary` is still not used by the UI (the P/L display is a later task). |
+| `src/services/priceService.ts` | Defines `LivePrices` (`{ usdToman, goldGramToman }`, both toman-denominated) and the `PriceService` interface (`getPrices(): Promise<LivePrices>`, `subscribe(callback): () => void` — calls back immediately with the current prices, then again on every refresh, returns an unsubscribe function), and exports the single `priceService` instance — currently `= mockPriceService` (see §6j). Same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d): this is the only line that needs to change to point at a real server-backed price feed later. |
+| `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 1000000`, `goldGramToman: 20000000` starting points) nudged by a small random jitter (±~0.5%) on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted). |
+| `src/hooks/useLivePrices.ts` | `useLivePrices(): LivePrices \| null` — a small hook wrapping `priceService.subscribe(...)` in `useEffect` (subscribes on mount, unsubscribes on unmount via the returned cleanup function), holding the latest `LivePrices` in `useState`, starting `null` until the first callback arrives so callers (currently only `SummaryCard`, see §6j) can render a loading/placeholder state instead of flashing zeroed-out values. |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
 | `src/services/profileService.ts` | Defines the `ProfileService` interface (`getProfile(): Promise<Profile>`, `saveProfile(profile): Promise<Profile>`) and exports the single `profileService` instance — currently `= localProfileService`. Same pattern as `assetService.ts` (see §6d): this is the only line that needs to change to swap in a server-backed implementation later. |
@@ -896,6 +903,56 @@ type Transaction = {
   Excel import, `localTransactionService`) remain for the dedicated cleanup in
   task 6.
 
+## 6j. Live prices (mock) — USD / gold-gram equivalents
+
+- **Mock only — not a real price feed.** `src/services/priceService.ts`/
+  `mockPriceService.ts` (see §4) follow the exact same singleton-swap pattern as
+  `assetService`/`profileService`/`authService`/`transactionService` (see §6d):
+  `LivePrices = { usdToman, goldGramToman }` and a `PriceService` interface
+  (`getPrices()`, `subscribe(callback): () => void`), with `priceService` currently
+  `= mockPriceService`. Swapping in a real server-backed price API later only
+  requires replacing that one exported instance — no component/hook code changes.
+- `mockPriceService` keeps two **in-memory** numbers, starting at `usdToman:
+  1,000,000` and `goldGramToman: 20,000,000` toman (consistent with the price
+  magnitudes already used in `src/assets.ts`/`src/data/assetCatalog.json`'s sample
+  data). Once at least one subscriber is active, a single shared `setInterval`
+  (60,000ms = 60s) nudges each value by a small random jitter
+  (`value *= 1 + (Math.random() - 0.5) * 0.01`, roughly ±0.5%) so the numbers
+  visibly drift over time instead of staying a fixed constant — this is
+  intentionally fake movement, not derived from any real market data.
+  `getPrices()` resolves the current values immediately (a one-off read);
+  `subscribe(callback)` calls `callback` immediately with the current values (so a
+  new subscriber never waits a full minute for its first render), registers it to
+  also be called on every subsequent tick, and returns an unsubscribe function —
+  the interval itself is cleared once the last subscriber unsubscribes, so no timer
+  leaks when nothing in the UI is mounted (e.g. between page loads in dev, or if
+  `SummaryCard` is ever unmounted).
+- `src/hooks/useLivePrices.ts` — `useLivePrices(): LivePrices | null` wraps
+  `priceService.subscribe(...)` in a mount/unmount `useEffect`, holding the latest
+  value in `useState`. Starts `null` until the first callback arrives, so a caller
+  can distinguish "not loaded yet" from "loaded" instead of momentarily rendering a
+  flash of zeroed-out conversions.
+- `SummaryCard` (see §6, `src/components/SummaryCard.tsx`) calls `useLivePrices()`
+  directly (no prop threaded through `App.tsx` — the hook is the only thing that
+  needs `priceService`). While `prices` is `null`, the card renders **exactly** as
+  before (only the toman total), with a same-height empty spacer in place of the
+  conversions line so the card's height/border-position doesn't shift once prices
+  arrive. Once `prices` is available, a small secondary line appears directly below
+  the toman amount, in the card's existing muted style (`text-[11px]
+  text-[#9096aa]`, matching the styling already used for the asset-count footer):
+  `≈ <format(total / prices.usdToman, 2)> دلار · <format(total /
+  prices.goldGramToman, 2)> گرم طلا` — both computed from the same live `total`
+  (toman) prop the big number already uses, 2 decimal places via the existing
+  `format(value, decimals)` helper (see §6), separated by a middle dot (`·`). The
+  toman figure's own size/prominence (`text-[44px]` etc.) is completely unchanged —
+  it stays the single largest number on the card; this is a smaller secondary
+  detail line underneath it, not a replacement or a second equally-sized total.
+- No settings/toggle to hide this line and no historical/trend display — just the
+  two current-instant conversions. This is explicitly a mock groundwork feature per
+  the owner's request; do not present these USD/gold-gram figures as real market
+  data anywhere in the UI/docs until a real `PriceService` implementation replaces
+  `mockPriceService`.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -1004,6 +1061,8 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-24 | Bug fix (owner-reported): Excel import now resolves each row against the asset catalog **by symbol**, using the same identity — the catalog entry's `symbol` as `code` — as the catalog-driven manual add, so an imported row and a manually catalog-added row for the same real-world asset always carry the same `code` and the existing `importAssets` merge-by-`code` logic (see §6a/§6d) actually engages (updates the existing row instead of creating a duplicate, which the old auto-generated `getOrCreateCode` codes never matched). The import template's header now needs only the first 3 columns in order (`نماد`, `تعداد`, `قیمت واحد (تومان)`), with any extra trailing columns (e.g. a human-readable reference-name column) allowed and ignored; `parseImportRows` looks up `getCatalogAssetBySymbol(symbol)`, skips (counts) rows with no catalog match, reads `quantity` (col 2, must be finite > 0 else parsing stops) and `unitPrice` (col 3), and builds the `Asset` from the catalog entry (`name`/`getUnitLabel(unit)`/`getAssetIconForCatalogEntry`/`symbol`). Removed the now-unused `importCategoryToIcon` mapping and the `getOrCreateCode` call in `parseImportRows` (`getOrCreateCode` is still used by the one-time legacy-asset migration in `App.tsx`'s mount effect); `localAssetService`'s merge logic was untouched, and the import toast wording (no category reference) is unchanged. Build (`npm run build`) passes. |
 | 2026-09-25 | Owner-requested rebuild of the Excel import pipeline (supersedes the two entries above and replaces the just-shipped three-mode `ImportModeModal`), fixing two problems: imported rows now carry the same catalog-symbol identity as before (unchanged, still catalog-driven — see §6a), but import can now also record real per-row buy/sell/replace transactions with their own dates, not just one shared mode for the whole file. **New 6-column template**, in order: `نماد` \| `تعداد` \| `قیمت واحد (تومان)` \| `نوع` \| `تاریخ` \| `نام دارایی (فقط نمایشی)` — only the first 3 headers are required to match; columns 4-6 are fully optional (absent header or empty per-row cells both work). `نوع` (optional) is one of the literal codes `buy`/`sell`/`replace` (case-insensitive) or empty (falls back to the modal's default mode); `تاریخ` (optional) is an ISO date or empty (falls back to today), with JS `Date` cells converted via **local** y/m/d getters (`formatLocalIsoDate`) to avoid an off-by-one-day UTC shift, and a present-but-unparseable date/type skipping the row (`skipped++`) — added via new `resolveRowType`/`resolveRowDate`/`parseIsoDateStrict` helpers in `App.tsx`. The display-only name column is read but never used. **One unified modal**, `src/components/ImportModal.tsx` (replaces `ImportModeModal.tsx`, deleted), combines file selection and the default-mode choice on a single screen instead of two steps: a file-picker button showing the chosen file's name, a 3-way radio for the default replace/add/subtract mode (applied only to rows whose own `نوع` is empty), and a "بارگذاری" submit disabled until a file is picked; `Toolbar`'s `onImportFile` stays `onOpenImportModal` (unchanged from the prior task) and `App.tsx` renamed its state to `isImportModalOpen`. Each parsed row resolves its own *effective type* (own `نوع`, else the modal's default mapped `add→buy`/`subtract→sell`/`replace→replace`) and *effective date* (own `تاریخ`, else today) via `resolveEffectiveType`. `AssetService.importAssets` now takes `rows: ImportRow[]` (`{ asset, effectiveType, effectiveDate }`) instead of `(assets, mode)` — each row is applied independently by its own `effectiveType`: `replace` overwrites/appends with no transaction; `buy` adds to (or creates) the matched asset and always records a `buy` dated the row's own `effectiveDate`; `sell` subtracts from a matched asset (clamped at 0, price untouched) and records a `sell` dated the row's own `effectiveDate`, or is skipped (`skippedNoMatch++`) with no match. `ImportAssetChange` gained a `date` field carrying each row's real effective date (no longer always "today"); `App.tsx`'s `handleImportFile` builds the `ImportRow[]` after parsing and writes every `changes` entry with its own date via `transactionService.addTransaction`. Toast wording for the `skippedNoMatch` half changed to "N ردیف بابت نبود دارایی مشابه نادیده گرفته شد" and `toast.warning` now fires whenever either skip bucket (`skippedNoMatch` or invalid `skipped`) is non-zero, regardless of mode. Removed the old `importCategoryToIcon`-adjacent mode-vs-effective-type coupling entirely — a file can now freely mix snapshot/purchase/sale rows with their own historical dates in one import. `getOrCreateCode`'s only remaining caller (`App.tsx`'s legacy-asset-migration `useEffect`) is untouched. Build (`npm run build`) passes. |
 
+| 2026-09-25 | Owner-requested: added a **mock** live-price service and USD/gold-gram equivalents on the total (see §6j). New `src/services/priceService.ts` (`LivePrices = { usdToman, goldGramToman }`, `PriceService` interface: `getPrices()`/`subscribe(callback): () => void`) + `src/services/mockPriceService.ts` — same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d), `priceService` currently `= mockPriceService`. The mock keeps two in-memory numbers (`usdToman: 1,000,000`, `goldGramToman: 20,000,000` starting points, consistent with existing sample-data magnitudes) nudged by ±~0.5% random jitter on a single shared `setInterval` (60s) while at least one subscriber is active; `subscribe` calls back immediately then on every tick, and the interval is cleared once the last subscriber unsubscribes (no leaked timer). New `src/hooks/useLivePrices.ts` wraps `priceService.subscribe` in `useEffect`, returning `null` until the first callback. `SummaryCard` calls the hook directly and, once prices resolve, renders a small muted secondary line below the (unchanged, still-largest) toman total: `≈ <USD, 2 decimals> دلار · <gold grams, 2 decimals> گرم طلا`, both derived from the existing `total` prop; while `null`, the card renders exactly as before (an equal-height spacer avoids a layout shift once prices arrive). **This is mock data, not a real price feed** — no real price API is connected; swapping one in later only requires replacing the `priceService` export. Updates the §13 "Live price fetch" candidate-next-step entry to done-as-mock. Build (`npm run build`) passes. |
+
 ## 12. Agent playbook (how to progress this app)
 
 For every change:
@@ -1019,8 +1078,8 @@ For every change:
 
 - ✅ Done (2026-09-23): Persist the owner's real values in the browser (localStorage) — keep them out of git.
 - ✅ Done (2026-09-23): Editable rows (a small inline edit) while still showing only a toman total.
+- 🟡 Done as MOCK only (2026-09-25, see §6j): live price fetch for USD/gold — `mockPriceService` simulates jittered movement client-side; a **real** data source + key handling is still needed before this reflects actual market prices.
 
 These remain ideas only; implement any of them **only when the owner asks**:
-- Live price fetch for crypto/gold (requires a data source + key handling).
 - Multiple portfolios / categories, or a debts section.
 - Dark mode.
