@@ -66,14 +66,14 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i) for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler that updates that asset's `quantity` via `assetService.updateAsset` (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched) and sets the returned list into `items`. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). Now also calls `useLivePrices()` once (see §6j/§6k) into `prices`, computes `total` via `getEffectiveUnitPrice(asset, prices)` per asset instead of raw `asset.unitPrice`, and passes `prices` down as a prop to both `<SummaryCard>` and every `<AssetRow>`. |
-| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), and `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`App.tsx` — no icon markup duplicated elsewhere. |
+| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j), and — added in §6m — `WalletIcon` (billfold glyph, tab toggle's "کیف پول" button), `MarketEyeIcon` (eye glyph, tab toggle's "چشم بازار" button), `CryptoIcon` (two overlapping coin circles, `MarketWatchList`'s "ارزها" category heading), `StockIcon` (bar-chart glyph, `MarketWatchList`'s "بورس" category heading), and `FixedIncomeIcon` (shield + checkmark glyph, `MarketWatchList`'s "صندوق‌های درآمد ثابت" category heading) — all same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style; the gold category reuses the existing `GoldBarIcon`, no new gold icon added. Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`MarketWatchList`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders `MarketWatchList` instead, with no toolbar. |
-| `src/components/MarketWatchList.tsx` | Read-only "چشم بازار" (market watch) list (see §6l) — calls `useLivePrices()` itself and renders 5 fixed rows (تتر/دلار/عیار گرمی (۱۸ عیار)/اتریوم/بیت‌کوین) each with an icon badge (reusing `AssetIcon`/`iconTint`, or `DollarIcon` for دلار), the current toman price via `format()`, and a small muted "بروزرسانی: HH:mm:ss" label from `prices.updatedAt`. Shows "در حال دریافت قیمت‌ها..." while `useLivePrices()` is still `null`. No edit/delete/history actions — visually similar to `AssetRow` but simpler and entirely read-only. |
+| `src/components/MarketWatchList.tsx` | Read-only "چشم بازار" (market watch) list, categorized (see §6m — supersedes the original flat 5-row version from §6l). Calls `useMarketWatch()` itself and groups `snapshot.items` into 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon`), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان", no per-row icon, no edit/delete/history — read-only). One shared "بروزرسانی: HH:mm:ss" label near the top (from `snapshot.updatedAt`), not repeated per row. Shows "در حال دریافت قیمت‌ها..." while `useMarketWatch()` is still `null`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset`/`prices` + `onEdit`/`onDelete`/`onHistory` callback props. For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`, and edit mode replaces the unit-price `<input>` with a read-only "قیمت زنده" label. |
-| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The "ارزش کل دارایی‌ها" heading row also has a small manual-refresh `RefreshIcon` button (see §6j) that calls `priceService.refreshNow()` directly; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. |
+| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The "ارزش کل دارایی‌ها" heading row also has a small manual-refresh `RefreshIcon` button (see §6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i): on mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Below the list it has an "add transaction" form (see §6i): a خرید/فروش toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (shared `stripToNumberString`/`formatWithThousands` thousands-formatting, see §4 `src/format.ts`), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit — on success it re-fetches the list, resets the form, and calls the `onTransactionRecorded(assetId, type, quantity)` prop so the parent updates the asset's quantity (buy adds, sell subtracts clamped at 0; the asset's `unitPrice` is never changed from here). Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
@@ -97,6 +97,9 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/priceService.ts` | Defines `LivePrices` (`{ usdToman, goldGramToman, btcToman, ethToman, updatedAt }`, the first 4 toman-denominated, `updatedAt` a `Date.now()` timestamp — see §6l) and the `PriceService` interface (`getPrices(): Promise<LivePrices>`, `subscribe(callback): () => void` — calls back immediately with the current prices, then again on every refresh, returns an unsubscribe function — and `refreshNow(): Promise<LivePrices>`, which immediately re-computes prices and notifies all current subscribers without resetting the 60s interval), and exports the single `priceService` instance — currently `= mockPriceService` (see §6j). Same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d): this is the only line that needs to change to point at a real server-backed price feed later. |
 | `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 230000` ≈ 1 US dollar, `goldGramToman: 24000000` ≈ 1 gram of 18-karat gold, `btcToman: 10500000000`/`ethToman: 360000000` — see §6l — realistic-looking starting points, not `src/assets.ts`'s old sample-data magnitudes) nudged each step by a shared `jitterStep()` function using a **fixed absolute toman amount** (`usdToman ±20`, `goldGramToman ±2,000,000`, `btcToman ±50,000,000`, `ethToman ±5,000,000`, not percentage-based), which also stamps `updatedAt: Date.now()` every time it runs, on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted); `refreshNow()` calls the same `jitterStep()` immediately and notifies all current subscribers, independent of the interval timer — both the tick and manual refresh always apply the identical jitter logic, including the `updatedAt` stamp. |
 | `src/hooks/useLivePrices.ts` | `useLivePrices(): LivePrices \| null` — a small hook wrapping `priceService.subscribe(...)` in `useEffect` (subscribes on mount, unsubscribes on unmount via the returned cleanup function), holding the latest `LivePrices` in `useState`, starting `null` until the first callback arrives so the caller (now only `App.tsx`, see §6j/§6k — it threads the result down as a `prices` prop rather than each component calling the hook itself) can render a loading/placeholder state instead of flashing zeroed-out values. |
+| `src/services/marketWatchService.ts` | Defines `MarketCategory` (`'currency' \| 'gold' \| 'stock' \| 'fixed-income'`), `MarketItem` (`{ id, name, category, priceToman }`), `MarketSnapshot` (`{ items, updatedAt }`), and the `MarketWatchService` interface (`getSnapshot`/`subscribe`/`refreshNow`, same shape/semantics as `PriceService`), exporting the single `marketWatchService` instance — currently `= mockMarketWatchService` (see §6m). Deliberately **independent** from `priceService.ts`/`LivePrices` — a separate mock feed just for the چشم بازار list, not used by `SummaryCard`'s conversions or `AssetRow`'s live-priced assets. |
+| `src/services/mockMarketWatchService.ts` | The `mockMarketWatchService: MarketWatchService` implementation (see §6m) — entirely mock, 14 seeded items across 4 categories, same in-memory-state/shared-`jitterStep()`/subscriber-`Set`/single-shared-60s-`setInterval` pattern as `mockPriceService.ts` (§6j). Each item has its own fixed absolute toman jitter range (roughly 0.1%-1% of its starting price, fixed-income items much smaller at ≈0.05% — see §6m's table) applied every tick; `updatedAt: Date.now()` stamped on every `jitterStep()` run (both the 60s tick and `refreshNow()`). |
+| `src/hooks/useMarketWatch.ts` | `useMarketWatch(): MarketSnapshot \| null` — same subscribe-on-mount/unsubscribe-on-unmount pattern as `useLivePrices.ts`, pointed at `marketWatchService` instead of `priceService`. Used only by `MarketWatchList` (see §6m). |
 | `src/services/livePriceMapping.ts` | `getLivePriceKeyForAsset(asset)`/`getEffectiveUnitPrice(asset, prices)` (see §6k) — the single source of truth for which specific catalog assets (by `code`, currently only `GOLD18`→`goldGramToman` and `USDT`→`usdToman`) get their unit price computed live from `LivePrices` instead of their stored `Asset.unitPrice`. Used by `App.tsx` (page total) and `AssetRow` (row value + edit-mode unit-price lock). |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
@@ -276,12 +279,13 @@ type Transaction = {
   1. `<header>` → hamburger menu button (opens the side drawer, see §6e) + brand link (`Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
   2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
   3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → a "کیف پول"/"چشم بازار"
-     tab toggle (see §6l) above everything else in this section, then, on the
-     "کیف پول" tab: the toolbar (Excel-import button, see §6a; clear-all button, see
-     §6b; add-asset button, see §6c) above the heading row, then `<ul>` of `AssetRow`
-     items (icon, name + quantity/unit, value + `تومان`, ویرایش/حذف) — or the
-     empty-state `<p>` when `items` is empty; on the "چشم بازار" tab: a "چشم بازار"
-     heading instead, then `MarketWatchList` (see §6l) — no toolbar on this tab.
+     tab toggle (see §6l, tab icons added in §6m) above everything else in this
+     section, then, on the "کیف پول" tab: the toolbar (Excel-import button, see §6a;
+     clear-all button, see §6b; add-asset button, see §6c) above the heading row,
+     then `<ul>` of `AssetRow` items (icon, name + quantity/unit, value + `تومان`,
+     ویرایش/حذف) — or the empty-state `<p>` when `items` is empty; on the "چشم بازار"
+     tab: a "چشم بازار" heading instead, then `MarketWatchList` (see §6l, categorized
+     in §6m) — no toolbar on this tab.
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
@@ -1103,31 +1107,13 @@ type Transaction = {
   the tab** — the toman total, sample badge, and USD/gold-gram rows (see
   §6j) keep coming from `items`/`prices` exactly as before regardless of
   which tab is active; only the section below the summary card switches.
-- **`MarketWatchList`** lists 5 fixed rows, each with an icon badge (reusing
-  `AssetIcon`/`iconTint` from `AssetIcon.tsx` for تتر/عیار گرمی/اتریوم/بیت‌کوین,
-  and the existing `DollarIcon` in the same green tint `SummaryCard`'s دلار
-  row uses for دلار), the current price via the shared `format()` helper
-  followed by "تومان", and a small muted "بروزرسانی: HH:mm:ss" label
-  (`new Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' })` on
-  `prices.updatedAt`) — visually similar to `AssetRow`'s cards (same
-  border/rounded/shadow tokens) but simpler: no edit/delete/history actions,
-  since this is a pure read-only watch list, not an asset the owner holds.
-  While `useLivePrices()` is still `null` (before the first tick resolves),
-  it shows "در حال دریافت قیمت‌ها..." instead of the list (same loading-state
-  convention as the rest of the app). The rows, in order:
-  - تتر → `prices.usdToman`
-  - دلار → `prices.usdToman` (**same underlying mock rate as تتر**, shown as
-    its own row since owners commonly check them separately — not a
-    modeling error, this is intentional per the task)
-  - عیار گرمی (۱۸ عیار) → `prices.goldGramToman`
-  - اتریوم → `prices.ethToman`
-  - بیت‌کوین → `prices.btcToman`
-  Unlike `SummaryCard`/`AssetRow`, `MarketWatchList` calls `useLivePrices()`
-  itself instead of taking `prices` as a prop from `App.tsx` — it's only ever
-  mounted while the "چشم بازار" tab is active, so there's no benefit to
-  threading one more subscription through `App.tsx`'s state the way the
-  wallet tab's `prices` prop is shared across `SummaryCard` and every
-  `AssetRow`.
+- **`MarketWatchList` (superseded by §6m — categorized rewrite)**: the
+  version described in this task (5 flat rows sourced from
+  `useLivePrices()`/`priceService`) was fully replaced in the follow-up task
+  covered by §6m below — it now uses the independent `marketWatchService`/
+  `useMarketWatch()` and renders category groups instead of a flat list. See
+  §6m for the current behavior; this bullet and the two below are kept only
+  as history of why `LivePrices.btcToman`/`ethToman` exist.
 - **Extended mock `LivePrices`** (see §4/§6j): `usdToman`/`goldGramToman` are
   unchanged; two new rates were added, `btcToman: 10,500,000,000` (≈ 1
   bitcoin) and `ethToman: 360,000,000` (≈ 1 ether) — consistent in magnitude
@@ -1136,16 +1122,108 @@ type Transaction = {
   `jitterStep()` pattern as the other two rates (`btcToman ±50,000,000`,
   `ethToman ±5,000,000` per step, both the 60s tick and `refreshNow()`). A
   new `updatedAt: number` field (`Date.now()`) is stamped inside `jitterStep()`
-  on every run, so it's always accurate to when the values actually last
-  changed — both the automatic 60s tick and the existing manual refresh
-  button on `SummaryCard` (§6j, still calling `priceService.refreshNow()`)
-  drive `MarketWatchList`'s update-time labels, exactly the same way they
-  already drive `SummaryCard`'s/`AssetRow`'s live prices. `btcToman`/`ethToman`
-  are **not** wired into `livePriceMapping.ts` (§6k) — extending the
-  live-priced-asset allow-list to BTC/ETH was not part of this task and
-  remains a one-line follow-up if the owner asks for it later.
-- This is still entirely **mock** data (see §6j) — `MarketWatchList` is not a
-  real market feed; do not present it as one anywhere in the UI/docs.
+  on every run. `btcToman`/`ethToman` are **not** wired into
+  `livePriceMapping.ts` (§6k) — extending the live-priced-asset allow-list to
+  BTC/ETH was not part of this task and remains a one-line follow-up if the
+  owner asks for it later. **As of §6m, `btcToman`/`ethToman` have no
+  remaining UI consumer** (the only caller, the old flat `MarketWatchList`,
+  was rewritten to use the independent `marketWatchService` instead) — they
+  are left in `LivePrices`/`mockPriceService` untouched rather than removed,
+  since this task's follow-up explicitly avoided touching that existing
+  live-price wiring; a future cleanup task could remove them from
+  `LivePrices` if nothing ever needs them again.
+- This is still entirely **mock** data (see §6j).
+
+## 6m. Categorized "چشم بازار" with its own icons and an independent market-watch feed
+
+- **Tab icons**: the "کیف پول"/"چشم بازار" tab toggle from §6l now shows a
+  small icon (`w-4 h-4`) inline before each label, `flex items-center
+  gap-1.5` on the button — new `WalletIcon` (billfold glyph) before "کیف
+  پول", new `MarketEyeIcon` (eye glyph) before "چشم بازار". Both new icons
+  live in `src/components/icons.tsx`, same 24x24/`stroke="currentColor"`/
+  `strokeWidth="1.8"` style as every other icon in that file.
+- **`MarketWatchList` rewritten from a flat 5-row list (§6l) into 4 labeled,
+  icon-headed categories**, each with more items — see §4 for the file
+  summary. It now calls the new `useMarketWatch()` hook instead of
+  `useLivePrices()`. Category order/labels/icons:
+  - `'currency'` → "ارزها", new `CryptoIcon` (two overlapping coin circles)
+  - `'gold'` → "طلا", the existing `GoldBarIcon` (reused, no new icon)
+  - `'stock'` → "بورس", new `StockIcon` (bar-chart glyph)
+  - `'fixed-income'` → "صندوق‌های درآمد ثابت", new `FixedIncomeIcon` (shield +
+    checkmark glyph)
+  Each group heading is an icon in a small `bg-[#eef0ff] text-[#5264e8]`
+  badge (the same neutral-tint token used elsewhere, e.g. `AddAssetModal`'s
+  live-price label background) plus the Persian category label; under it, a
+  plain `<ul>` of read-only rows (name on the right, `{format(item.priceToman)}
+  تومان` on the left) — no icon per row (only the category has one), no
+  edit/delete/history actions, styled with the same card/border/shadow
+  tokens as `AssetRow`. A single shared "بروزرسانی: HH:mm:ss" label (`new
+  Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' })` on
+  `snapshot.updatedAt`) renders once near the top of the whole list instead
+  of once per row (§6l's version repeated it per row since each row could
+  theoretically differ; now the entire snapshot always refreshes together in
+  one tick, so one label covers it). Loading state ("در حال دریافت
+  قیمت‌ها...") unchanged, shown while `useMarketWatch()` is still `null`.
+- **New independent data feed — `src/services/marketWatchService.ts` +
+  `src/services/mockMarketWatchService.ts`** (see §4): deliberately a
+  **separate mock feed from `priceService`/`mockPriceService`**, with its own
+  types (`MarketCategory`, `MarketItem { id, name, category, priceToman }`,
+  `MarketSnapshot { items, updatedAt }`) and its own `MarketWatchService`
+  interface (`getSnapshot`/`subscribe`/`refreshNow`) — same
+  singleton-swap-one-line pattern as every other service in this app (see
+  §6d), `marketWatchService = mockMarketWatchService`. It does **not** touch
+  or depend on `LivePrices`/`priceService`'s shape, so `SummaryCard`'s
+  USD/gold-gram conversions and `AssetRow`'s GOLD18/USDT live pricing (via
+  `livePriceMapping.ts`, §6k) are entirely unaffected by this task.
+  `mockMarketWatchService` follows the exact same in-memory-state /
+  shared-`jitterStep()` / subscriber-`Set` / single-shared-60s-`setInterval`
+  pattern as `mockPriceService` (§6j) — `jitterStep()` is called by both the
+  60s tick and `refreshNow()`, and stamps `updatedAt: Date.now()` every run.
+  Each seeded item carries its own fixed absolute toman jitter range (not
+  percentage-based at tick time, though each range was itself sized
+  proportionally to that item's starting price when seeded — see the table
+  below), applied every tick, same fixed-amount philosophy as
+  `mockPriceService`'s existing rates.
+- **Seeded items** (14 total, stable kebab-case `id`s), by category:
+  | Category | Item | id | Starting price (toman) | Jitter range |
+  | -------- | ---- | -- | ----------------------- | ------------ |
+  | currency | تتر | `usdt` | 230,000 | ±230 (≈0.1%) |
+  | currency | دلار | `usd` | 230,000 | ±230 (≈0.1%) |
+  | currency | بیت‌کوین | `btc` | 10,500,000,000 | ±52,500,000 (≈0.5%) |
+  | currency | اتریوم | `eth` | 360,000,000 | ±1,800,000 (≈0.5%) |
+  | gold | طلای ۱۸ عیار | `gold-18` | 20,800,000 | ±104,000 (≈0.5%) |
+  | gold | طلای ۲۴ عیار | `gold-24` | 27,700,000 | ±138,500 (≈0.5%) |
+  | gold | سکه امامی | `coin-emami` | 320,000,000 | ±1,600,000 (≈0.5%) |
+  | gold | نیم سکه | `coin-half` | 160,000,000 | ±800,000 (≈0.5%) |
+  | gold | ربع سکه | `coin-quarter` | 85,000,000 | ±425,000 (≈0.5%) |
+  | gold | نقره آبشده | `silver` | 900,000 | ±9,000 (≈1%) |
+  | stock | صندوق طلای عیار (مفید) | `fund-mofid-gold` | 28,500 | ±285 (≈1%) |
+  | stock | فملی | `fameli` | 8,500 | ±85 (≈1%) |
+  | fixed-income | صندوق پیشتاز | `pishtaz` | 57,000 | ±28.5 (≈0.05%) |
+  | fixed-income | صندوق پیشرو مفید | `pishro-mofid` | 34,000 | ±17 (≈0.05%) |
+  The two fixed-income items deliberately get a much smaller jitter (±0.05%
+  vs. ±0.1%-1% for everything else) — fixed-income fund units barely move
+  tick to tick in real life, unlike currencies/gold/stocks.
+- **`src/hooks/useMarketWatch.ts`** — `useMarketWatch(): MarketSnapshot |
+  null`, the exact same subscribe-on-mount/unsubscribe-on-unmount `useEffect`
+  pattern as `useLivePrices.ts` (§4), just pointed at `marketWatchService`
+  instead of `priceService`.
+- **Manual refresh button now refreshes both feeds together**: `SummaryCard`'s
+  existing refresh button (§6j) now calls `Promise.all([
+  priceService.refreshNow(), marketWatchService.refreshNow() ])` instead of
+  just `priceService.refreshNow()` — one click applies a fresh jitter step
+  to both the portfolio-total conversions/GOLD18/USDT pricing **and** the
+  چشم بازار list at once, still without resetting either service's own 60s
+  interval timer. `SummaryCard.tsx` now imports `marketWatchService`
+  alongside `priceService` for this.
+- Still entirely **mock** data on both feeds — do not present either as a
+  real market feed anywhere in the UI/docs.
+- Build (`npm run build`) passes. Manual browser verification (Playwright/
+  Firefox): tab icons render, all 4 category headings + all 14 items appear
+  on the چشم بازار tab, exactly one shared update-time label per view, the
+  wallet tab's toolbar/asset list are unaffected, and the manual refresh
+  button (clicked from the wallet tab) visibly updates the market tab's
+  update-time label on next view.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -1260,6 +1338,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-25 | Owner-requested follow-up (see §6j): added a manual refresh button and switched the mock jitter from percentage-based to fixed absolute toman amounts. `PriceService` gained `refreshNow(): Promise<LivePrices>`; `mockPriceService` extracted the jitter math into a single shared `jitterStep()` function called by both the 60s interval tick and `refreshNow()` (so they can never diverge), and changed the jitter formula from `value *= 1 + (Math.random()-0.5)*0.02` (≈±1%) to fixed ranges: `usdToman += Math.random()*40-20` (±20 toman) and `goldGramToman += Math.random()*4000000-2000000` (±2,000,000 toman) — starting values (`230,000`/`24,000,000`) unchanged. `refreshNow()` does not reset the interval timer, so a manual refresh and the next scheduled tick remain independent. New `RefreshIcon` (`src/components/icons.tsx`) and a small round refresh button next to the "ارزش کل دارایی‌ها" heading in `SummaryCard` (heading row is now `flex justify-between items-center`), calling `priceService.refreshNow()` on click. The spin animation is driven entirely by a `useEffect` watching the `prices` value from `useLivePrices()` — not by the click handler directly — so the icon spins (`animate-spin`, ~700ms via `setTimeout`) identically whether the update came from the automatic tick or a manual refresh; the button is `disabled` while spinning to prevent stacked clicks. Build (`npm run build`) passes. |
 | 2026-09-25 | Owner-requested (see §6k): GOLD18 (طلای ۱۸ عیار) and USDT (تتر) now derive their unit price **live** from `priceService` instead of their stored/imported `Asset.unitPrice` — their row total AND the overall portfolio total now update automatically on every 60s tick or manual refresh (see §6j), because that's why they can no longer be manually price-edited (their edit-mode unit-price input is replaced with a read-only "قیمت زنده" label; quantity stays editable). New `src/services/livePriceMapping.ts` holds the hardcoded `code → LivePrices key` allow-list (`GOLD18→goldGramToman`, `USDT→usdToman`) plus `getLivePriceKeyForAsset`/`getEffectiveUnitPrice` helpers. `useLivePrices()` moved from being called inside `SummaryCard` to being called once in `App.tsx`, which now computes the page `total` via `getEffectiveUnitPrice` and threads the resulting `prices` prop down into both `SummaryCard` and every `AssetRow` (neither imports/calls the hook itself anymore). `SummaryCard`'s دلار/گرم طلا rows also gained a smaller muted per-unit-rate sub-text ("هر دلار/هر گرم … تومان"). **Every other asset is completely unaffected** — this is a hardcoded two-asset allow-list keyed by catalog `code`, not a general "all catalog assets are live-priced" rule; extending it later is a one-line change to `livePriceMapping.ts`. Build (`npm run build`) passes. |
 | 2026-09-25 | Owner-requested (see §6l): added "کیف پول"/"چشم بازار" tabs above the assets section, plus a new read-only market-watch list. `App.tsx` gained `activeSectionTab: 'wallet' \| 'market'` state and a two-button tab toggle (reusing `AuthScreen`'s exact login/signup tab-toggle styling — no new pattern) above the portfolio section's contents; "کیف پول" renders exactly today's `Toolbar` + asset list unchanged, "چشم بازار" renders new `src/components/MarketWatchList.tsx` instead (no toolbar), with the "دارایی‌های من" heading swapped for "چشم بازار" only on that tab. `SummaryCard`/the portfolio total above the tabs are unaffected either way. Extended the mock `LivePrices` type (`src/services/priceService.ts`) with `btcToman`/`ethToman` (starting values `10,500,000,000`/`360,000,000`, consistent with `src/assets.ts`'s existing sample BTC/ETH rows) and an `updatedAt: number` timestamp; `mockPriceService.ts`'s shared `jitterStep()` now also nudges these two by a fixed absolute toman amount (`±50,000,000`/`±5,000,000`) and stamps `updatedAt: Date.now()` on every run (both the 60s tick and `refreshNow()`), so both the automatic tick and the existing manual-refresh button drive the new list exactly like the existing two rates. `MarketWatchList` calls `useLivePrices()` directly (only ever mounted on the "چشم بازار" tab) and renders 5 rows — تتر/دلار (both reading the same mock `usdToman`, shown separately since they're commonly checked apart)/عیار گرمی (۱۸ عیار)/اتریوم/بیت‌کوین — each with an icon badge, `format()`-ed toman price, and a `new Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' })`-formatted "بروزرسانی: …" label from `prices.updatedAt`; shows "در حال دریافت قیمت‌ها..." while prices haven't resolved yet. `btcToman`/`ethToman` are **not** added to `livePriceMapping.ts`'s live-priced-asset allow-list (§6k) — out of scope for this task. Still entirely **mock** data, same as the rest of §6j. Build (`npm run build`) passes. |
+| 2026-09-25 | Owner-requested (see §6m): added tab icons and turned "چشم بازار" into a categorized market list backed by a brand-new, independent mock feed. Tab toggle (§6l) buttons now show a small icon before each label — new `WalletIcon`/`MarketEyeIcon` (`src/components/icons.tsx`). `MarketWatchList` was rewritten from a flat 5-row list into 4 category sections (`ارزها`/`طلا`/`بورس`/`صندوق‌های درآمد ثابت`, each with its own icon heading — new `CryptoIcon`/`StockIcon`/`FixedIncomeIcon` plus the reused `GoldBarIcon`) holding 14 items total, with one shared update-time label instead of one per row. New `src/services/marketWatchService.ts` + `mockMarketWatchService.ts` (same singleton-swap/shared-`jitterStep()`/60s-interval pattern as `mockPriceService`, see §6j) and `src/hooks/useMarketWatch.ts` (same pattern as `useLivePrices`) — **deliberately independent from `priceService`/`LivePrices`**, so `SummaryCard`'s USD/gold-gram conversions and `AssetRow`'s GOLD18/USDT live pricing (§6j/§6k) were not touched. `SummaryCard`'s existing manual refresh button now calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` so one click refreshes both feeds together. As a side effect, `LivePrices.btcToman`/`ethToman` (added in the §6l task) now have no remaining UI consumer — left in place rather than removed, since touching `priceService`/`mockPriceService` was explicitly out of scope; noted in §6l as a candidate future cleanup. Build (`npm run build`) passes; manual Playwright/Firefox verification confirms tab icons, all 4 categories/14 items, single update-time label, unaffected wallet tab, and that the manual refresh button updates the market tab's timestamp. |
 
 ## 12. Agent playbook (how to progress this app)
 

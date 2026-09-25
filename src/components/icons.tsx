@@ -112,3 +112,38 @@ export function RefreshIcon() {
     <path d="M3 20v-5h5"/>
   </svg>;
 }
+
+export function WalletIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 8a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/>
+    <path d="M3 8v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-4"/>
+    <path d="M15 13h4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a2 2 0 0 1 0-4Z"/>
+  </svg>;
+}
+
+export function MarketEyeIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>;
+}
+
+export function CryptoIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="9" cy="9" r="6"/>
+    <circle cx="15" cy="15" r="6"/>
+  </svg>;
+}
+
+export function StockIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 20V10M10 20V4M16 20v-7M20 20v-4"/>
+  </svg>;
+}
+
+export function FixedIncomeIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6Z"/>
+    <path d="m9 12 2 2 4-4"/>
+  </svg>;
+}

@@ -16,7 +16,7 @@ import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
-import { HamburgerIcon } from './src/components/icons';
+import { HamburgerIcon, MarketEyeIcon, WalletIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
@@ -325,8 +325,8 @@ export default function App() {
       <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <div className="grid grid-cols-2 mb-[15px] min-[1050px]:mb-[19px] border border-[#eef0f7] rounded-[10px] p-1">
-          <button type="button" onClick={() => setActiveSectionTab('wallet')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'wallet' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>کیف پول</button>
-          <button type="button" onClick={() => setActiveSectionTab('market')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'market' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}>چشم بازار</button>
+          <button type="button" onClick={() => setActiveSectionTab('wallet')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'wallet' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><WalletIcon/>کیف پول</button>
+          <button type="button" onClick={() => setActiveSectionTab('market')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'market' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><MarketEyeIcon/>چشم بازار</button>
         </div>
         {activeSectionTab === 'wallet' ? <>
           <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { format } from '../format';
 import { priceService, type LivePrices } from '../services/priceService';
+import { marketWatchService } from '../services/marketWatchService';
 import { AssetIcon } from './AssetIcon';
 import { DollarIcon, GoldBarIcon, RefreshIcon } from './icons';
 
@@ -26,7 +27,7 @@ export function SummaryCard({ total, count, isSample, prices }: { total: number;
     <div className="flex justify-between items-center"><span className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8]"><AssetIcon type="cash"/></span>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
     <div className="flex justify-between items-center mt-5 min-[1050px]:mt-[25px] max-[481px]:mt-4">
       <h1 id="total-title" className="text-[14px] text-[#7a8097] font-normal">ارزش کل دارایی‌ها</h1>
-      <button type="button" onClick={() => { void priceService.refreshNow(); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="w-6 h-6 rounded-full grid place-items-center text-[#9096aa] hover:bg-[#f0f1f7] hover:text-[#5264e8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+      <button type="button" onClick={() => { void Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()]); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="w-6 h-6 rounded-full grid place-items-center text-[#9096aa] hover:bg-[#f0f1f7] hover:text-[#5264e8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
         <span className={isSpinning ? 'animate-spin' : ''}><RefreshIcon/></span>
       </button>
     </div>
