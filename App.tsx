@@ -153,7 +153,7 @@ export default function App() {
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('wallet');
+  const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
   const prices = useLivePrices();
 
   useEffect(() => {
@@ -322,7 +322,7 @@ export default function App() {
       <span className="text-[12px] text-[#e0e4ff] max-[481px]:text-[10px] max-[351px]:hidden">یک نگاه، همهٔ دارایی‌ها</span>
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
-      <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices}/>
+      <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} onOpenWallet={() => setActiveSectionTab('wallet')}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
         <div className="grid grid-cols-2 mb-[15px] min-[1050px]:mb-[19px] border border-[#eef0f7] rounded-[10px] p-1">
           <button type="button" onClick={() => setActiveSectionTab('wallet')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'wallet' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><WalletIcon/>کیف پول</button>

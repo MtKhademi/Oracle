@@ -7,7 +7,7 @@ import { DollarIcon, GoldBarIcon, RefreshIcon } from './icons';
 
 const SPIN_DURATION_MS = 700;
 
-export function SummaryCard({ total, count, isSample, prices }: { total: number; count: number; isSample: boolean; prices: LivePrices | null }) {
+export function SummaryCard({ total, count, isSample, prices, onOpenWallet }: { total: number; count: number; isSample: boolean; prices: LivePrices | null; onOpenWallet: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const isFirstPrices = useRef(true);
 
@@ -24,7 +24,7 @@ export function SummaryCard({ total, count, isSample, prices }: { total: number;
   }, [prices]);
 
   return <section className="bg-white rounded-[22px] pt-[26px] px-8 pb-0 shadow-[0_12px_36px_#2734790b] border border-[#eceef8] min-[1050px]:sticky min-[1050px]:top-[28px] min-[1050px]:p-6 min-[1050px]:pb-0 max-[481px]:pt-[21px] max-[481px]:px-[23px] max-[481px]:pb-0 max-[481px]:rounded-[20px]" aria-labelledby="total-title">
-    <div className="flex justify-between items-center"><span className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8]"><AssetIcon type="cash"/></span>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
+    <div className="flex justify-between items-center"><button type="button" onClick={onOpenWallet} aria-label="نمایش کیف پول" className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8] cursor-pointer hover:bg-[#e0e3fd] transition-colors"><AssetIcon type="cash"/></button>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
     <div className="flex justify-between items-center mt-5 min-[1050px]:mt-[25px] max-[481px]:mt-4">
       <h1 id="total-title" className="text-[14px] text-[#7a8097] font-normal">ارزش کل دارایی‌ها</h1>
       <button type="button" onClick={() => { void Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()]); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="w-6 h-6 rounded-full grid place-items-center text-[#9096aa] hover:bg-[#f0f1f7] hover:text-[#5264e8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
