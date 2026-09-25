@@ -11,6 +11,10 @@ export interface PriceService {
   // refresh (see mockPriceService's ~60s jitter tick). Returns an unsubscribe
   // function.
   subscribe(callback: (prices: LivePrices) => void): () => void;
+  // Immediately re-computes prices (applying the same jitter step as a
+  // normal tick) and notifies all current subscribers, without resetting the
+  // 60-second timer.
+  refreshNow(): Promise<LivePrices>;
 }
 
 // The only place that needs to change to point at a real server-backed price feed later.
