@@ -1,14 +1,15 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
-import { assetService } from './src/services/assetService';
+import { assetService, type ImportMode } from './src/services/assetService';
 import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
 import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
+import { ImportModeModal } from './src/components/ImportModeModal';
 import { AssetRow } from './src/components/AssetRow';
 import { AuthScreen } from './src/components/AuthScreen';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
@@ -54,6 +55,7 @@ export default function App() {
   const [items, setItems] = useState<Asset[]>(assets);
   const [isSample, setIsSample] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isImportModeOpen, setIsImportModeOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
@@ -162,10 +164,7 @@ export default function App() {
     });
   };
 
-  const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const handleImportFile = async (mode: ImportMode, file: File) => {
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
       toast.error('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
       return;
@@ -183,18 +182,29 @@ export default function App() {
       toast.error('هیچ ردیف معتبری برای وارد کردن پیدا نشد');
       return;
     }
-    const { assets: next, added, updated } = await assetService.importAssets(result.assets);
+    const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(result.assets, mode);
     setItems(next);
     setIsSample(false);
+    if (changes.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        await Promise.all(changes.map(change => transactionService.addTransaction({ assetId: change.assetId, type: change.type, quantity: change.quantity, unitPrice: change.unitPrice, date: today })));
+      } catch {
+        toast.error('ثبت تراکنش‌های واردشده انجام نشد');
+      }
+    }
     const parts = [];
     if (added > 0) parts.push(`${format(added)} دارایی اضافه شد`);
     if (updated > 0) parts.push(`${format(updated)} دارایی به‌روزرسانی شد`);
-    const message = parts.join('، ');
-    if (result.skipped > 0) {
-      toast.warning(`${message}، ${format(result.skipped)} ردیف نامعتبر رد شد`);
+    let message = parts.join('، ');
+    if (skippedNoMatch > 0) message += `، ${format(skippedNoMatch)} ردیف به دلیل نبود دارایی مشابه در فهرست نادیده گرفته شد`;
+    if (result.skipped > 0) message += `، ${format(result.skipped)} ردیف نامعتبر رد شد`;
+    if (mode === 'subtract' && skippedNoMatch > 0 || result.skipped > 0) {
+      toast.warning(message);
     } else {
       toast.success(message);
     }
+    setIsImportModeOpen(false);
   };
 
   if (!isAuthChecked) {
@@ -215,13 +225,14 @@ export default function App() {
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <SummaryCard total={total} count={items.length} isSample={isSample}/>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
-        <Toolbar onImportFile={handleImportFile} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
+        <Toolbar onOpenImportModal={() => setIsImportModeOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
         <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
         {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
     {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
+    {isImportModeOpen && <ImportModeModal onClose={() => setIsImportModeOpen(false)} onFileSelected={handleImportFile}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}

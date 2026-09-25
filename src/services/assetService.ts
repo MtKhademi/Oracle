@@ -1,16 +1,35 @@
 import type { Asset } from '../assets';
 import { localAssetService } from './localAssetService';
 
+export type ImportMode = 'replace' | 'add' | 'subtract';
+
+export interface ImportAssetChange {
+  assetId: string;
+  type: 'buy' | 'sell';
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface ImportResult {
+  assets: Asset[];
+  added: number;
+  updated: number;
+  skippedNoMatch: number; // 'subtract' rows with no existing matching asset
+  changes: ImportAssetChange[]; // per-row transaction records for 'add'/'subtract' modes
+}
+
 export interface AssetService {
   listAssets(): Promise<Asset[] | null>; // null = nothing stored yet (use default sample data)
   addAsset(asset: Asset): Promise<Asset[]>;
   updateAsset(id: string, changes: Partial<Asset>): Promise<Asset[]>;
   deleteAsset(id: string): Promise<Asset[]>;
-  // Merges by `code` (see assetCodeRegistry.ts): an imported asset whose code
-  // matches an asset already in the list updates that asset's quantity/unitPrice
-  // (keeping its id, not adding to the old numbers); any other imported asset is
-  // appended as new. `added`/`updated` report how many rows landed in each bucket.
-  importAssets(assets: Asset[]): Promise<{ assets: Asset[]; added: number; updated: number }>;
+  // Merges by `code` (see assetCodeRegistry.ts), with the mode chosen at import
+  // time: 'replace' (a full snapshot) overwrites a matched asset's quantity/
+  // unitPrice or appends a new one and writes no transactions; 'add' adds the
+  // imported quantity (updating unit price) and records a 'buy' per row;
+  // 'subtract' subtracts the imported quantity (clamped at 0, unit price
+  // untouched) and records a 'sell' per row, skipping rows with no match.
+  importAssets(assets: Asset[], mode: ImportMode): Promise<ImportResult>;
   clearAssets(): Promise<Asset[]>; // returns []
 }
 
