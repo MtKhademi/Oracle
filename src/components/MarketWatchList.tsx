@@ -1,52 +1,67 @@
 import type { ReactNode } from 'react';
-import { useLivePrices } from '../hooks/useLivePrices';
+import { useMarketWatch } from '../hooks/useMarketWatch';
 import { format } from '../format';
-import type { LivePrices } from '../services/priceService';
-import { AssetIcon, iconTint } from './AssetIcon';
-import { DollarIcon } from './icons';
+import type { MarketCategory, MarketItem } from '../services/marketWatchService';
+import { CryptoIcon, FixedIncomeIcon, GoldBarIcon, StockIcon } from './icons';
 
 const timeFormatter = new Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' });
 
-type MarketWatchRow = { key: string; name: string; price: number; badge: ReactNode; badgeClass: string };
+const categoryOrder: MarketCategory[] = ['currency', 'gold', 'stock', 'fixed-income'];
 
-// دلار and تتر both read from the same mock usdToman rate — shown as two
-// separate rows since they're commonly checked independently (see AI-KNOWLEDGE.md §6l).
-function buildRows(prices: LivePrices): MarketWatchRow[] {
-  return [
-    { key: 'usdt', name: 'تتر', price: prices.usdToman, badge: <AssetIcon type="usdt"/>, badgeClass: iconTint.usdt },
-    { key: 'usd', name: 'دلار', price: prices.usdToman, badge: <DollarIcon/>, badgeClass: 'text-[#1f9d55] bg-[#d7f5e0]' },
-    { key: 'gold18', name: 'عیار گرمی (۱۸ عیار)', price: prices.goldGramToman, badge: <AssetIcon type="gold"/>, badgeClass: iconTint.gold },
-    { key: 'eth', name: 'اتریوم', price: prices.ethToman, badge: <AssetIcon type="eth"/>, badgeClass: iconTint.eth },
-    { key: 'btc', name: 'بیت‌کوین', price: prices.btcToman, badge: <AssetIcon type="btc"/>, badgeClass: iconTint.btc },
-  ];
+const categoryMeta: Record<MarketCategory, { label: string; icon: ReactNode }> = {
+  currency: { label: 'ارزها', icon: <CryptoIcon/> },
+  gold: { label: 'طلا', icon: <GoldBarIcon/> },
+  stock: { label: 'بورس', icon: <StockIcon/> },
+  'fixed-income': { label: 'صندوق‌های درآمد ثابت', icon: <FixedIncomeIcon/> },
+};
+
+function groupByCategory(items: MarketItem[]): Partial<Record<MarketCategory, MarketItem[]>> {
+  const groups: Partial<Record<MarketCategory, MarketItem[]>> = {};
+  for (const item of items) {
+    (groups[item.category] ??= []).push(item);
+  }
+  return groups;
 }
 
-// Read-only market-watch view (see AI-KNOWLEDGE.md §6l) — lists a fixed set
-// of market items with their live (mock) toman price and last-update time.
-// Calls useLivePrices() itself (unlike AssetRow, which takes prices as a
-// prop): this list is only ever mounted while the "چشم بازار" tab is
-// active, so there's no benefit to threading the subscription through
-// App.tsx the way the wallet tab's prices prop is shared across many rows.
+// Read-only, categorized "چشم بازار" view (see AI-KNOWLEDGE.md §6l/§6m) —
+// groups a fixed set of market items by category, each with their live
+// (mock) toman price. Calls useMarketWatch() itself (unlike AssetRow, which
+// takes prices as a prop): this list is only ever mounted while the "چشم
+// بازار" tab is active, so there's no benefit to threading the subscription
+// through App.tsx. Uses the independent marketWatchService/useMarketWatch —
+// NOT useLivePrices()/priceService, which remains untouched for the
+// portfolio total and AssetRow's GOLD18/USDT live pricing.
 export function MarketWatchList() {
-  const prices = useLivePrices();
+  const snapshot = useMarketWatch();
 
-  if (!prices) {
+  if (!snapshot) {
     return <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">در حال دریافت قیمت‌ها...</p>;
   }
 
-  const updatedAtLabel = timeFormatter.format(new Date(prices.updatedAt));
+  const updatedAtLabel = timeFormatter.format(new Date(snapshot.updatedAt));
+  const groups = groupByCategory(snapshot.items);
 
-  return <ul className="list-none m-0 p-0 grid gap-[10px]">
-    {buildRows(prices).map(row => <li key={row.key} className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center gap-[15px] py-[17px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:p-[14px]">
-      <span className={`w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] ${row.badgeClass}`} aria-hidden="true">{row.badge}</span>
-      <div className="flex-1 min-w-0">
-        <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{row.name}</h3>
-        <p className="text-[10px] text-[#a2a8b9] mt-[2px]">بروزرسانی: {updatedAtLabel}</p>
-      </div>
-      <div className="text-left shrink-0 flex items-baseline gap-[6px]">
-        <strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] max-[351px]:text-[12px]">{format(row.price)}</strong>
-        <span className="text-[#a2a8b9] text-[10px]">تومان</span>
-      </div>
-    </li>)}
-  </ul>;
+  return <div className="grid gap-[18px]">
+    <p className="text-[10px] text-[#a2a8b9] px-1">بروزرسانی: {updatedAtLabel}</p>
+    {categoryOrder.map(category => {
+      const items = groups[category];
+      if (!items || items.length === 0) return null;
+      const meta = categoryMeta[category];
+      return <section key={category}>
+        <div className="flex items-center gap-[8px] px-1 mb-[10px]">
+          <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#eef0ff] text-[#5264e8] shrink-0" aria-hidden="true">{meta.icon}</span>
+          <h3 className="text-[13px] font-bold">{meta.label}</h3>
+        </div>
+        <ul className="list-none m-0 p-0 grid gap-[10px]">
+          {items.map(item => <li key={item.id} className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center justify-between gap-[15px] py-[14px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] max-[481px]:px-[16px] min-[1050px]:p-[14px]">
+            <h4 className="text-[13px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{item.name}</h4>
+            <div className="text-left shrink-0 flex items-baseline gap-[6px]">
+              <strong className="text-[14px] font-bold [font-variant-numeric:tabular-nums] max-[351px]:text-[12px]">{format(item.priceToman)}</strong>
+              <span className="text-[#a2a8b9] text-[10px]">تومان</span>
+            </div>
+          </li>)}
+        </ul>
+      </section>;
+    })}
+  </div>;
 }
