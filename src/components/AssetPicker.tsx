@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { getCatalogAssetBySymbol, getCatalogAssets, getCategoryLabel, type CatalogAsset } from '../services/assetCatalog';
 
 // Catalog assets + their category order (first-appearance order, same as the
@@ -18,14 +18,28 @@ function filterCatalogAssets(query: string): CatalogAsset[] {
 // A small custom combobox: text input + dropdown panel, replacing the native
 // <select> the add-asset form used to render the catalog with (see
 // AddAssetModal.tsx). Plain React state + Tailwind only — no external
-// combobox/autocomplete library. Reuses the app's existing "fixed inset-0
-// backdrop + onClick to close, stopPropagation on the panel" pattern (see
-// AddAssetModal/ProfileModal/ForgotPasswordModal/SideDrawer) for closing the
-// dropdown on an outside click, instead of a new document-listener pattern.
+// combobox/autocomplete library.
+//
+// Outside-click detection uses a `document` `mousedown` listener + a
+// container `ref` (not a full-viewport `fixed inset-0` overlay div). An
+// overlay div sitting inside a modal card visually/functionally paints on
+// top of every other element in that stacking context (including the
+// modal's own "X" close button and its backdrop), because it's `fixed`
+// with an explicit z-index yet still a DOM descendant of the card's
+// `onClick={stopPropagation}` wrapper — so a click aimed at the X button
+// would land on the overlay instead, closing only the dropdown and never
+// bubbling out to the modal's `onClose`, trapping the user. A `mousedown`
+// listener only *detects* whether the click landed outside this
+// component's own DOM subtree; it never intercepts the click itself, so
+// the same click still reaches (and can act on) the X button/backdrop
+// underneath in the same event dispatch — see the AddAssetModal
+// dropdown-blocks-close fix in the decision log for the a11y/UX bug this
+// replaces.
 export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: string; onSelect: (symbol: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedAsset = getCatalogAssetBySymbol(selectedSymbol);
 
@@ -45,6 +59,18 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
   };
 
   const close = () => setIsOpen(false);
+
+  // Close on outside click/tap without intercepting the click itself — see
+  // the component-level comment above for why this replaced the earlier
+  // `fixed inset-0` overlay-div pattern.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [isOpen]);
 
   const selectAsset = (asset: CatalogAsset) => {
     onSelect(asset.symbol);
@@ -81,7 +107,7 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
     }
   };
 
-  return <div className="relative">
+  return <div className="relative" ref={containerRef}>
     <input
       type="text"
       role="combobox"
@@ -95,12 +121,11 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
       onKeyDown={handleKeyDown}
       className="relative z-20 border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d] w-full"
     />
-    {isOpen && <>
-      <div className="fixed inset-0 z-10" onClick={close}/>
-      {/* max-h sized to comfortably fit ~5 result rows (each ~36px) plus a
-          category header or two before scrolling kicks in — was 220px,
-          which only fit ~2-3 rows and made the panel look cut off. */}
-      <div className="absolute z-20 mt-1 w-full max-h-[280px] overflow-y-auto bg-white rounded-[14px] border border-[#eceef8] shadow-[0_12px_36px_#2734790b] p-1" onClick={e => e.stopPropagation()}>
+    {isOpen &&
+      // max-h sized to comfortably fit ~5 result rows (each ~36px) plus a
+      // category header or two before scrolling kicks in — was 220px,
+      // which only fit ~2-3 rows and made the panel look cut off.
+      <div className="absolute z-20 mt-1 w-full max-h-[280px] overflow-y-auto bg-white rounded-[14px] border border-[#eceef8] shadow-[0_12px_36px_#2734790b] p-1">
         {flatFiltered.length === 0
           ? <p className="text-[11px] text-[#969eb2] text-center py-4">دارایی‌ای پیدا نشد</p>
           : groupedFiltered.map(group => <div key={group.categoryId}>
@@ -119,7 +144,6 @@ export function AssetPicker({ selectedSymbol, onSelect }: { selectedSymbol: stri
               </button>;
             })}
           </div>)}
-      </div>
-    </>}
+      </div>}
   </div>;
 }
