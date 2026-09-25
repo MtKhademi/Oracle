@@ -103,3 +103,12 @@ export function GoldBarIcon() {
     <path d="M7 7h10M8 14h8M10 10h4"/>
   </svg>;
 }
+
+export function RefreshIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 12a8 8 0 0 1 13.66-5.66L21 9"/>
+    <path d="M21 4v5h-5"/>
+    <path d="M20 12a8 8 0 0 1-13.66 5.66L3 15"/>
+    <path d="M3 20v-5h5"/>
+  </svg>;
+}
