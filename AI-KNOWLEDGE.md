@@ -14,8 +14,9 @@ Keep it current whenever behavior, structure, or decisions change.
 ## 1. What this app is
 
 A single-page, Persian (RTL) asset overview. It shows a light-grey, white-card UI
-with a **total in toman** (plus, since 2026-09-25, a small mock USD/gold-gram
-equivalent — see §6j) and **one row per asset**. `src/assets.ts` still ships
+with a **total in toman** (plus, since 2026-09-25, mock USD/gold-gram equivalent
+rows, each with its own icon and color — see §6j) and **one row per asset**.
+`src/assets.ts` still ships
 static sample data (illustrative only), but the owner can now add/edit/delete their
 own real assets through a small in-page form, or bulk-import them from a fixed
 Excel template (see §6a); those real values are persisted ONLY in the browser's
@@ -65,13 +66,13 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
 | `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/edit/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself, and no longer touches `localStorage` directly. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i) for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler that updates that asset's `quantity` via `assetService.updateAsset` (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched) and sets the returned list into `items`. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). |
-| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e) and `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`App.tsx` — no icon markup duplicated elsewhere. |
+| `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j) and `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
 | `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset` + `onEdit`/`onDelete`/`onHistory` callback props. |
-| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. Also calls `useLivePrices()` (see §4/§6j) and, once prices resolve, renders a small muted secondary line below the toman total converting it to USD and gold grams — `null` (not yet loaded) renders nothing extra, with an equal-height empty spacer so the layout doesn't shift when prices arrive. |
+| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample` props. Also calls `useLivePrices()` (see §4/§6j) and renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices; while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i): on mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Below the list it has an "add transaction" form (see §6i): a خرید/فروش toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (shared `stripToNumberString`/`formatWithThousands` thousands-formatting, see §4 `src/format.ts`), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit — on success it re-fetches the list, resets the form, and calls the `onTransactionRecorded(assetId, type, quantity)` prop so the parent updates the asset's quantity (buy adds, sell subtracts clamped at 0; the asset's `unitPrice` is never changed from here). Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
@@ -93,7 +94,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/localTransactionService.ts` | The `localTransactionService: TransactionService` implementation, backed by `src/transactionStorage.ts`. Transaction IDs use the same `crypto.randomUUID()` pattern already used for asset rows; add/update reject invalid `quantity <= 0` or `unitPrice < 0`; asset deletion cleanup is triggered by the UI handler in `App.tsx`, not by coupling this service to `localAssetService`. |
 | `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet (no-op otherwise). `ensureInitialTransaction` is now called by `TransactionHistoryModal` the first time an asset's history is opened (see §6i); `computeHoldingSummary` is still not used by the UI (the P/L display is a later task). |
 | `src/services/priceService.ts` | Defines `LivePrices` (`{ usdToman, goldGramToman }`, both toman-denominated) and the `PriceService` interface (`getPrices(): Promise<LivePrices>`, `subscribe(callback): () => void` — calls back immediately with the current prices, then again on every refresh, returns an unsubscribe function), and exports the single `priceService` instance — currently `= mockPriceService` (see §6j). Same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d): this is the only line that needs to change to point at a real server-backed price feed later. |
-| `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 1000000`, `goldGramToman: 20000000` starting points) nudged by a small random jitter (±~0.5%) on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted). |
+| `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 230000` ≈ 1 US dollar, `goldGramToman: 24000000` ≈ 1 gram of 18-karat gold — realistic-looking starting points, not `src/assets.ts`'s old sample-data magnitudes) nudged by a clearly-visible random jitter (±~1%) on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted). |
 | `src/hooks/useLivePrices.ts` | `useLivePrices(): LivePrices \| null` — a small hook wrapping `priceService.subscribe(...)` in `useEffect` (subscribes on mount, unsubscribes on unmount via the returned cleanup function), holding the latest `LivePrices` in `useState`, starting `null` until the first callback arrives so callers (currently only `SummaryCard`, see §6j) can render a loading/placeholder state instead of flashing zeroed-out values. |
 | `src/types.ts` | `Profile` type (`fullName`/`phone`/`email`/`avatarDataUrl: string \| null`) + `emptyProfile` (all empty strings, `avatarDataUrl: null`) — the default when nothing is stored yet. See §6f. |
 | `src/profileStorage.ts` | `loadProfile()`/`saveProfile()` — read/write the `Profile` to `localStorage` under key `oracle_profile_v1`, same try/catch pattern as `src/storage.ts` (`loadProfile` falls back to `emptyProfile` on missing/corrupt/partial data instead of `null`, since there's always a single profile, not a list). Only called from `src/services/localProfileService.ts`. |
@@ -240,8 +241,8 @@ type Transaction = {
    (opens the transaction-history modal, see §6i); delete calls
    `onDelete(id)`.
 - `SummaryCard` (in `src/components/SummaryCard.tsx`) — the summary card (cash
-  `AssetIcon`, sample badge, big total, footer with asset count); takes
-  `total`/`count`/`isSample` props.
+  `AssetIcon`, sample badge, big total, two secondary USD/gold-gram rows (see
+  §6j), footer with asset count); takes `total`/`count`/`isSample` props.
 - `AddAssetModal` (in `src/components/AddAssetModal.tsx`) — the add-asset modal +
   form; takes `onClose`/`onAdd` props and owns its own form state, validation, and the
   `Escape`-key listener (see §6c for the comma-formatting logic inside it).
@@ -913,20 +914,20 @@ type Transaction = {
   `= mockPriceService`. Swapping in a real server-backed price API later only
   requires replacing that one exported instance — no component/hook code changes.
 - `mockPriceService` keeps two **in-memory** numbers, starting at `usdToman:
-  1,000,000` and `goldGramToman: 20,000,000` toman (consistent with the price
-  magnitudes already used in `src/assets.ts`/`src/data/assetCatalog.json`'s sample
-  data). Once at least one subscriber is active, a single shared `setInterval`
-  (60,000ms = 60s) nudges each value by a small random jitter
-  (`value *= 1 + (Math.random() - 0.5) * 0.01`, roughly ±0.5%) so the numbers
-  visibly drift over time instead of staying a fixed constant — this is
-  intentionally fake movement, not derived from any real market data.
-  `getPrices()` resolves the current values immediately (a one-off read);
-  `subscribe(callback)` calls `callback` immediately with the current values (so a
-  new subscriber never waits a full minute for its first render), registers it to
-  also be called on every subsequent tick, and returns an unsubscribe function —
-  the interval itself is cleared once the last subscriber unsubscribes, so no timer
-  leaks when nothing in the UI is mounted (e.g. between page loads in dev, or if
-  `SummaryCard` is ever unmounted).
+  230,000` toman (≈ 1 US dollar) and `goldGramToman: 24,000,000` toman (≈ 1 gram
+  of 18-karat gold) — realistic-looking reference rates, not arbitrary
+  round-number placeholders. Once at least one subscriber is active, a single
+  shared `setInterval` (60,000ms = 60s) nudges each value by a random jitter
+  (`value *= 1 + (Math.random() - 0.5) * 0.02`, roughly ±1%) so the numbers
+  visibly drift tick-to-tick instead of looking static — this is intentionally
+  fake movement, not derived from any real market data. `getPrices()` resolves
+  the current values immediately (a one-off read); `subscribe(callback)` calls
+  `callback` immediately with the current values (so a new subscriber never waits
+  a full minute for its first render), registers it to also be called on every
+  subsequent tick, and returns an unsubscribe function — the interval itself is
+  cleared once the last subscriber unsubscribes, so no timer leaks when nothing
+  in the UI is mounted (e.g. between page loads in dev, or if `SummaryCard` is
+  ever unmounted).
 - `src/hooks/useLivePrices.ts` — `useLivePrices(): LivePrices | null` wraps
   `priceService.subscribe(...)` in a mount/unmount `useEffect`, holding the latest
   value in `useState`. Starts `null` until the first callback arrives, so a caller
@@ -934,24 +935,34 @@ type Transaction = {
   flash of zeroed-out conversions.
 - `SummaryCard` (see §6, `src/components/SummaryCard.tsx`) calls `useLivePrices()`
   directly (no prop threaded through `App.tsx` — the hook is the only thing that
-  needs `priceService`). While `prices` is `null`, the card renders **exactly** as
-  before (only the toman total), with a same-height empty spacer in place of the
-  conversions line so the card's height/border-position doesn't shift once prices
-  arrive. Once `prices` is available, a small secondary line appears directly below
-  the toman amount, in the card's existing muted style (`text-[11px]
-  text-[#9096aa]`, matching the styling already used for the asset-count footer):
-  `≈ <format(total / prices.usdToman, 2)> دلار · <format(total /
-  prices.goldGramToman, 2)> گرم طلا` — both computed from the same live `total`
-  (toman) prop the big number already uses, 2 decimal places via the existing
-  `format(value, decimals)` helper (see §6), separated by a middle dot (`·`). The
-  toman figure's own size/prominence (`text-[44px]` etc.) is completely unchanged —
-  it stays the single largest number on the card; this is a smaller secondary
-  detail line underneath it, not a replacement or a second equally-sized total.
-- No settings/toggle to hide this line and no historical/trend display — just the
-  two current-instant conversions. This is explicitly a mock groundwork feature per
-  the owner's request; do not present these USD/gold-gram figures as real market
-  data anywhere in the UI/docs until a real `PriceService` implementation replaces
-  `mockPriceService`.
+  needs `priceService`). The toman total keeps its own row exactly as before
+  (unchanged size/prominence, `text-[44px]` etc. — it stays the single largest
+  number on the card). Below it, **two separate stacked rows** show the USD and
+  gold-gram equivalents, each with its own small icon in a tinted rounded badge
+  (`w-6 h-6 rounded-[8px]`, the same icon-badge pattern used elsewhere in this file
+  and in `AssetRow`/`iconTint`) and its own color, so each currency reads as a
+  distinct, easy-to-scan line rather than one small muted inline string:
+  - دلار row: `DollarIcon` (see §4 `src/components/icons.tsx`) in a green badge
+    (`bg-[#d7f5e0]`/`text-[#1f9d55]` — reusing the exact green already used for
+    "buy" elsewhere, e.g. `TransactionHistoryModal`'s خرید badge/toggle), text
+    `≈ <format(total / prices.usdToman, 2)> دلار` in that same green
+    (`text-[#1f9d55]`), `text-[13px] font-medium`.
+  - گرم طلا row: `GoldBarIcon` (see §4) in the existing gold tint
+    (`bg-[#fff5df]`/`text-[#d7a144]`, i.e. `iconTint.gold` from `AssetIcon.tsx`),
+    text `≈ <format(total / prices.goldGramToman, 2)> گرم طلا` in that same gold
+    (`text-[#d7a144]`), `text-[13px] font-medium`.
+  Both figures come from the same live `total` (toman) prop the big number
+  already uses, 2 decimal places via the existing `format(value, decimals)`
+  helper (see §6). While `prices` is `null`, both rows are still rendered (with a
+  fallback divisor of `1` so no `NaN`/`Infinity` briefly flashes) but wrapped in
+  an `invisible` container — kept in the layout (reserving the exact same height)
+  but not shown — so there's no flash of a wrong/zero value and no layout shift
+  once `prices` resolves a moment later.
+- No settings/toggle to hide these rows and no historical/trend display — just
+  the two current-instant conversions. This is explicitly a mock groundwork
+  feature per the owner's request; do not present these USD/gold-gram figures as
+  real market data anywhere in the UI/docs until a real `PriceService`
+  implementation replaces `mockPriceService`.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -1062,6 +1073,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-25 | Owner-requested rebuild of the Excel import pipeline (supersedes the two entries above and replaces the just-shipped three-mode `ImportModeModal`), fixing two problems: imported rows now carry the same catalog-symbol identity as before (unchanged, still catalog-driven — see §6a), but import can now also record real per-row buy/sell/replace transactions with their own dates, not just one shared mode for the whole file. **New 6-column template**, in order: `نماد` \| `تعداد` \| `قیمت واحد (تومان)` \| `نوع` \| `تاریخ` \| `نام دارایی (فقط نمایشی)` — only the first 3 headers are required to match; columns 4-6 are fully optional (absent header or empty per-row cells both work). `نوع` (optional) is one of the literal codes `buy`/`sell`/`replace` (case-insensitive) or empty (falls back to the modal's default mode); `تاریخ` (optional) is an ISO date or empty (falls back to today), with JS `Date` cells converted via **local** y/m/d getters (`formatLocalIsoDate`) to avoid an off-by-one-day UTC shift, and a present-but-unparseable date/type skipping the row (`skipped++`) — added via new `resolveRowType`/`resolveRowDate`/`parseIsoDateStrict` helpers in `App.tsx`. The display-only name column is read but never used. **One unified modal**, `src/components/ImportModal.tsx` (replaces `ImportModeModal.tsx`, deleted), combines file selection and the default-mode choice on a single screen instead of two steps: a file-picker button showing the chosen file's name, a 3-way radio for the default replace/add/subtract mode (applied only to rows whose own `نوع` is empty), and a "بارگذاری" submit disabled until a file is picked; `Toolbar`'s `onImportFile` stays `onOpenImportModal` (unchanged from the prior task) and `App.tsx` renamed its state to `isImportModalOpen`. Each parsed row resolves its own *effective type* (own `نوع`, else the modal's default mapped `add→buy`/`subtract→sell`/`replace→replace`) and *effective date* (own `تاریخ`, else today) via `resolveEffectiveType`. `AssetService.importAssets` now takes `rows: ImportRow[]` (`{ asset, effectiveType, effectiveDate }`) instead of `(assets, mode)` — each row is applied independently by its own `effectiveType`: `replace` overwrites/appends with no transaction; `buy` adds to (or creates) the matched asset and always records a `buy` dated the row's own `effectiveDate`; `sell` subtracts from a matched asset (clamped at 0, price untouched) and records a `sell` dated the row's own `effectiveDate`, or is skipped (`skippedNoMatch++`) with no match. `ImportAssetChange` gained a `date` field carrying each row's real effective date (no longer always "today"); `App.tsx`'s `handleImportFile` builds the `ImportRow[]` after parsing and writes every `changes` entry with its own date via `transactionService.addTransaction`. Toast wording for the `skippedNoMatch` half changed to "N ردیف بابت نبود دارایی مشابه نادیده گرفته شد" and `toast.warning` now fires whenever either skip bucket (`skippedNoMatch` or invalid `skipped`) is non-zero, regardless of mode. Removed the old `importCategoryToIcon`-adjacent mode-vs-effective-type coupling entirely — a file can now freely mix snapshot/purchase/sale rows with their own historical dates in one import. `getOrCreateCode`'s only remaining caller (`App.tsx`'s legacy-asset-migration `useEffect`) is untouched. Build (`npm run build`) passes. |
 
 | 2026-09-25 | Owner-requested: added a **mock** live-price service and USD/gold-gram equivalents on the total (see §6j). New `src/services/priceService.ts` (`LivePrices = { usdToman, goldGramToman }`, `PriceService` interface: `getPrices()`/`subscribe(callback): () => void`) + `src/services/mockPriceService.ts` — same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d), `priceService` currently `= mockPriceService`. The mock keeps two in-memory numbers (`usdToman: 1,000,000`, `goldGramToman: 20,000,000` starting points, consistent with existing sample-data magnitudes) nudged by ±~0.5% random jitter on a single shared `setInterval` (60s) while at least one subscriber is active; `subscribe` calls back immediately then on every tick, and the interval is cleared once the last subscriber unsubscribes (no leaked timer). New `src/hooks/useLivePrices.ts` wraps `priceService.subscribe` in `useEffect`, returning `null` until the first callback. `SummaryCard` calls the hook directly and, once prices resolve, renders a small muted secondary line below the (unchanged, still-largest) toman total: `≈ <USD, 2 decimals> دلار · <gold grams, 2 decimals> گرم طلا`, both derived from the existing `total` prop; while `null`, the card renders exactly as before (an equal-height spacer avoids a layout shift once prices arrive). **This is mock data, not a real price feed** — no real price API is connected; swapping one in later only requires replacing the `priceService` export. Updates the §13 "Live price fetch" candidate-next-step entry to done-as-mock. Build (`npm run build`) passes. |
+| 2026-09-25 | Owner-requested follow-up (see §6j): made the mock rates realistic and split the USD/gold-gram conversions into their own labeled rows. `mockPriceService`'s starting values changed from the old round-number placeholders (`1,000,000`/`20,000,000`) to `usdToman: 230,000` (≈ 1 USD) and `goldGramToman: 24,000,000` (≈ 1 gram of 18k gold); jitter increased from `±~0.5%` to `±~1%` per 60s tick (`JITTER_RATIO` `0.01 → 0.02`) so movement is clearly visible when watching the card for a minute or two — same shared-interval/subscribe mechanics, unchanged. `SummaryCard` no longer shows one small inline "≈ X دلار · Y گرم طلا" line; it now renders **two separate stacked rows** below the toman total, each with a dedicated icon in a tinted rounded badge and its own text color, matching the existing icon-badge pattern (`AssetRow`/`iconTint`): a دلار row (new `DollarIcon`, green `#1f9d55`/`#d7f5e0` — the same green already used for "buy" in `TransactionHistoryModal`) and a گرم طلا row (new `GoldBarIcon`, reusing the exact gold-bar SVG paths from `AssetIcon`'s `'gold'` case, in the existing `iconTint.gold` colors `#d7a144`/`#fff5df`). Both new icon components live in `src/components/icons.tsx` (see §4) so `SummaryCard` doesn't need to import `AssetIcon`'s full type-switch for a decorative badge. Both rows still render while `prices` is `null` (wrapped `invisible` to reserve the same height) instead of being omitted, keeping the no-flash/no-layout-shift behavior. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
