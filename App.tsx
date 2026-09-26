@@ -59,13 +59,16 @@ function sortAssetsForDisplay(items: Asset[], sortMode: AssetSortMode, prices: L
   if (sortMode === 'value') {
     return [...items].sort((a, b) => getAssetTomanValue(b, prices) - getAssetTomanValue(a, prices));
   }
-  // 'type': group by the catalog category (getCatalogAssetBySymbol(asset.code)
-  // .category, same category resolution used elsewhere — e.g.
-  // getCategoryLabel() below), order groups by total group value descending,
-  // and sort assets within each group by their own value descending.
+  // 'type': group by the asset's own `icon` field (Asset['icon'], see
+  // src/assets.ts — always populated, unlike `code`/the catalog lookup,
+  // which only resolves for catalog-driven assets and silently falls back
+  // to a single 'other' bucket for every legacy/auto-coded asset — see the
+  // 2026-09-26 bug-fix decision-log entry), order groups by total group
+  // value descending, and sort assets within each group by their own value
+  // descending.
   const groups = new Map<string, Asset[]>();
   for (const asset of items) {
-    const categoryId = (asset.code && getCatalogAssetBySymbol(asset.code)?.category) || 'other';
+    const categoryId = asset.icon;
     const group = groups.get(categoryId);
     if (group) group.push(asset);
     else groups.set(categoryId, [asset]);
