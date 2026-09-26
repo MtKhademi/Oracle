@@ -471,6 +471,6 @@ export default function App() {
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
-    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
+    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
   </div>;
 }
