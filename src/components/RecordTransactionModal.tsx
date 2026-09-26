@@ -3,15 +3,20 @@ import { toast } from 'sonner';
 import { transactionService } from '../services/transactionService';
 import type { Asset } from '../assets';
 import type { TransactionType } from '../types/transaction';
+import type { LivePrices } from '../services/priceService';
+import { getEffectiveUnitPrice } from '../services/livePriceMapping';
 import { formatWithThousands, stripToNumberString, todayLocalIso } from '../format';
 import { CloseIcon } from './icons';
 
-export function RecordTransactionModal({ asset, isSample, onClose, onTransactionRecorded }: { asset: Asset; isSample: boolean; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
+export function RecordTransactionModal({ asset, isSample, prices, onClose, onTransactionRecorded }: { asset: Asset; isSample: boolean; prices: LivePrices | null; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
+  const lastPrice = getEffectiveUnitPrice(asset, prices);
   const [formType, setFormType] = useState<TransactionType>('buy');
   const [formQuantity, setFormQuantity] = useState('');
   const [formUnitPrice, setFormUnitPrice] = useState('');
   const [formDate, setFormDate] = useState(todayLocalIso());
   const [formNote, setFormNote] = useState('');
+
+  const fillLastPrice = () => setFormUnitPrice(String(Math.round(lastPrice)));
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -51,8 +56,11 @@ export function RecordTransactionModal({ asset, isSample, onClose, onTransaction
         <label className="text-[11px] text-[#7a8097] grid gap-1">{formType === 'replace' ? 'مقدار جدید' : 'مقدار'}
           <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
-        <label className="text-[11px] text-[#7a8097] grid gap-1">{formType === 'replace' ? 'قیمت واحد جدید (تومان)' : 'قیمت واحد به تومان'}
-          <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+        <label className="text-[11px] text-[#7a8097] grid gap-1 min-w-0">{formType === 'replace' ? 'قیمت واحد جدید (تومان)' : 'قیمت واحد به تومان'}
+          <span className="flex gap-[6px] min-w-0">
+            <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="flex-1 min-w-0 border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+            <button type="button" onClick={fillLastPrice} className="shrink-0 whitespace-nowrap text-[11px] font-medium text-[#5264e8] bg-[#eef0ff] hover:bg-[#e2e5ff] rounded-[10px] px-3 cursor-pointer transition-colors">آخرین قیمت</button>
+          </span>
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ
           <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
@@ -60,7 +68,9 @@ export function RecordTransactionModal({ asset, isSample, onClose, onTransaction
         <label className="text-[11px] text-[#7a8097] grid gap-1">یادداشت (اختیاری)
           <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
-        <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2 cursor-pointer">ثبت تراکنش</button>
+        <button type="submit" className={`text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2 cursor-pointer transition-colors ${formType === 'buy' ? 'bg-[#1f9d55]' : formType === 'sell' ? 'bg-[#d95050]' : 'bg-[#d7a144]'}`}>
+          {formType === 'buy' ? 'ثبت تراکنش خرید' : formType === 'sell' ? 'ثبت تراکنش فروش' : 'ثبت تراکنش جایگذاری'}
+        </button>
       </form>
     </section>
   </div>;
