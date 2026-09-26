@@ -44,9 +44,6 @@ export function MarketWatchList() {
   return <div className="grid gap-[18px]">
     <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]">
       <IconButton icon={<PlusIcon/>} onClick={() => setIsAddOpen(true)} ariaLabel="افزودن به چشم بازار" tone="neutral"/>
-      <span className="text-[11px] text-[#656e87]">ارزش به تومان</span>
-    </div>
-    <div className="px-1">
       <p className="text-[10px] text-[#a2a8b9]">بروزرسانی: {updatedAtLabel}</p>
     </div>
     {watchedItems.length === 0
