@@ -107,4 +107,11 @@ export const mockMarketWatchService: MarketWatchService = {
     notifySubscribers();
     return current;
   },
+
+  async getAllItems() {
+    // The full static catalog (all 14 seeded items, no jitter) — independent
+    // of the live-jittered `current` state above, so picking a new item to
+    // watch never depends on the live tick timing.
+    return seedItems.map(({ jitterToman: _jitterToman, ...item }) => item);
+  },
 };

@@ -24,10 +24,12 @@ Excel template (see §6a); those real values are persisted ONLY in the browser's
 daily-snapshot trend chart (see §6n) compares portfolio growth against USD and
 gold, normalized to "% change since day 1". No navigation, backend, or native
 tooling beyond add/edit/delete, the fixed-template Excel import, the mock
-live-price conversions, the چشم بازار market-watch list, and the
-portfolio-growth trend chart (by explicit owner constraint/request — each
-addition beyond the original toman-total/one-row-per-asset scope was
-individually owner-requested, see §11).
+live-price conversions, the چشم بازار market-watch list (now a personal,
+editable watchlist the owner curates via a search-and-add picker and
+per-item remove, see §6r), and the portfolio-growth trend chart (by explicit
+owner constraint/request — each addition beyond the original
+toman-total/one-row-per-asset scope was individually owner-requested, see
+§11).
 
 ## 2. Hard constraints (do not break)
 
@@ -35,16 +37,19 @@ individually owner-requested, see §11).
    one row per asset.
 2. Do NOT add navigation, backend, native tooling, or any other feature beyond
    add/edit/delete of assets, the fixed-template Excel import (§6a), the mock
-   live-price conversions (§6j), the چشم بازار market-watch list (§6l/§6m), and
-   the owner-requested portfolio-growth trend chart (§6n) **unless the owner
-   explicitly asks for anything further**. The Excel import must stay locked
-   to the one fixed template — never auto-detect columns or accept other
-   layouts. The USD/gold-gram line and the چشم بازار list are explicitly MOCK
+   live-price conversions (§6j), the چشم بازار market-watch list and its
+   personal-watchlist add/remove flow (§6l/§6m/§6r), and the owner-requested
+   portfolio-growth trend chart (§6n) **unless the owner explicitly asks for
+   anything further**. The Excel import must stay locked to the one fixed
+   template — never auto-detect columns or accept other layouts. The
+   USD/gold-gram line and the چشم بازار list/catalog are explicitly MOCK
    data (`mockPriceService`/`mockMarketWatchService`) — never present either as
-   a real market feed. The daily portfolio-history snapshots backing the trend
-   chart (§6n) are real local computations of the real `total`/live mock
-   rates, but the first 30 backfilled days are synthetic/generated — never
-   present that backfilled history as real past data either.
+   a real market feed; the watchlist add/remove UI only changes which of the
+   same 14 mock items are shown, it never adds real items or a real feed. The
+   daily portfolio-history snapshots backing the trend chart (§6n) are real
+   local computations of the real `total`/live mock rates, but the first 30
+   backfilled days are synthetic/generated — never present that backfilled
+   history as real past data either.
 3. Palette: light grey background, white cards, blue/violet accents.
 4. The sample badge/disclaimer must only show while the current list is still the
    untouched static sample data (see §5/§6) — hide it once the owner adds, edits,
@@ -80,8 +85,9 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j), and — added in §6m — `WalletIcon` (billfold glyph, tab toggle's "کیف پول" button), `MarketEyeIcon` (eye glyph, tab toggle's "چشم بازار" button), `CryptoIcon` (two overlapping coin circles, `MarketWatchList`'s "ارزها" category heading), `StockIcon` (bar-chart glyph, `MarketWatchList`'s "بورس" category heading), and `FixedIncomeIcon` (shield + checkmark glyph, `MarketWatchList`'s "صندوق‌های درآمد ثابت" category heading) — all same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style; the gold category reuses the existing `GoldBarIcon`, no new gold icon added — and, added in §6o, `MoreVerticalIcon` (three small **filled** dots stacked vertically, `fill="currentColor"` instead of this file's usual stroke style so the dots stay visible at this size — the "دارایی‌های من" sort-menu trigger button). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`MarketWatchList`/`AssetSortMenu`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
-| `src/components/Toolbar.tsx` | The single header row above the "کیف پول" asset list (see §6q): import/clear-all/add `IconButton`s on the right, `AssetSortMenu` + "ارزش به تومان" label on the left — merged from what used to be two separate rows once the standalone "دارایی‌های من" heading was removed. Takes `onOpenImportModal`/`onClearAll`/`onAdd`/`sortMode`/`onSortModeChange` props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders its own heading + `MarketWatchList` instead, with no toolbar. |
-| `src/components/MarketWatchList.tsx` | Read-only "چشم بازار" (market watch) list, categorized (see §6m — supersedes the original flat 5-row version from §6l). Calls `useMarketWatch()` itself and groups `snapshot.items` into 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon`), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان", no per-row icon, no edit/delete/history — read-only). One shared "بروزرسانی: HH:mm:ss" label near the top (from `snapshot.updatedAt`), not repeated per row. Shows "در حال دریافت قیمت‌ها..." while `useMarketWatch()` is still `null`. |
+| `src/components/Toolbar.tsx` | The single header row above the "کیف پول" asset list (see §6q): import/clear-all/add `IconButton`s on the right, `AssetSortMenu` + "ارزش به تومان" label on the left — merged from what used to be two separate rows once the standalone "دارایی‌های من" heading was removed. Takes `onOpenImportModal`/`onClearAll`/`onAdd`/`sortMode`/`onSortModeChange` props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders its own header row (just "ارزش به تومان" + an add-to-watchlist button, see §6r) and `MarketWatchList` instead, with no `Toolbar`. |
+| `src/components/MarketWatchList.tsx` | The "چشم بازار" (market watch) list — now a personal, editable watchlist (see §6r — supersedes the read-only version from §6l/§6m), not an always-show-everything view. Calls `useMarketWatch()` (the live-jittered snapshot) AND `useMarketWatchlist()` (the persisted watched-id subset, see §4/§6r) itself, filters `snapshot.items` down to only watched ids, then groups the result into up to 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon` — the order/labels/icons now live in shared `src/services/marketCategoryMeta.tsx`, see §4/§6r), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان" plus a per-row danger/ghost trash `IconButton` calling `remove(item.id)` immediately, no confirmation). A header row above the groups holds the shared "بروزرسانی: HH:mm:ss" label (from `snapshot.updatedAt`) plus a neutral/filled `PlusIcon` `IconButton` (`افزودن به چشم بازار`) that opens `AddMarketWatchItemModal` (see §4/§6r). Shows "در حال دریافت قیمت‌ها..." while either `useMarketWatch()`/`useMarketWatchlist()` hasn't resolved yet, and "چیزی به چشم بازار اضافه نشده" when the filtered watched list is empty (all removed). |
+| `src/components/AddMarketWatchItemModal.tsx` | The "افزودن به چشم بازار" modal (see §6r), shelled like `AddAssetModal.tsx` (backdrop + centered card + `CloseIcon` + heading, `Escape`/backdrop-click/`stopPropagation` close behavior). Loads the full static catalog via `marketWatchService.getAllItems()` on mount, excludes ids already in the `watchedIds` prop, filters the remainder by a plain name-substring search input (same case-insensitive-substring convention as `AssetPicker`'s catalog filter, no fuzzy-search library), and groups results by category using the shared `marketCategoryMeta.tsx` (not duplicated from `MarketWatchList.tsx`). Clicking a result calls the `onAdd(id)` prop (wired to the watchlist hook's `add`) and closes itself. No separate floating dropdown panel to protect (the list IS the modal body), so it doesn't need `AssetPicker`'s `mousedown`-based outside-click detection — the modal's own backdrop/`Escape` handling is enough. Takes `onClose`/`watchedIds`/`onAdd` props. |
 | `src/components/PortfolioTrendChart.tsx` | Card below `SummaryCard` (see §6n) showing a hand-rolled inline-SVG line chart of portfolio growth normalized against USD and gold. Calls `portfolioHistoryService.listHistory()` itself in a `useEffect` (re-fetches when the `refreshKey` prop changes, bumped by `App.tsx` after each snapshot write), computes 3 "% of day 1" index series (toman/usd/gold, all starting at exactly 100), and renders 3 `<polyline>`s (`#5264e8`/`#1f9d55`/`#d7a144`) plus a 3-row legend (colored dot + label + latest %-change badge, green/red via the app's existing buy/sell color convention). Below the SVG, 3 relative-time X-axis labels ("۳۰ روز پیش" / "{N} روز پیش" for the midpoint / "امروز", real computed day-counts via `daysBetweenIso`, `format()` for Persian digits, `text-[11px]`, in a `dir="ltr"` row so left-to-right always matches the SVG's own coordinate space regardless of the page's RTL direction — no calendar-style dates, see §6n). Shows "داده کافی برای نمودار وجود ندارد" when history has fewer than 2 points. No charting library — plain `<svg>`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetSortMenu.tsx` | The three-dot sort-menu button + dropdown rendered inside `Toolbar` (see §6o/§6p) next to "ارزش به تومان" — `AssetSortMenu({ value, onChange })`, `AssetSortMode = 'value' \| 'type'`. Icon-only trigger button (`MoreVerticalIcon`) opens an `absolute`-positioned panel (same card/border/shadow tokens as `AssetPicker`'s dropdown) with the two radio-style options, a checkmark on the active one. Outside-click closing reuses `AssetPicker`'s exact `document` `mousedown` + container `ref` pattern (detects, never intercepts, the click) instead of a `fixed inset-0` overlay — deliberately avoiding the overlay-blocks-parent-modal-close bug class noted in `AssetPicker.tsx`'s own comment. Selecting an option calls `onChange(mode)` then closes itself. Only rendered on the "کیف پول" tab — the "چشم بازار" tab/`MarketWatchList` are untouched. |
@@ -101,7 +107,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/assetCodeRegistry.ts` | `getOrCreateCode(category, name): string` — assigns/looks up each asset's permanent `<PREFIX>-<NNNN>` identity code (see §5). Backed by two `localStorage` keys: `oracle_code_counters_v1` (highest `NNNN` issued per prefix, e.g. `{ GOLD: 2, USDT: 1 }`) and `oracle_asset_registry_v1` (`category\|name.trim().toLowerCase()` → already-assigned code). Same try/catch `localStorage` pattern as `storage.ts`/`profileStorage.ts`/`authStorage.ts`. Pure lookup/generation logic only — does not read or write the asset list itself; its only remaining caller is the one-time migration in `App.tsx` (see §6d/§6h), which attaches the returned code to a legacy asset and persists it via `assetService`. **No longer used by `AddAssetModal`** (see §6c) or the Excel import (see §6a, now catalog-driven) — now only a fallback path for pre-catalog legacy data. |
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets(rows)`/`clearAssets`, all `Promise`-returning), the `ImportMode` (`'replace' \| 'add' \| 'subtract'`, the modal's default-mode choice), `ImportEffectiveType` (`'buy' \| 'sell' \| 'replace'`, a row's resolved per-row type), `ImportRow` (`{ asset, effectiveType, effectiveDate }`, one row ready to apply), and `ImportAssetChange` (`{ assetId, type: 'buy' \| 'sell', quantity, unitPrice, date }`) types, and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. `importAssets(rows)` applies each row's own `effectiveType` independently (not one mode for the whole file) matched by `code` — `replace` overwrites or appends (no `changes` entry), `buy` adds the imported quantity (updating unit price) or appends and records a `buy` dated the row's `effectiveDate`, `sell` subtracts (clamped at 0, unit price untouched) and records a `sell` dated the row's `effectiveDate`, or skips unmatched rows (`skippedNoMatch++`) — and resolves the full `ImportResult` incl. the `changes` transaction list (see §6a/§6d). Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
-| `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts` now — no other file touches storage directly. |
+| `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts`. Also `loadWatchedMarketItemIds()`/`saveWatchedMarketItemIds(ids)` (see §6r) — same try/catch-safe, null-on-missing-or-invalid convention, under key `oracle_market_watchlist_v1`; only called from `src/services/localMarketWatchlistService.ts`. |
 | `src/types/transaction.ts` | `TransactionType` (`'buy' \| 'sell'`) and `Transaction` (`id`/`assetId`/`type`/`quantity`/`unitPrice`/`date`/optional `note`) — the durable buy/sell history model for each asset, ready for the follow-up transaction-history UI. |
 | `src/transactionStorage.ts` | `loadTransactions()`/`saveTransactions()` — read/write the transaction list to `localStorage` under key `oracle_transactions_v1`, using the same try/catch-safe array storage pattern as assets/auth/profile. Only called from `src/services/localTransactionService.ts`. |
 | `src/services/transactionService.ts` | Defines the `TransactionService` interface (`listTransactions`/`listTransactionsForAsset`/`addTransaction`/`updateTransaction`/`deleteTransaction`/`deleteTransactionsForAsset`) and exports the single `transactionService` instance — currently `= localTransactionService`, matching the swap-one-line service-layer pattern used by assets/profile/auth. |
@@ -110,9 +116,12 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/priceService.ts` | Defines `LivePrices` (`{ usdToman, goldGramToman, btcToman, ethToman, updatedAt }`, the first 4 toman-denominated, `updatedAt` a `Date.now()` timestamp — see §6l) and the `PriceService` interface (`getPrices(): Promise<LivePrices>`, `subscribe(callback): () => void` — calls back immediately with the current prices, then again on every refresh, returns an unsubscribe function — and `refreshNow(): Promise<LivePrices>`, which immediately re-computes prices and notifies all current subscribers without resetting the 60s interval), and exports the single `priceService` instance — currently `= mockPriceService` (see §6j). Same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d): this is the only line that needs to change to point at a real server-backed price feed later. |
 | `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 230000` ≈ 1 US dollar, `goldGramToman: 24000000` ≈ 1 gram of 18-karat gold, `btcToman: 10500000000`/`ethToman: 360000000` — see §6l — realistic-looking starting points, not `src/assets.ts`'s old sample-data magnitudes) nudged each step by a shared `jitterStep()` function using a **fixed absolute toman amount** (`usdToman ±20`, `goldGramToman ±2,000,000`, `btcToman ±50,000,000`, `ethToman ±5,000,000`, not percentage-based), which also stamps `updatedAt: Date.now()` every time it runs, on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted); `refreshNow()` calls the same `jitterStep()` immediately and notifies all current subscribers, independent of the interval timer — both the tick and manual refresh always apply the identical jitter logic, including the `updatedAt` stamp. |
 | `src/hooks/useLivePrices.ts` | `useLivePrices(): LivePrices \| null` — a small hook wrapping `priceService.subscribe(...)` in `useEffect` (subscribes on mount, unsubscribes on unmount via the returned cleanup function), holding the latest `LivePrices` in `useState`, starting `null` until the first callback arrives so the caller (now only `App.tsx`, see §6j/§6k — it threads the result down as a `prices` prop rather than each component calling the hook itself) can render a loading/placeholder state instead of flashing zeroed-out values. |
-| `src/services/marketWatchService.ts` | Defines `MarketCategory` (`'currency' \| 'gold' \| 'stock' \| 'fixed-income'`), `MarketItem` (`{ id, name, category, priceToman }`), `MarketSnapshot` (`{ items, updatedAt }`), and the `MarketWatchService` interface (`getSnapshot`/`subscribe`/`refreshNow`, same shape/semantics as `PriceService`), exporting the single `marketWatchService` instance — currently `= mockMarketWatchService` (see §6m). Deliberately **independent** from `priceService.ts`/`LivePrices` — a separate mock feed just for the چشم بازار list, not used by `SummaryCard`'s conversions or `AssetRow`'s live-priced assets. |
-| `src/services/mockMarketWatchService.ts` | The `mockMarketWatchService: MarketWatchService` implementation (see §6m) — entirely mock, 14 seeded items across 4 categories, same in-memory-state/shared-`jitterStep()`/subscriber-`Set`/single-shared-60s-`setInterval` pattern as `mockPriceService.ts` (§6j). Each item has its own fixed absolute toman jitter range (roughly 0.1%-1% of its starting price, fixed-income items much smaller at ≈0.05% — see §6m's table) applied every tick; `updatedAt: Date.now()` stamped on every `jitterStep()` run (both the 60s tick and `refreshNow()`). |
-| `src/hooks/useMarketWatch.ts` | `useMarketWatch(): MarketSnapshot \| null` — same subscribe-on-mount/unsubscribe-on-unmount pattern as `useLivePrices.ts`, pointed at `marketWatchService` instead of `priceService`. Used only by `MarketWatchList` (see §6m). |
+| `src/services/marketWatchService.ts` | Defines `MarketCategory` (`'currency' \| 'gold' \| 'stock' \| 'fixed-income'`), `MarketItem` (`{ id, name, category, priceToman }`), `MarketSnapshot` (`{ items, updatedAt }`), and the `MarketWatchService` interface (`getSnapshot`/`subscribe`/`refreshNow`, same shape/semantics as `PriceService`, plus — added in §6r — `getAllItems(): Promise<MarketItem[]>`, the full static 14-item catalog with no jitter, used only for picking an item to watch, never for display), exporting the single `marketWatchService` instance — currently `= mockMarketWatchService` (see §6m). Deliberately **independent** from `priceService.ts`/`LivePrices` — a separate mock feed just for the چشم بازار list, not used by `SummaryCard`'s conversions or `AssetRow`'s live-priced assets. |
+| `src/services/mockMarketWatchService.ts` | The `mockMarketWatchService: MarketWatchService` implementation (see §6m) — entirely mock, 14 seeded items across 4 categories, same in-memory-state/shared-`jitterStep()`/subscriber-`Set`/single-shared-60s-`setInterval` pattern as `mockPriceService.ts` (§6j). Each item has its own fixed absolute toman jitter range (roughly 0.1%-1% of its starting price, fixed-income items much smaller at ≈0.05% — see §6m's table) applied every tick; `updatedAt: Date.now()` stamped on every `jitterStep()` run (both the 60s tick and `refreshNow()`). `getAllItems()` (§6r) maps `seedItems` to plain `MarketItem`s (drops `jitterToman`), independent of the live-jittered `current` state. |
+| `src/services/marketCategoryMeta.tsx` | Shared `categoryOrder: MarketCategory[]` + `categoryMeta: Record<MarketCategory, { label, icon }>` (see §6r) — the 4-category order/Persian-label/icon mapping that used to live only inside `MarketWatchList.tsx`, now extracted so `AddMarketWatchItemModal.tsx` can group its own candidate list by the exact same categories without duplicating the mapping. `.tsx` (not `.ts`) since `categoryMeta` embeds JSX icon elements. |
+| `src/services/marketWatchlistService.ts` | Defines the `MarketWatchlistService` interface (`getWatchedIds(): Promise<string[]>`, `addItem(id): Promise<string[]>`, `removeItem(id): Promise<string[]>`, see §6r) and exports the single `marketWatchlistService` instance — currently `= localMarketWatchlistService`. Same singleton-swap-one-line pattern as `assetService`/`marketWatchService`/etc. (see §6d). |
+| `src/services/localMarketWatchlistService.ts` | The `localMarketWatchlistService: MarketWatchlistService` implementation (see §6r), backed by `src/storage.ts`'s `loadWatchedMarketItemIds`/`saveWatchedMarketItemIds`. A shared internal `readWatchedIds()` helper returns the stored id list when `loadWatchedMarketItemIds()` is non-`null`, else falls back to **all** ids from `marketWatchService.getAllItems()` — without persisting that fallback — so a first-time/never-customized user keeps seeing every item (matching pre-watchlist behavior) until their first `addItem`/`removeItem` actually writes something, keeping "never customized" (`null`) distinguishable from "customized to include everything" (an explicit array of all ids). `addItem`/`removeItem` both read via that same helper, add/filter the id, persist via `saveWatchedMarketItemIds`, and return the new list. |
+| `src/hooks/useMarketWatch.ts` | `useMarketWatch(): MarketSnapshot \| null` — same subscribe-on-mount/unsubscribe-on-unmount pattern as `useLivePrices.ts`, pointed at `marketWatchService` instead of `priceService`. Used only by `MarketWatchList` (see §6m). Also exports `useMarketWatchlist()` (see §6r): `{ watchedIds: string[] \| null; add: (id) => void; remove: (id) => void }` — loads `marketWatchlistService.getWatchedIds()` once on mount into local state (`null` until resolved), and `add`/`remove` call the matching service method and set the returned list directly into that same state, so the UI updates immediately without a full re-fetch. Extended into the existing file rather than a separate `useMarketWatchlist.ts` — smaller diff, same file already owns the چشم بازار hook pattern. |
 | `src/services/livePriceMapping.ts` | `getLivePriceKeyForAsset(asset)`/`getEffectiveUnitPrice(asset, prices)` (see §6k) — the single source of truth for which specific catalog assets (by `code`, currently only `GOLD18`→`goldGramToman` and `USDT`→`usdToman`) get their unit price computed live from `LivePrices` instead of their stored `Asset.unitPrice`. Used by `App.tsx` (page total) and `AssetRow` (row value + edit-mode unit-price lock). |
 | `src/services/portfolioHistoryService.ts` | Defines `PortfolioSnapshot` (`{ date, totalToman, usdToman, goldGramToman }`, one day's recorded values) and the `PortfolioHistoryService` interface (`listHistory()` oldest-first, `recordSnapshotIfNeeded(...)`, `seedMockHistoryIfEmpty(...)`, see §6n), exporting the single `portfolioHistoryService` instance — currently `= localPortfolioHistoryService`. Same singleton-swap pattern as `assetService`/`priceService`/etc. (see §6d). |
 | `src/services/localPortfolioHistoryService.ts` | The `localPortfolioHistoryService: PortfolioHistoryService` implementation (see §6n), backed by `src/portfolioHistoryStorage.ts`. `recordSnapshotIfNeeded` upserts today's entry (overwrites if already present, so repeated calls the same day just update in place) and caps the stored array at the most recent 90 entries. `seedMockHistoryIfEmpty` is a no-op unless history is empty, in which case it generates 30 synthetic days ending yesterday by walking backwards from the given current values with small daily jitter (`totalToman` ±2%, `usdToman` ±0.3%, `goldGramToman` ±1%). |
@@ -300,17 +309,20 @@ type Transaction = {
   2b. `PortfolioTrendChart` (see §6n) — the portfolio-growth-vs-USD/gold trend
       chart card, directly below the summary section in the same column.
   3. Portfolio `<section>` (`aria-label="دارایی‌های من"` on the "کیف پول" tab,
-     `aria-labelledby="assets-title"` on the "چشم بازار" tab — see §6q for why
-     these differ per tab) → a "کیف پول"/"چشم بازار" tab toggle (see §6l, tab
-     icons added in §6m) above everything else in this section, then, on the
-     "کیف پول" tab: the single `Toolbar` header row (import/clear-all/add
-     icons on the right, sort menu + "ارزش به تومان" on the left — see §6a/
-     §6b/§6c/§6o/§6p; no separate "دارایی‌های من" heading is rendered on this
-     tab, see §6q), then `<ul>` of `AssetRow` items (icon, name + quantity/
-     unit, value + `تومان`, ویرایش/حذف) — or the empty-state `<p>` when
-     `items` is empty; on the "چشم بازار" tab: its own "چشم بازار" heading
-     (`id="assets-title"`) instead, then `MarketWatchList` (see §6l,
-     categorized in §6m) — no toolbar on this tab.
+     `aria-label="چشم بازار"` on the "چشم بازار" tab — see §6q/§6r for why
+     these differ per tab; neither tab renders a visible `<h2>` heading
+     anymore, so both use `aria-label` rather than `aria-labelledby`) → a
+     "کیف پول"/"چشم بازار" tab toggle (see §6l, tab icons added in §6m) above
+     everything else in this section, then, on the "کیف پول" tab: the single
+     `Toolbar` header row (import/clear-all/add icons on the right, sort menu
+     + "ارزش به تومان" on the left — see §6a/§6b/§6c/§6o/§6p; no separate
+     "دارایی‌های من" heading is rendered on this tab, see §6q), then `<ul>` of
+     `AssetRow` items (icon, name + quantity/unit, value + `تومان`,
+     ویرایش/حذف) — or the empty-state `<p>` when `items` is empty; on the
+     "چشم بازار" tab: a header row with just "ارزش به تومان" (no heading
+     text, see §6r), then `MarketWatchList` (see §6l, categorized in §6m, now
+     a personal editable watchlist with its own add/remove UI, see §6r) — no
+     `Toolbar` on this tab.
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
@@ -1524,19 +1536,25 @@ type Transaction = {
   **"دارایی‌های من" heading text is no longer rendered anywhere on screen**.
   Kept the merged row's `mb-[15px] min-[1050px]:mb-[19px]` spacing (the old
   heading row's values, not `Toolbar`'s old `mb-[10px]`) so the gap to the
-  asset list below is visually unchanged from before. The "چشم بازار" tab's
-  own heading row (`<h2 id="assets-title">چشم بازار</h2>` + "ارزش به تومان")
-  and `MarketWatchList` are completely untouched — only the "کیف پول" tab's
-  markup changed.
-- **Accessible name of the assets `<section>`**: since the wallet tab no
-  longer has any element with `id="assets-title"`, the section's
-  `aria-labelledby="assets-title"` (previously always pointing at whichever
-  tab's own `<h2>` happened to be rendered) would have gone dangling on the
-  wallet tab. Fixed by switching the `<section>`'s accessible-name attribute
-  per tab: `aria-label="دارایی‌های من"` while `activeSectionTab === 'wallet'`,
-  `aria-labelledby="assets-title"` (pointing at the market tab's own `<h2>`,
-  unchanged) while `activeSectionTab === 'market'` — never both, and never a
-  `aria-labelledby` pointing at a missing id.
+  asset list below is visually unchanged from before. At the time of this
+  task the "چشم بازار" tab's own heading row (`<h2 id="assets-title">چشم
+  بازار</h2>` + "ارزش به تومان") and `MarketWatchList` were left completely
+  untouched — only the "کیف پول" tab's markup changed here; the market tab's
+  own heading was later also removed by the §6r task below, which is why the
+  `aria-labelledby="assets-title"` fallback described next no longer applies
+  as of §6r (superseded — see §6r for the current per-tab accessible-name
+  handling).
+- **Accessible name of the assets `<section>`, as of this task (superseded by
+  §6r)**: since the wallet tab no longer had any element with
+  `id="assets-title"`, the section's `aria-labelledby="assets-title"`
+  (previously always pointing at whichever tab's own `<h2>` happened to be
+  rendered) would have gone dangling on the wallet tab. Fixed at the time by
+  switching the `<section>`'s accessible-name attribute per tab:
+  `aria-label="دارایی‌های من"` while `activeSectionTab === 'wallet'`,
+  `aria-labelledby="assets-title"` (pointing at the market tab's own `<h2>`)
+  while `activeSectionTab === 'market'` — never both, and never a
+  `aria-labelledby` pointing at a missing id. §6r below removes the market
+  tab's `<h2>` too and switches both tabs to `aria-label`.
 - `AssetSortMenu.tsx` itself, `AssetRow.tsx`, `IconButton.tsx`, and every
   icon component are **completely unchanged** — this was a pure layout/
   composition change (which component renders which JSX, and where), not a
@@ -1552,6 +1570,136 @@ type Transaction = {
   unchanged, and the assets `<section>`'s accessible name resolves correctly
   in both tab states with no dangling `aria-labelledby`. Build
   (`npm run build`) passes.
+
+## 6r. Removed the "چشم بازار" heading + a personal, editable market watchlist
+
+- **Owner-requested**: two changes to the "چشم بازار" tab. First, the visible
+  "چشم بازار" heading text (`<h2 id="assets-title">چشم بازار</h2>`, added in
+  §6l) is now **removed outright**, matching the same "no visible heading
+  text on this section" treatment §6q already applied to the wallet tab —
+  "ارزش به تومان" still renders alone in that header row. Second, and the
+  larger change: the "چشم بازار" list, which had always shown all 14 mock
+  catalog items unconditionally (§6l/§6m), is now a **personal watchlist** —
+  a persisted subset of that same fixed 14-item catalog the owner curates
+  via a search-and-add modal and a per-item remove button, not an
+  always-show-everything view.
+- **Accessible name of the assets `<section>`, final form**: since neither
+  tab renders a visible `<h2>` anymore, `App.tsx`'s `<section>` now uses
+  `aria-label` on **both** tabs instead of the §6q-era
+  `aria-label`-on-wallet/`aria-labelledby`-on-market split:
+  `aria-label="دارایی‌های من"` on `activeSectionTab === 'wallet'`,
+  `aria-label="چشم بازار"` on `activeSectionTab === 'market'` — never a
+  dangling `aria-labelledby` (there is no longer any `id="assets-title"`
+  element in the DOM at all).
+- **New storage** — `src/storage.ts` gained `loadWatchedMarketItemIds()`/
+  `saveWatchedMarketItemIds(ids)` (see §4), the same try/catch-safe,
+  null-on-missing-or-invalid convention as `loadAssets`/`saveAssets`, under a
+  new `localStorage` key `oracle_market_watchlist_v1` (a plain `string[]` of
+  watched item ids, e.g. `["usdt","gold-18",...]`).
+- **New service — `src/services/marketWatchlistService.ts` +
+  `localMarketWatchlistService.ts`** (see §4): same singleton-swap pattern as
+  every other service in this app (§6d) — `getWatchedIds()`/`addItem(id)`/
+  `removeItem(id)`, all `Promise<string[]>`-returning (the addressed/updated
+  full id list, so the UI never needs a separate re-fetch after a write).
+  The **"never customized yet" vs "customized to include everything"**
+  distinction is the key design point: `loadWatchedMarketItemIds()` resolving
+  `null` (nothing saved yet) makes `getWatchedIds()` fall back to **all**
+  ids from the new `marketWatchService.getAllItems()` (see below) **without
+  persisting that fallback** — so an existing user (or a fresh install) sees
+  exactly the same all-14-items view as before this task, right up until
+  their first actual add/remove, at which point `addItem`/`removeItem`
+  persist a real (now explicit) list. This means an owner who removes every
+  single item ends up with an explicit `[]` in storage (a real empty
+  watchlist, correctly rendering the empty state below) — never
+  reinterpreted as "never customized" again.
+- **`marketWatchService.ts` gained `getAllItems(): Promise<MarketItem[]>`**
+  (see §4) — the full static 14-item catalog (all of `mockMarketWatchService`'s
+  `seedItems`, mapped to plain `MarketItem`s with `jitterToman` dropped), with
+  **no jitter applied** since this is only used for picking an item to watch,
+  never for display; it is entirely independent of the live-jittered
+  `current` snapshot state that `getSnapshot()`/`subscribe()`/`refreshNow()`
+  drive.
+- **`src/services/marketCategoryMeta.tsx`** (new, see §4) — the
+  `categoryOrder`/`categoryMeta` mapping (4 categories → Persian label + icon)
+  that used to live only inside `MarketWatchList.tsx` was extracted here so
+  `AddMarketWatchItemModal.tsx` (below) can group its own candidate list by
+  the exact same categories without duplicating the mapping. `.tsx` extension
+  because `categoryMeta` embeds JSX icon elements.
+- **`src/hooks/useMarketWatch.ts` gained a second export,
+  `useMarketWatchlist()`** (see §4) — extended into the existing file rather
+  than a new `useMarketWatchlist.ts` (smaller diff, same file already owns
+  the چشم بازار hook pattern). Loads `marketWatchlistService.getWatchedIds()`
+  once on mount into local state (`watchedIds: string[] | null`, `null` until
+  resolved), and exposes `add(id)`/`remove(id)` that call the matching
+  service method and set the returned list **directly** into that same local
+  state — so the rendered list updates immediately on add/remove without a
+  full re-fetch round-trip.
+- **`MarketWatchList.tsx` rewritten** (see §4) to call both `useMarketWatch()`
+  (the live-jittered snapshot) and `useMarketWatchlist()` (the persisted
+  watched-id subset), filtering `snapshot.items` down to only watched ids
+  *before* grouping by category (an empty category after filtering simply
+  doesn't render, same as before). A header row above the category groups
+  now holds the existing "بروزرسانی: …" label plus a new neutral/filled
+  `PlusIcon` `IconButton` (`aria-label="افزودن به چشم بازار"`, same
+  `IconButton`/`tone="neutral"` convention as `Toolbar`'s own add button)
+  that opens `AddMarketWatchItemModal` (below). Each item's row gained a
+  small danger/ghost trash `IconButton` (same convention as `AssetRow`'s own
+  delete button) that calls `remove(item.id)` **immediately, with no
+  confirmation** — deliberately lighter-weight than the wallet's
+  clear-all-with-toast-confirmation (§6b), matching the low-stakes,
+  easily-reversible nature of toggling a watchlist item. When the filtered
+  watched list is empty (everything removed, or an explicit empty
+  watchlist), a small centered "چیزی به چشم بازار اضافه نشده" message
+  renders instead of an empty grid (same muted-text convention as the
+  wallet's own "هنوز دارایی‌ای ثبت نشده" empty state, §6).
+- **New `src/components/AddMarketWatchItemModal.tsx`** (see §4) — the
+  "افزودن به چشم بازار" modal, shelled exactly like `AddAssetModal.tsx`
+  (`fixed inset-0` backdrop + centered white card + top-corner `CloseIcon` +
+  `aria-labelledby` heading, backdrop-click/`Escape`/card-`stopPropagation`
+  close behavior — no new modal pattern invented). On mount it loads the
+  full catalog via `marketWatchService.getAllItems()`, excludes any id
+  already in the `watchedIds` prop (so you can never add a duplicate), and
+  filters the remainder by a plain case-insensitive name-substring search
+  input (same convention as `AssetPicker`'s catalog filter, no fuzzy-search
+  library — search is "by name" only, per the task). Results are grouped by
+  category using the shared `marketCategoryMeta.tsx` above, rendered as
+  plain buttons (not `AssetPicker`'s floating/absolute dropdown — this list
+  **is** the modal's whole body, not an overlay panel anchored under an
+  input). Clicking a result calls the `onAdd(id)` prop (wired to the
+  watchlist hook's `add`) and closes the modal immediately. Because there's
+  no separate floating panel to protect from the modal's own backdrop click
+  (unlike `AssetPicker` inside `AddAssetModal`, see §6c), this component does
+  **not** need `AssetPicker`'s `mousedown`-based outside-click detection —
+  the modal's own existing backdrop/`Escape` handling is sufficient. Shows
+  "همهٔ دارایی‌ها به چشم بازار اضافه شده‌اند" when every catalog item is
+  already watched (no candidates left to add), or "دارایی‌ای پیدا نشد" when a
+  search query matches nothing.
+- **Wallet tab (کیف پول) completely unaffected**: `SummaryCard`, `Toolbar`,
+  `AssetSortMenu`, `AssetRow`, the §6p hide-balance eye toggle, and the whole
+  `assetService`/`localAssetService`/`src/storage.ts` asset-list path are
+  untouched by this task — the new watchlist storage/service/hook files are
+  entirely separate from the asset ones, following the same
+  service-per-domain convention already used throughout this app (see §6d).
+- **Still entirely mock data** (see §6j/§6m) — the watchlist add/remove UI
+  only changes which of the same 14 mock catalog items are shown; it never
+  adds a real item, a real price, or a real feed. The 60-second jitter tick
+  and the manual refresh button (`Promise.all([priceService.refreshNow(),
+  marketWatchService.refreshNow()])`, §6m) are untouched and continue to
+  drive whichever items remain watched.
+- Verified via Playwright/Chrome at multiple viewport widths (320–1200px):
+  the "چشم بازار" heading text is gone from the DOM while "ارزش به تومان"
+  still renders; on first load (fresh signup, nothing saved yet) all 14
+  items render exactly as before, grouped the same way; opening the add
+  modal with everything already watched shows the "همهٔ دارایی‌ها..." empty
+  message; removing an item immediately hides it from the list and makes it
+  reappear as a candidate in the add modal; the search input filters
+  candidates by name; adding a candidate closes the modal and immediately
+  shows that item back in its category group; removing every item shows the
+  "چیزی به چشم بازار اضافه نشده" empty state; the watched-id selection
+  persists across a full page reload; the manual refresh button still
+  visibly updates the "بروزرسانی: …" timestamp for the remaining watched
+  items; the wallet tab (toolbar, sort menu, asset rows, summary card) is
+  visually and functionally unaffected. Build (`npm run build`) passes.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -1674,6 +1822,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Owner-requested: reduced the vertical padding (`py`) on each `AssetRow` card by ~30% at every breakpoint — `AssetRow.tsx`'s outer `<li>` (§6): base `py-[17px]→[12px]`, the `351–480px` tier `py-[15px]→[11px]`, `<351px` `py-[13px]→[10px]`, and the `≥1050px` tier's previously-uniform `p-[14px]` was split into `py-[10px] px-[14px]` so only its vertical side shrinks. Horizontal padding (`px`), `gap`, `rounded`, `shadow`, and border values, plus all icon/text/button markup inside the `<li>`, are untouched — a padding-only tweak to make each card visually more compact (less empty space below the history/edit/delete icon row). Verified via Playwright/Chrome computed-style + screenshot checks at 320px/400px/700px/1200px viewport widths: all 4 `py` values match spec exactly, horizontal padding unchanged at each breakpoint, and no clipping/overlap of the icon/title/quantity/price/action-buttons. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6p): added a single "hide balance" eye toggle in `SummaryCard`'s header row (beside the existing refresh button) that masks/unmasks every toman **holding value** shown in the wallet at once — `SummaryCard`'s total + دلار/گرم طلا equivalents, and every `AssetRow`'s own row value — driven by one shared `isBalanceHidden` state, not a per-row toggle. New `maskAmount(formatted)` in `src/format.ts` (`replace(/[0-9۰-۹]/g, '•')`) turns an already-`format()`-ed string into a bullet-masked placeholder while keeping thousands separators intact, always applied as `maskAmount(format(...))` rather than a separate code path. New `EyeClosedIcon` (`src/components/icons.tsx`, the existing `MarketEyeIcon` eye shape plus a diagonal slash) pairs with the existing `MarketEyeIcon` (reused directly, not duplicated) for the visible state; the toggle button's icon color itself flips green (`#1f9d55`, visible) ↔ grey (`#9096aa`, hidden) as a second state signal beyond the icon shape. `App.tsx` gained `isBalanceHidden: boolean`, persisted to `localStorage` (key `oracle_balance_hidden_v1`, default `false`/visible) via the exact same try/catch-safe tiny-UI-preference pattern as `sortMode` (§6o) — a second deliberate exception to the service-layer-only rule, since it's display-only, not owner asset data. Left fully visible regardless of the toggle: each row's own quantity/unit line, the GOLD18/USDT live per-unit-rate sub-text (§6k), and the "هر دلار/هر گرم … تومان" rate lines in `SummaryCard` — those are prices, not the owner's holding amount. `AssetRow.tsx`/`SummaryCard.tsx` otherwise unchanged (masking is a pure display wrapper, no new edit/delete/history logic). Verified via Playwright/Chrome: default state unmasked (matching prior behavior), one click masks the total + both equivalents + all 7 sample rows simultaneously and turns the icon grey/crossed-eye, a second click restores everything and the green open-eye, and the hidden state survives a page reload (`oracle_balance_hidden_v1` holds `"true"` in `localStorage` across it). Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6q): merged the "کیف پول" tab's two separate header rows above the asset list — `Toolbar` (import/clear-all/add icons) and its own following `<h2 id="assets-title">دارایی‌های من</h2>` + `AssetSortMenu` + "ارزش به تومان" row (added in the §6o sort-menu task) — into one single row: `Toolbar` now renders `justify-between` with the three icons on the right and the sort menu + label on the left (new `sortMode`/`onSortModeChange` props, threaded from `App.tsx`, which no longer imports `AssetSortMenu` itself), keeping the old heading row's `mb-[15px] min-[1050px]:mb-[19px]` spacing so the gap to the list below is unchanged. The "دارایی‌های من" heading `<h2>` was removed outright — that text no longer appears anywhere on screen. Since the wallet tab no longer has an `id="assets-title"` element, the assets `<section>` now switches its accessible-name attribute per tab instead of always using `aria-labelledby="assets-title"`: `aria-label="دارایی‌های من"` on the "کیف پول" tab, `aria-labelledby="assets-title"` (pointing at the market tab's own unchanged `<h2>`) on the "چشم بازار" tab — never a dangling reference. `AssetSortMenu.tsx`/`AssetRow.tsx`/`IconButton.tsx`/icons are unchanged; the "چشم بازار" tab's own header row/heading/`MarketWatchList` are untouched. Verified via Playwright/Chrome at 320/400/700/1200px: single aligned header row, heading text gone, sort menu still opens and actually re-sorts, market tab pixel-identical, section accessible name valid in both tab states. Build (`npm run build`) passes. |
+| 2026-09-26 | Owner-requested (see §6r): removed the "چشم بازار" heading text (same treatment §6q gave the wallet tab) and turned the "چشم بازار" list from an always-show-all-14-items view into a personal, persisted watchlist. New `src/storage.ts` pair `loadWatchedMarketItemIds`/`saveWatchedMarketItemIds` (key `oracle_market_watchlist_v1`, null-on-missing convention). New `marketWatchService.getAllItems()` (the static 14-item catalog, no jitter) plus new `src/services/marketWatchlistService.ts`/`localMarketWatchlistService.ts` (`getWatchedIds`/`addItem`/`removeItem`, same singleton-swap pattern as every other service, §6d) — `getWatchedIds()` falls back to *all* catalog ids without persisting when nothing was ever saved, so existing/fresh installs keep seeing all 14 items until the first real add/remove, while an explicit empty watchlist (everything removed) stays a real `[]`, never reinterpreted as "uncustomized". New `src/services/marketCategoryMeta.tsx` extracts the category order/label/icon mapping out of `MarketWatchList.tsx` so the new `AddMarketWatchItemModal.tsx` can reuse it. `useMarketWatch.ts` gained a second hook, `useMarketWatchlist()` (loads watched ids once, `add`/`remove` update local state directly from the service's returned list). `MarketWatchList.tsx` now filters the live snapshot down to watched ids before grouping, adds a header "+" `IconButton` (opens the new `AddMarketWatchItemModal`, shelled like `AddAssetModal`) and a per-item danger/ghost trash `IconButton` (removes immediately, no confirmation — lighter-weight than the wallet's clear-all), plus a "چیزی به چشم بازار اضافه نشده" empty state when everything is removed. `App.tsx`'s assets `<section>` now uses `aria-label` on both tabs (`"دارایی‌های من"`/`"چشم بازار"`) instead of the §6q-era `aria-labelledby` fallback on the market tab, since neither tab has a visible `<h2>` anymore. Wallet tab (`SummaryCard`/`Toolbar`/`AssetSortMenu`/`AssetRow`/hide-balance toggle) completely untouched; still entirely mock data (§6j/§6m), only the shown subset changed, never a real feed. Verified via Playwright/Chrome: heading gone, first-load shows all 14 items unchanged, search-and-add flow (modal closes, item appears immediately), remove flow (immediate, item reappears as an add-modal candidate), persists across reload, empty state when all removed, manual refresh still updates the timestamp for remaining items, wallet tab unaffected. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
