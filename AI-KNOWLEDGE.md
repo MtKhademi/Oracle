@@ -92,7 +92,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetSortMenu.tsx` | The three-dot sort-menu button + dropdown rendered inside `Toolbar` (see §6o/§6p) next to "ارزش به تومان" — `AssetSortMenu({ value, onChange })`, `AssetSortMode = 'value' \| 'type'`. Icon-only trigger button (`MoreVerticalIcon`) opens an `absolute`-positioned panel (same card/border/shadow tokens as `AssetPicker`'s dropdown) with the two radio-style options, a checkmark on the active one. Outside-click closing reuses `AssetPicker`'s exact `document` `mousedown` + container `ref` pattern (detects, never intercepts, the click) instead of a `fixed inset-0` overlay — deliberately avoiding the overlay-blocks-parent-modal-close bug class noted in `AssetPicker.tsx`'s own comment. Selecting an option calls `onChange(mode)` then closes itself. Only rendered on the "کیف پول" tab — the "چشم بازار" tab/`MarketWatchList` are untouched. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset`/`prices` + `onEdit`/`onDelete`/`onHistory` callback props. For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`, and edit mode replaces the unit-price `<input>` with a read-only "قیمت زنده" label. |
-| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The "ارزش کل دارایی‌ها" heading row also has a small manual-refresh `RefreshIcon` button (see §6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. |
+| `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The card's very first row (see §6u) holds the wallet-icon button on the right and, on the left, the optional "نمایش نمونه" sample tag followed by the hide-balance eye toggle (§6p) and the manual-refresh `RefreshIcon` button (§6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. The standalone "ارزش کل دارایی‌ها" heading that used to sit above the big total (with the eye/refresh buttons beside it) was removed in §6u — the section itself keeps `aria-label="ارزش کل دارایی‌ها"` for its accessible name instead of the old `aria-labelledby`. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i): on mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus a clear empty state and a sample badge. Below the list it has an "add transaction" form (see §6i): a خرید/فروش toggle (styled like `AuthScreen`'s login/signup tabs), quantity + unit-price inputs (shared `stripToNumberString`/`formatWithThousands` thousands-formatting, see §4 `src/format.ts`), a date input defaulting to today, an optional note, and a "ثبت تراکنش" submit — on success it re-fetches the list, resets the form, and calls the `onTransactionRecorded(assetId, type, quantity)` prop so the parent updates the asset's quantity (buy adds, sell subtracts clamped at 0; the asset's `unitPrice` is never changed from here). Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
@@ -305,7 +305,7 @@ type Transaction = {
   structure instead.
 - Layout (top → bottom):
   1. `<header>` → hamburger menu button (opens the side drawer, see §6e) + brand link (`Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
-  2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
+  2. Summary `<section>` (`aria-label="ارزش کل دارایی‌ها"`, see §6u) → top row (wallet-icon button on the right, sample badge (only when `isSample`) + hide-balance eye toggle + manual-refresh button on the left), big total (toman), footer with asset count. No visible "ارزش کل دارایی‌ها" heading is rendered any more (see §6u) — the section's accessible name comes from `aria-label` instead.
   2b. `PortfolioTrendChart` (see §6n) — the portfolio-growth-vs-USD/gold trend
       chart card, directly below the summary section in the same column.
   3. Portfolio `<section>` (`aria-label="دارایی‌های من"` on the "کیف پول" tab,
@@ -1024,13 +1024,14 @@ type Transaction = {
   an `invisible` container — kept in the layout (reserving the exact same height)
   but not shown — so there's no flash of a wrong/zero value and no layout shift
   once `prices` resolves a moment later.
-- **Manual refresh button.** The "ارزش کل دارایی‌ها" heading row is now
-  `flex justify-between items-center`, with a small round `RefreshIcon` button
-  (`aria-label="بروزرسانی قیمت‌ها"`, `text-[#9096aa]`, hover tint) at the row's
-  other end — same small unobtrusive style as the other muted icon badges in
-  this file. Clicking it calls `priceService.refreshNow()` directly (imported
-  in `SummaryCard.tsx`; no prop threaded through `App.tsx`, same as
-  `useLivePrices`). The button does **not** itself trigger the spin — local
+- **Manual refresh button.** A small round `RefreshIcon` button
+  (`aria-label="بروزرسانی قیمت‌ها"`, `text-[#9096aa]`, hover tint) sits on the
+  card's top row, on the left side next to the hide-balance eye toggle (see
+  §6p) — originally paired with the now-removed "ارزش کل دارایی‌ها" heading
+  row, moved up onto the card's first row in §6u. Clicking it calls
+  `priceService.refreshNow()` directly (imported in `SummaryCard.tsx`; no
+  prop threaded through `App.tsx`, same as `useLivePrices`). The button does
+  **not** itself trigger the spin — local
   `isSpinning` state is driven by a `useEffect` watching the `prices` value
   from `useLivePrices()`: on every change to a new, non-initial value it sets
   `isSpinning` to `true` for ~700ms (`setTimeout`, cleaned up on unmount/
@@ -1460,7 +1461,8 @@ type Transaction = {
 - **Owner-requested**: a single icon-only eye toggle button in `SummaryCard`'s
   header row, placed directly beside the existing refresh-prices button
   (both inside one `flex items-center gap-1` span so they sit together in the
-  same corner). Clicking it masks/unmasks **every toman amount shown in the
+  same corner — this pair was later moved from its own heading row up onto
+  the card's very first row in §6u, still side by side). Clicking it masks/unmasks **every toman amount shown in the
   wallet** in one click: the big total, its دلار/گرم طلا equivalent lines, and
   every `AssetRow`'s own toman value in "دارایی‌های من" — **not** a per-row
   toggle, one shared state drives all of them.
@@ -1796,6 +1798,71 @@ type Transaction = {
   opens `AddMarketWatchItemModal`; remove-then-re-add still works
   (14 → 13 → 14 items). Build (`npm run build`) passes.
 
+## 6u. Removed "ارزش کل دارایی‌ها" and moved the eye/refresh buttons onto the top row
+
+- **Owner-requested**: the "ارزش کل دارایی‌ها" heading in `SummaryCard.tsx`
+  (above the big toman total) was judged unnecessary — the number's context
+  is already obvious from the card — and removed outright. The owner also
+  wanted the hide-balance eye toggle (§6p) and the manual-refresh button
+  (§6j), which used to sit on that now-removed heading's own row, moved up
+  onto the card's very first row instead (the row that already holds the
+  wallet-icon button and the optional "نمایش نمونه" sample tag).
+- **`SummaryCard.tsx`** (the only file changed): the `<h1 id="total-title">`
+  was deleted, and the `<span className="flex items-center gap-1">` wrapping
+  the eye-toggle and refresh buttons was moved up into the first row. JSX
+  child order on that row's left side is unchanged left-to-right visually —
+  the optional `{isSample && <span>نمایش نمونه</span>}` tag renders first,
+  then the eye/refresh `<span>` group, both now wrapped together in one
+  `<span className="flex items-center gap-2">` so they sit as a single group
+  on the left side of the first row (right side still holds only the
+  wallet-icon button):
+  ```tsx
+  <div className="flex justify-between items-center">
+    <button type="button" onClick={onOpenWallet} aria-label="نمایش کیف پول" className="...">...</button>
+    <span className="flex items-center gap-2">
+      {isSample && <span className="...">نمایش نمونه</span>}
+      <span className="flex items-center gap-1">
+        <button type="button" onClick={onToggleBalanceHidden} aria-label={...} className="...">{isBalanceHidden ? <EyeClosedIcon/> : <MarketEyeIcon/>}</button>
+        <button type="button" onClick={() => { void Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()]); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="...">
+          <span className={isSpinning ? 'animate-spin' : ''}><RefreshIcon/></span>
+        </button>
+      </span>
+    </span>
+  </div>
+  ```
+  The now-empty second row (the old `<div className="flex justify-between
+  items-center mt-5 ...">` that used to hold the `<h1>` and the eye/refresh
+  `<span>`) was deleted entirely — the big-total block (`<div className="flex
+  items-baseline gap-[10px] ...">`) now follows directly after the merged
+  first row, with its top margin adjusted from `mt-[5px]` to `mt-4
+  min-[1050px]:mt-5 max-[481px]:mt-3` to keep the vertical gap looking
+  balanced now that the removed row's height is gone (roughly matching the
+  deleted row's own `mt-5`/`mt-[25px]`/`mt-4` values, since that's the gap
+  being closed).
+- **Accessible name.** Since the `<h1 id="total-title">` is gone, the outer
+  `<section aria-labelledby="total-title">` became `<section
+  aria-label="ارزش کل دارایی‌ها">` — the card keeps the exact same accessible
+  name for screen readers even though the visible heading text is removed.
+- Every button's existing classes, `onClick` handlers, `aria-label`s, and
+  icon logic (`isBalanceHidden ? EyeClosedIcon : MarketEyeIcon`, the
+  `isSpinning`/`animate-spin` wiring, etc.) are unchanged — only their
+  position in the JSX tree moved. Nothing else in `SummaryCard.tsx` changed:
+  the total number itself, masking behavior, the USD/gold equivalent lines,
+  and the footer row are all untouched; `App.tsx`, the wallet-tab
+  `Toolbar`/`AssetRow`/`AssetSortMenu`, and the "چشم بازار" tab are all
+  untouched too.
+- Verified via Playwright/Chrome at 320/400/700/1200px: zero remaining
+  matches for "ارزش کل دارایی‌ها" as visible text anywhere on the page (while
+  the section itself still carries that string as its `aria-label`); the
+  card's first row has the wallet button on the right and, on the left, the
+  sample tag (only when `isSample`) followed by the eye toggle then the
+  refresh button, all on the same row at every breakpoint with no
+  wrap/overlap between the wallet button and the eye/refresh group; clicking
+  the eye button still masks/unmasks the total (confirmed via its rendered
+  text switching between the real formatted number and the bullet-masked
+  placeholder); clicking refresh still adds `animate-spin` to the icon
+  immediately. Build (`npm run build`) passes.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -1921,6 +1988,7 @@ creates a different browser origin; existing assets and profile data in
 
 | 2026-09-26 | Owner-requested (see §6s): moved the "+" (add-to-watchlist) button on the "چشم بازار" tab onto the same row as "ارزش به تومان", matching the wallet tab's merged `Toolbar` row layout (§6q) — "+" on the right, "ارزش به تومان" on the left, directly facing each other. Deleted `App.tsx`'s standalone `flex justify-end` row that used to render "ارزش به تومان" alone above `<MarketWatchList/>`; `MarketWatchList.tsx` gained a new first header row (same `mb-[15px] min-[1050px]:mb-[19px]` spacing reused from the deleted row) pairing the existing `PlusIcon` `IconButton` with that label, and the old "بروزرسانی"/"+" row lost its button and was simplified to a plain `<p>` on its own row below. Only these two files changed; `isAddOpen`/`AddMarketWatchItemModal`/category grouping/per-item remove and the wallet tab are all untouched. Verified via Playwright/Chrome at 320/400/700/1200px (bounding-box check confirms same row, "+" right of the label) plus a remove→re-add smoke test (14→13→14 items) and modal open/close. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6t): replaced the "ارزش به تومان" label on the "چشم بازار" tab's header row (added in §6s) with the "بروزرسانی: …" update timestamp, and dropped the now-empty second row it used to occupy — redundant since every item row already shows its own "تومان" unit next to the price. `MarketWatchList.tsx` (the only file changed) merged the two rows into the single existing `justify-between` row: the `<span>` label became the `<p>` timestamp (same text/classes as before, "+" `IconButton` unchanged, first in JSX/right side), and the now-empty `<div className="px-1">` row that used to hold that `<p>` was deleted outright. Exactly one header row now sits above the category groups; "ارزش به تومان" no longer appears anywhere in the app. `App.tsx`, the wallet tab, `isAddOpen`/`AddMarketWatchItemModal`/category grouping/per-item remove all untouched. Verified via Playwright/Chrome at 320/400/700/1200px: same-row bounding-box check ("+" right of the timestamp), zero "ارزش به تومان" matches, no leftover gap where the second row used to be, timestamp still live/refresh-driven, "+" still opens the modal, remove→re-add smoke test (14→13→14 items). Build (`npm run build`) passes. |
+| 2026-09-26 | Owner-requested (see §6u): removed the "ارزش کل دارایی‌ها" heading from `SummaryCard`'s wallet-tab card — judged unnecessary since the number's context is already obvious — and moved the hide-balance eye toggle (§6p) and manual-refresh button (§6j) that used to sit on that heading's own row up onto the card's very first row instead (which already held the wallet-icon button and the optional "نمایش نمونه" sample tag). `SummaryCard.tsx` (the only file changed): deleted the `<h1 id="total-title">`; the eye/refresh `<span>` group now renders on the left side of the first row, after the optional sample tag, both wrapped together in one `<span className="flex items-center gap-2">`; the now-empty second row was deleted outright; the big-total block's top margin changed from `mt-[5px]` to `mt-4 min-[1050px]:mt-5 max-[481px]:mt-3` to keep the vertical gap looking balanced with the removed row's height gone; the outer `<section>` switched from `aria-labelledby="total-title"` to `aria-label="ارزش کل دارایی‌ها"` to keep a valid accessible name. Every button's classes/`onClick`/`aria-label`/icon logic unchanged — only position moved. Nothing else (`App.tsx`, the wallet tab's `Toolbar`/`AssetRow`/`AssetSortMenu`, the "چشم بازار" tab, masking behavior, the USD/gold equivalent lines, the footer) touched. Verified via Playwright/Chrome at 320/400/700/1200px: zero visible matches for "ارزش کل دارایی‌ها" (still present only as the section's `aria-label`), first row holds wallet button (right) + sample tag/eye/refresh group (left) with no wrap/overlap at any breakpoint, eye toggle still masks/unmasks the total, refresh button still spins. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
