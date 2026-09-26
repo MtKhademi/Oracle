@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Asset } from '../assets';
-import { format } from '../format';
+import { format, maskAmount } from '../format';
 import type { LivePrices } from '../services/priceService';
 import { getEffectiveUnitPrice, getLivePriceKeyForAsset } from '../services/livePriceMapping';
 import { AssetIcon, iconTint } from './AssetIcon';
@@ -9,7 +9,7 @@ import { HistoryIcon, PencilIcon, TrashIcon } from './icons';
 
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
-export function AssetRow({ asset, prices, onDelete, onEdit, onHistory }: { asset: Asset; prices: LivePrices | null; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void; onHistory: (id: string) => void }) {
+export function AssetRow({ asset, prices, isBalanceHidden, onDelete, onEdit, onHistory }: { asset: Asset; prices: LivePrices | null; isBalanceHidden: boolean; onDelete: (id: string) => void; onEdit: (id: string, quantity: number, unitPrice: number) => void; onHistory: (id: string) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftQuantity, setDraftQuantity] = useState(String(asset.quantity));
   const [draftUnitPrice, setDraftUnitPrice] = useState(String(asset.unitPrice));
@@ -63,7 +63,7 @@ export function AssetRow({ asset, prices, onDelete, onEdit, onHistory }: { asset
       </>}
     </div>
     <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
-      {!isEditing && <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(asset.quantity * effectiveUnitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>}
+      {!isEditing && <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{isBalanceHidden ? maskAmount(format(asset.quantity * effectiveUnitPrice)) : format(asset.quantity * effectiveUnitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>}
       <div className="flex gap-[8px]">
         {isEditing ? <>
           <button type="button" onClick={save} className="text-[10px] font-medium text-white bg-[#5264e8] rounded-[8px] px-2 py-1">ذخیره</button>

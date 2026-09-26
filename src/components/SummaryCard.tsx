@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { format } from '../format';
+import { format, maskAmount } from '../format';
 import { priceService, type LivePrices } from '../services/priceService';
 import { marketWatchService } from '../services/marketWatchService';
 import { AssetIcon } from './AssetIcon';
-import { DollarIcon, GoldBarIcon, RefreshIcon } from './icons';
+import { DollarIcon, EyeClosedIcon, GoldBarIcon, MarketEyeIcon, RefreshIcon } from './icons';
 
 const SPIN_DURATION_MS = 700;
 
-export function SummaryCard({ total, count, isSample, prices, onOpenWallet }: { total: number; count: number; isSample: boolean; prices: LivePrices | null; onOpenWallet: () => void }) {
+export function SummaryCard({ total, count, isSample, prices, isBalanceHidden, onToggleBalanceHidden, onOpenWallet }: { total: number; count: number; isSample: boolean; prices: LivePrices | null; isBalanceHidden: boolean; onToggleBalanceHidden: () => void; onOpenWallet: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const isFirstPrices = useRef(true);
 
@@ -27,20 +27,25 @@ export function SummaryCard({ total, count, isSample, prices, onOpenWallet }: { 
     <div className="flex justify-between items-center"><button type="button" onClick={onOpenWallet} aria-label="نمایش کیف پول" className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8] cursor-pointer hover:bg-[#e0e3fd] transition-colors"><AssetIcon type="cash"/></button>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
     <div className="flex justify-between items-center mt-5 min-[1050px]:mt-[25px] max-[481px]:mt-4">
       <h1 id="total-title" className="text-[14px] text-[#7a8097] font-normal">ارزش کل دارایی‌ها</h1>
-      <button type="button" onClick={() => { void Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()]); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="w-6 h-6 rounded-full grid place-items-center text-[#9096aa] hover:bg-[#f0f1f7] hover:text-[#5264e8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-        <span className={isSpinning ? 'animate-spin' : ''}><RefreshIcon/></span>
-      </button>
+      <span className="flex items-center gap-1">
+        <button type="button" onClick={onToggleBalanceHidden} aria-label={isBalanceHidden ? 'نمایش ارزش دارایی‌ها' : 'مخفی کردن ارزش دارایی‌ها'} className={`w-6 h-6 rounded-full grid place-items-center hover:bg-[#f0f1f7] transition-colors ${isBalanceHidden ? 'text-[#9096aa] hover:text-[#5264e8]' : 'text-[#1f9d55]'}`}>
+          {isBalanceHidden ? <EyeClosedIcon/> : <MarketEyeIcon/>}
+        </button>
+        <button type="button" onClick={() => { void Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()]); }} disabled={isSpinning} aria-label="بروزرسانی قیمت‌ها" className="w-6 h-6 rounded-full grid place-items-center text-[#9096aa] hover:bg-[#f0f1f7] hover:text-[#5264e8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+          <span className={isSpinning ? 'animate-spin' : ''}><RefreshIcon/></span>
+        </button>
+      </span>
     </div>
-    <div className="flex items-baseline gap-[10px] mt-[5px] min-[1050px]:flex-wrap min-[1050px]:gap-[0_8px]"><strong className="text-[44px] font-bold text-[#4659d9] leading-[1.55] tracking-[-1px] min-[1050px]:text-[35px] [@media(min-width:351px)_and_(max-width:480px)]:text-[35px] max-[351px]:text-[30px]">{format(total)}</strong><span className="text-[13px] text-[#8990a9]">تومان</span></div>
+    <div className="flex items-baseline gap-[10px] mt-[5px] min-[1050px]:flex-wrap min-[1050px]:gap-[0_8px]"><strong className="text-[44px] font-bold text-[#4659d9] leading-[1.55] tracking-[-1px] min-[1050px]:text-[35px] [@media(min-width:351px)_and_(max-width:480px)]:text-[35px] max-[351px]:text-[30px]">{isBalanceHidden ? maskAmount(format(total)) : format(total)}</strong><span className="text-[13px] text-[#8990a9]">تومان</span></div>
     <div className={`flex flex-col gap-[7px] mt-2 mb-[23px] max-[481px]:mb-[19px] ${prices ? '' : 'invisible'}`} aria-hidden={!prices}>
       <div className="flex items-center gap-[8px]">
         <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#d7f5e0] text-[#1f9d55] shrink-0"><DollarIcon/></span>
-        <span className="text-[13px] font-medium text-[#1f9d55]">≈ {format(total / (prices?.usdToman ?? 1), 2)} دلار</span>
+        <span className="text-[13px] font-medium text-[#1f9d55]">≈ {isBalanceHidden ? maskAmount(format(total / (prices?.usdToman ?? 1), 2)) : format(total / (prices?.usdToman ?? 1), 2)} دلار</span>
         <span className="text-[10px] text-[#8fa89a]">هر دلار {format(prices?.usdToman ?? 0)} تومان</span>
       </div>
       <div className="flex items-center gap-[8px]">
         <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#fff5df] text-[#d7a144] shrink-0"><GoldBarIcon/></span>
-        <span className="text-[13px] font-medium text-[#d7a144]">≈ {format(total / (prices?.goldGramToman ?? 1), 2)} گرم طلا</span>
+        <span className="text-[13px] font-medium text-[#d7a144]">≈ {isBalanceHidden ? maskAmount(format(total / (prices?.goldGramToman ?? 1), 2)) : format(total / (prices?.goldGramToman ?? 1), 2)} گرم طلا</span>
         <span className="text-[10px] text-[#c7b48a]">هر گرم {format(prices?.goldGramToman ?? 0)} تومان</span>
       </div>
     </div>

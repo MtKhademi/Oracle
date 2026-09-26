@@ -1429,7 +1429,75 @@ type Transaction = {
   click-outside behavior in the app.
 - No new UI/dropdown library was introduced — `AssetSortMenu` is plain
   React state + Tailwind, matching every other overlay/dropdown in this app.
-- Build (`npm run build`) passes (typecheck + bundle).
+- Build (`npm run build`) passes.
+
+## 6p. "Hide balance" eye toggle
+
+- **Owner-requested**: a single icon-only eye toggle button in `SummaryCard`'s
+  header row, placed directly beside the existing refresh-prices button
+  (both inside one `flex items-center gap-1` span so they sit together in the
+  same corner). Clicking it masks/unmasks **every toman amount shown in the
+  wallet** in one click: the big total, its دلار/گرم طلا equivalent lines, and
+  every `AssetRow`'s own toman value in "دارایی‌های من" — **not** a per-row
+  toggle, one shared state drives all of them.
+- **Masking** — new `maskAmount(formatted: string)` in `src/format.ts`:
+  `formatted.replace(/[0-9۰-۹]/g, '•')`, replacing every Latin or Persian
+  digit in an already-`format()`-ed string with a bullet while leaving
+  thousands separators/grouping intact, so a masked value still reads as a
+  number-shaped placeholder (e.g. `۱,۸۹۶,۳۳۲,۵۴۶` → `•,•••,•••,•••`) instead of
+  disappearing or collapsing to a fixed-width blob. Always applied as
+  `maskAmount(format(...))`, never a separate rendering path — the exact same
+  `Intl.NumberFormat('fa-IR')` output is computed either way, just with digits
+  swapped for bullets afterward when hidden.
+- **What gets masked vs. left alone**: only amounts that represent the
+  owner's own holding **value** — `SummaryCard`'s total, its USD-equivalent
+  amount, its gold-gram-equivalent amount, and each `AssetRow`'s own
+  `quantity * effectiveUnitPrice` toman value. Everything else stays fully
+  visible regardless of the toggle: each row's own `quantity`/`unit` line,
+  the small live per-unit-rate sub-text a live-priced asset shows (GOLD18/
+  USDT, see §6k), and the "هر دلار/هر گرم … تومان" rate lines under the
+  equivalents in `SummaryCard` — those are **prices**, not the owner's
+  holding amount, so hiding "how much I have" never hides "what things cost".
+- **Icons** (`src/components/icons.tsx`) — new `EyeClosedIcon` (the existing
+  `MarketEyeIcon` eye-outline-plus-pupil shape with a diagonal slash added
+  through it, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as
+  the rest of the file) for the hidden state; the visible state reuses the
+  existing `MarketEyeIcon` directly (imported by `SummaryCard`, not
+  duplicated) — the same glyph the "چشم بازار" tab button already uses
+  elsewhere in the app.
+- **Color as a second signal, not just the icon shape**: the toggle button's
+  icon is `text-[#1f9d55]` (the same green already used for the دلار
+  equivalent line) when balances are **visible**, and `text-[#9096aa]` (the
+  same neutral grey as the refresh button) when **hidden** — so the button's
+  own color communicates state at a glance, on top of the eye/crossed-eye
+  shape difference. `aria-label` also flips per state (`"مخفی کردن ارزش
+  دارایی‌ها"` / `"نمایش ارزش دارایی‌ها"`) rather than one static label.
+- **State — same tiny-UI-preference pattern as `sortMode`** (see §6o):
+  `isBalanceHidden: boolean` in `App.tsx`, initialized from `localStorage`
+  (key `oracle_balance_hidden_v1`) via a small try/catch-safe
+  `readStoredBalanceHidden()` helper that falls back to `false` (visible —
+  today's/default behavior) on a missing key or a browser that blocks
+  storage. `handleToggleBalanceHidden` flips the state (functional update)
+  and writes the new value straight back to `localStorage` (`try`/`catch`,
+  no-op on failure) — this is a second deliberate exception to the
+  service-layer-only rule (see the `App.tsx` file-map note, §4/§6d), for the
+  exact same reason `sortMode` is: a tiny, purely-visual, non-domain
+  preference, not owner asset data. `isBalanceHidden` is passed straight
+  through as a prop into `SummaryCard` and every `<AssetRow>` — there is no
+  per-row or per-component copy of the flag, just one shared source of truth.
+- **`AssetRow.tsx`/`SummaryCard.tsx` otherwise unchanged** — no new
+  edit/delete/history logic, no change to what triggers a re-render besides
+  the one new prop; masking is a pure display wrapper around the same
+  `format(...)` calls that already existed.
+- Verified via Playwright/Chrome: default (nothing in `localStorage` yet)
+  renders fully visible/unmasked (matching pre-existing behavior), one click
+  masks the total + both equivalent lines + all 7 sample rows' toman values
+  simultaneously (quantities/units/live per-unit rates on GOLD18/USDT
+  untouched) and turns the toggle icon grey with the crossed-eye glyph, a
+  second click restores all of them and the green open-eye icon, and a page
+  reload after hiding keeps it hidden (confirmed the `oracle_balance_hidden_v1`
+  key holds `"true"` in `localStorage` across the reload). Build
+  (`npm run build`) passes.
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -1550,6 +1618,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Owner-requested (see §6o): added a sort menu for "دارایی‌های من" on the "کیف پول" tab only. New three-dot `MoreVerticalIcon` (`src/components/icons.tsx`) opens a new `AssetSortMenu` component (`src/components/AssetSortMenu.tsx`) placed beside the existing "ارزش به تومان" label in the section's header row; the "چشم بازار" tab/header/`MarketWatchList` are untouched. Two radio-style options: "بیشترین ارزش (تومان)" (default) sorts all assets flat, descending by toman value; "بر اساس نوع دارایی" groups assets by catalog category (`getCatalogAssetBySymbol(asset.code)?.category`, `'other'` fallback), orders groups by total group value descending, and sorts assets within each group by their own value descending — both modes reuse the existing `getEffectiveUnitPrice(asset, prices)` value calculation (no reimplementation). `App.tsx` gained `sortMode: AssetSortMode` state, initialized from and persisted to `localStorage` (key `oracle_asset_sort_mode_v1`, the one deliberate exception to the service-layer-only rule — see the `App.tsx` file-map note, §4/§6d — since it's a tiny UI preference, not domain data) via small local try/catch-safe helpers, plus a `sortedItems` `useMemo` that is what actually renders (`items` itself stays insertion-ordered and is what add/edit/delete/import/clear still operate on). `AssetSortMenu`'s outside-click detection deliberately copies `AssetPicker`'s `document` `mousedown` + container-`ref` pattern (not a `fixed inset-0` overlay) specifically so it cannot block a parent modal's own close behavior — the exact bug class `AssetPicker.tsx`'s own comment documents from an earlier version of this app. `AssetRow.tsx` itself is unchanged (same props/logic, just a different item order). Build (`npm run build`) passes. |
 | 2026-09-26 | Bug fix (owner-reported, see §6o): "بر اساس نوع دارایی" ("sort by type") appeared to do nothing — selecting it produced the identical order as "بیشترین ارزش (تومان)". Root cause: the grouping key was `getCatalogAssetBySymbol(asset.code)?.category`, which only resolves for assets whose `code` exactly matches a catalog `symbol` — true only for assets added through the catalog-driven `AddAssetModal`. Every legacy/auto-coded asset (`getOrCreateCode()` in `assetCodeRegistry.ts`, format `<PREFIX>-<NNNN>`, e.g. `GOLD-0001`) — **including all 7 default sample assets** (§6h) — never matches a catalog symbol, so `getCatalogAssetBySymbol` silently returned `undefined` for every one of them and they all fell into the single `'other'` bucket, which is then sorted by value descending — identical output to the `'value'` mode whenever most/all of a user's real assets are legacy-coded (the common case for anyone who hasn't only ever added via the catalog picker). Fix: `sortAssetsForDisplay()` (`App.tsx`) now derives the grouping key directly from `asset.icon` (`Asset['icon']`, see §5 — always populated for every asset regardless of `code`) instead of the code/catalog lookup; the `'|| other'` fallback was dropped since `icon` already covers `'other'` natively. Group-value-descending ordering and within-group value-descending ordering are unchanged. Catalog-driven assets are unaffected (a no-op for them, since `AddAssetModal` already sets `icon` consistent with the catalog entry's category via `getAssetIconForCatalogEntry`). Verified via Playwright/Chrome with the default 7 sample assets (all legacy-coded): "بر اساس نوع دارایی" now visibly reorders the list (3 gold-icon assets grouped and ranked first by combined group value, ahead of cash/btc/usdt/eth), "بیشترین ارزش (تومان)" is unchanged, and adding 2 more gold-category + 1 cash-category catalog assets still groups/orders them correctly by `icon`. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested: reduced the vertical padding (`py`) on each `AssetRow` card by ~30% at every breakpoint — `AssetRow.tsx`'s outer `<li>` (§6): base `py-[17px]→[12px]`, the `351–480px` tier `py-[15px]→[11px]`, `<351px` `py-[13px]→[10px]`, and the `≥1050px` tier's previously-uniform `p-[14px]` was split into `py-[10px] px-[14px]` so only its vertical side shrinks. Horizontal padding (`px`), `gap`, `rounded`, `shadow`, and border values, plus all icon/text/button markup inside the `<li>`, are untouched — a padding-only tweak to make each card visually more compact (less empty space below the history/edit/delete icon row). Verified via Playwright/Chrome computed-style + screenshot checks at 320px/400px/700px/1200px viewport widths: all 4 `py` values match spec exactly, horizontal padding unchanged at each breakpoint, and no clipping/overlap of the icon/title/quantity/price/action-buttons. Build (`npm run build`) passes. |
+| 2026-09-26 | Owner-requested (see §6p): added a single "hide balance" eye toggle in `SummaryCard`'s header row (beside the existing refresh button) that masks/unmasks every toman **holding value** shown in the wallet at once — `SummaryCard`'s total + دلار/گرم طلا equivalents, and every `AssetRow`'s own row value — driven by one shared `isBalanceHidden` state, not a per-row toggle. New `maskAmount(formatted)` in `src/format.ts` (`replace(/[0-9۰-۹]/g, '•')`) turns an already-`format()`-ed string into a bullet-masked placeholder while keeping thousands separators intact, always applied as `maskAmount(format(...))` rather than a separate code path. New `EyeClosedIcon` (`src/components/icons.tsx`, the existing `MarketEyeIcon` eye shape plus a diagonal slash) pairs with the existing `MarketEyeIcon` (reused directly, not duplicated) for the visible state; the toggle button's icon color itself flips green (`#1f9d55`, visible) ↔ grey (`#9096aa`, hidden) as a second state signal beyond the icon shape. `App.tsx` gained `isBalanceHidden: boolean`, persisted to `localStorage` (key `oracle_balance_hidden_v1`, default `false`/visible) via the exact same try/catch-safe tiny-UI-preference pattern as `sortMode` (§6o) — a second deliberate exception to the service-layer-only rule, since it's display-only, not owner asset data. Left fully visible regardless of the toggle: each row's own quantity/unit line, the GOLD18/USDT live per-unit-rate sub-text (§6k), and the "هر دلار/هر گرم … تومان" rate lines in `SummaryCard` — those are prices, not the owner's holding amount. `AssetRow.tsx`/`SummaryCard.tsx` otherwise unchanged (masking is a pure display wrapper, no new edit/delete/history logic). Verified via Playwright/Chrome: default state unmasked (matching prior behavior), one click masks the total + both equivalents + all 7 sample rows simultaneously and turns the icon grey/crossed-eye, a second click restores everything and the green open-eye, and the hidden state survives a page reload (`oracle_balance_hidden_v1` holds `"true"` in `localStorage` across it). Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
