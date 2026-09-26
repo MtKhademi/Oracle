@@ -80,11 +80,11 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j), and — added in §6m — `WalletIcon` (billfold glyph, tab toggle's "کیف پول" button), `MarketEyeIcon` (eye glyph, tab toggle's "چشم بازار" button), `CryptoIcon` (two overlapping coin circles, `MarketWatchList`'s "ارزها" category heading), `StockIcon` (bar-chart glyph, `MarketWatchList`'s "بورس" category heading), and `FixedIncomeIcon` (shield + checkmark glyph, `MarketWatchList`'s "صندوق‌های درآمد ثابت" category heading) — all same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style; the gold category reuses the existing `GoldBarIcon`, no new gold icon added — and, added in §6o, `MoreVerticalIcon` (three small **filled** dots stacked vertically, `fill="currentColor"` instead of this file's usual stroke style so the dots stay visible at this size — the "دارایی‌های من" sort-menu trigger button). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`MarketWatchList`/`AssetSortMenu`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
-| `src/components/Toolbar.tsx` | The row of `IconButton`s above "دارایی‌های من" (import-excel / clear-all / add). Takes `onOpenImportModal`/`onClearAll`/`onAdd` callback props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders `MarketWatchList` instead, with no toolbar. |
+| `src/components/Toolbar.tsx` | The single header row above the "کیف پول" asset list (see §6q): import/clear-all/add `IconButton`s on the right, `AssetSortMenu` + "ارزش به تومان" label on the left — merged from what used to be two separate rows once the standalone "دارایی‌های من" heading was removed. Takes `onOpenImportModal`/`onClearAll`/`onAdd`/`sortMode`/`onSortModeChange` props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`. Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders its own heading + `MarketWatchList` instead, with no toolbar. |
 | `src/components/MarketWatchList.tsx` | Read-only "چشم بازار" (market watch) list, categorized (see §6m — supersedes the original flat 5-row version from §6l). Calls `useMarketWatch()` itself and groups `snapshot.items` into 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon`), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان", no per-row icon, no edit/delete/history — read-only). One shared "بروزرسانی: HH:mm:ss" label near the top (from `snapshot.updatedAt`), not repeated per row. Shows "در حال دریافت قیمت‌ها..." while `useMarketWatch()` is still `null`. |
 | `src/components/PortfolioTrendChart.tsx` | Card below `SummaryCard` (see §6n) showing a hand-rolled inline-SVG line chart of portfolio growth normalized against USD and gold. Calls `portfolioHistoryService.listHistory()` itself in a `useEffect` (re-fetches when the `refreshKey` prop changes, bumped by `App.tsx` after each snapshot write), computes 3 "% of day 1" index series (toman/usd/gold, all starting at exactly 100), and renders 3 `<polyline>`s (`#5264e8`/`#1f9d55`/`#d7a144`) plus a 3-row legend (colored dot + label + latest %-change badge, green/red via the app's existing buy/sell color convention). Below the SVG, 3 relative-time X-axis labels ("۳۰ روز پیش" / "{N} روز پیش" for the midpoint / "امروز", real computed day-counts via `daysBetweenIso`, `format()` for Persian digits, `text-[11px]`, in a `dir="ltr"` row so left-to-right always matches the SVG's own coordinate space regardless of the page's RTL direction — no calendar-style dates, see §6n). Shows "داده کافی برای نمودار وجود ندارد" when history has fewer than 2 points. No charting library — plain `<svg>`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
-| `src/components/AssetSortMenu.tsx` | The three-dot sort-menu button + dropdown above the "دارایی‌های من" list (see §6o) — `AssetSortMenu({ value, onChange })`, `AssetSortMode = 'value' \| 'type'`. Icon-only trigger button (`MoreVerticalIcon`) opens an `absolute`-positioned panel (same card/border/shadow tokens as `AssetPicker`'s dropdown) with the two radio-style options, a checkmark on the active one. Outside-click closing reuses `AssetPicker`'s exact `document` `mousedown` + container `ref` pattern (detects, never intercepts, the click) instead of a `fixed inset-0` overlay — deliberately avoiding the overlay-blocks-parent-modal-close bug class noted in `AssetPicker.tsx`'s own comment. Selecting an option calls `onChange(mode)` then closes itself. Only rendered on the "کیف پول" tab, next to "ارزش به تومان" — the "چشم بازار" tab/`MarketWatchList` are untouched. |
+| `src/components/AssetSortMenu.tsx` | The three-dot sort-menu button + dropdown rendered inside `Toolbar` (see §6o/§6p) next to "ارزش به تومان" — `AssetSortMenu({ value, onChange })`, `AssetSortMode = 'value' \| 'type'`. Icon-only trigger button (`MoreVerticalIcon`) opens an `absolute`-positioned panel (same card/border/shadow tokens as `AssetPicker`'s dropdown) with the two radio-style options, a checkmark on the active one. Outside-click closing reuses `AssetPicker`'s exact `document` `mousedown` + container `ref` pattern (detects, never intercepts, the click) instead of a `fixed inset-0` overlay — deliberately avoiding the overlay-blocks-parent-modal-close bug class noted in `AssetPicker.tsx`'s own comment. Selecting an option calls `onChange(mode)` then closes itself. Only rendered on the "کیف پول" tab — the "چشم بازار" tab/`MarketWatchList` are untouched. |
 | `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit or inline edit inputs, value, history/edit/delete `IconButton`s). Local `useState` for inline edit mode (quantity/unit-price only). Takes `asset`/`prices` + `onEdit`/`onDelete`/`onHistory` callback props. For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`, and edit mode replaces the unit-price `<input>` with a read-only "قیمت زنده" label. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The "ارزش کل دارایی‌ها" heading row also has a small manual-refresh `RefreshIcon` button (see §6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
@@ -253,10 +253,13 @@ type Transaction = {
   always-tinted background) and each asset row's edit/delete buttons
   (`variant="ghost"`, tint only on hover). `tone="neutral"` = blue/violet tint,
   `tone="danger"` = red tint. Takes `icon`/`onClick`/`ariaLabel` props.
-- `Toolbar` (in `src/components/Toolbar.tsx`) — renders the three `IconButton`s above
-  "دارایی‌های من"; the import button opens the import-mode modal (`onOpenImportModal`),
-  so the toolbar no longer owns a file input; takes
-  `onOpenImportModal`/`onClearAll`/`onAdd` callbacks from `App.tsx`.
+- `Toolbar` (in `src/components/Toolbar.tsx`) — the single header row above the
+  "کیف پول" asset list (see §6q): the three `IconButton`s (import/clear-all/add)
+  on the right, `AssetSortMenu` + "ارزش به تومان" on the left; the import button
+  opens the import-mode modal (`onOpenImportModal`), so the toolbar no longer
+  owns a file input; takes
+  `onOpenImportModal`/`onClearAll`/`onAdd`/`sortMode`/`onSortModeChange` props
+  from `App.tsx`.
 - `AssetRow` (in `src/components/AssetRow.tsx`) — one asset `<li>`: icon, name,
   quantity/unit (or, in edit mode, number inputs for quantity + unit price with
   save/cancel), value, and history/edit/delete `IconButton`s
@@ -296,14 +299,18 @@ type Transaction = {
   2. Summary `<section>` (`aria-labelledby="total-title"`) → sample badge (only when `isSample`), `ارزش کل دارایی‌ها`, big total (toman), footer with asset count.
   2b. `PortfolioTrendChart` (see §6n) — the portfolio-growth-vs-USD/gold trend
       chart card, directly below the summary section in the same column.
-  3. Portfolio `<section>` (`aria-labelledby="assets-title"`) → a "کیف پول"/"چشم بازار"
-     tab toggle (see §6l, tab icons added in §6m) above everything else in this
-     section, then, on the "کیف پول" tab: the toolbar (Excel-import button, see §6a;
-     clear-all button, see §6b; add-asset button, see §6c) above the heading row,
-     then `<ul>` of `AssetRow` items (icon, name + quantity/unit, value + `تومان`,
-     ویرایش/حذف) — or the empty-state `<p>` when `items` is empty; on the "چشم بازار"
-     tab: a "چشم بازار" heading instead, then `MarketWatchList` (see §6l, categorized
-     in §6m) — no toolbar on this tab.
+  3. Portfolio `<section>` (`aria-label="دارایی‌های من"` on the "کیف پول" tab,
+     `aria-labelledby="assets-title"` on the "چشم بازار" tab — see §6q for why
+     these differ per tab) → a "کیف پول"/"چشم بازار" tab toggle (see §6l, tab
+     icons added in §6m) above everything else in this section, then, on the
+     "کیف پول" tab: the single `Toolbar` header row (import/clear-all/add
+     icons on the right, sort menu + "ارزش به تومان" on the left — see §6a/
+     §6b/§6c/§6o/§6p; no separate "دارایی‌های من" heading is rendered on this
+     tab, see §6q), then `<ul>` of `AssetRow` items (icon, name + quantity/
+     unit, value + `تومان`, ویرایش/حذف) — or the empty-state `<p>` when
+     `items` is empty; on the "چشم بازار" tab: its own "چشم بازار" heading
+     (`id="assets-title"`) instead, then `MarketWatchList` (see §6l,
+     categorized in §6m) — no toolbar on this tab.
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
@@ -314,8 +321,9 @@ type Transaction = {
 
 ## 6a. Excel import (fixed template only)
 
-- `Toolbar` (see §6, `src/components/Toolbar.tsx`), above the "دارایی‌های من" heading
-  in the portfolio `<section>`: a single "ایمپورت اکسل" `IconButton` (`tone="neutral"`,
+- `Toolbar` (see §6, `src/components/Toolbar.tsx`), the single header row above
+  the asset list in the "کیف پول" tab's portfolio `<section>` (see §6q): a
+  single "ایمپورت اکسل" `IconButton` (`tone="neutral"`,
   `UploadIcon`) that sets `App.tsx`'s `isImportModalOpen` to `true` (via the
   `onOpenImportModal` prop), opening `ImportModal` (see §4). **One unified screen**
   combines file selection AND the default-mode choice (not two separate steps like
@@ -1354,11 +1362,13 @@ type Transaction = {
 
 - **Owner-requested**: a small three-dot icon-only button (`MoreVerticalIcon`,
   see §4 `src/components/icons.tsx`) sits at the top-left corner of the
-  "دارایی‌های من" header row, directly beside the existing "ارزش به تومان"
-  label (both wrapped in one `flex items-center gap-1` span so they occupy
-  the same corner — the label is kept, not replaced). Only rendered on the
-  **"کیف پول" tab** (see §6l) — the "چشم بازار" tab's header row and
-  `MarketWatchList` are completely untouched by this task.
+  `Toolbar` header row (originally its own separate "دارایی‌های من" heading
+  row, later merged into `Toolbar` itself, see §6q), directly beside the
+  existing "ارزش به تومان" label (both wrapped in one `flex items-center
+  gap-1` span so they occupy the same corner — the label is kept, not
+  replaced). Only rendered on the **"کیف پول" tab** (see §6l) — the "چشم
+  بازار" tab's header row and `MarketWatchList` are completely untouched by
+  this task.
 - Clicking it opens `AssetSortMenu` (new, `src/components/AssetSortMenu.tsx`,
   see §4) — a small `absolute`-positioned dropdown (same
   card/border/shadow tokens as `AssetPicker`'s panel, §6c) with exactly two
@@ -1499,6 +1509,50 @@ type Transaction = {
   key holds `"true"` in `localStorage` across the reload). Build
   (`npm run build`) passes.
 
+## 6q. Merged asset-list header row (removed the standalone "دارایی‌های من" heading)
+
+- **Owner-requested**: the "کیف پول" tab used to render **two** separate rows
+  above the asset list — `Toolbar` (import/clear-all/add icons) directly
+  followed by its own `flex justify-between` row holding the `<h2
+  id="assets-title">دارایی‌های من</h2>` heading plus `AssetSortMenu` +
+  "ارزش به تومان" (see §6o). Those two rows are now **one**: `Toolbar` itself
+  (see §4/§6) renders `justify-between` — import/clear-all/add `IconButton`s
+  on the right, `AssetSortMenu` + "ارزش به تومان" on the left — and takes two
+  new props, `sortMode`/`onSortModeChange`, threaded straight through from
+  `App.tsx` (which no longer imports `AssetSortMenu` itself). The separate
+  heading `<div>` in `App.tsx`'s wallet-tab branch was deleted outright — the
+  **"دارایی‌های من" heading text is no longer rendered anywhere on screen**.
+  Kept the merged row's `mb-[15px] min-[1050px]:mb-[19px]` spacing (the old
+  heading row's values, not `Toolbar`'s old `mb-[10px]`) so the gap to the
+  asset list below is visually unchanged from before. The "چشم بازار" tab's
+  own heading row (`<h2 id="assets-title">چشم بازار</h2>` + "ارزش به تومان")
+  and `MarketWatchList` are completely untouched — only the "کیف پول" tab's
+  markup changed.
+- **Accessible name of the assets `<section>`**: since the wallet tab no
+  longer has any element with `id="assets-title"`, the section's
+  `aria-labelledby="assets-title"` (previously always pointing at whichever
+  tab's own `<h2>` happened to be rendered) would have gone dangling on the
+  wallet tab. Fixed by switching the `<section>`'s accessible-name attribute
+  per tab: `aria-label="دارایی‌های من"` while `activeSectionTab === 'wallet'`,
+  `aria-labelledby="assets-title"` (pointing at the market tab's own `<h2>`,
+  unchanged) while `activeSectionTab === 'market'` — never both, and never a
+  `aria-labelledby` pointing at a missing id.
+- `AssetSortMenu.tsx` itself, `AssetRow.tsx`, `IconButton.tsx`, and every
+  icon component are **completely unchanged** — this was a pure layout/
+  composition change (which component renders which JSX, and where), not a
+  change to any of the pieces themselves. The sort menu's own open/close and
+  actual re-sort behavior (§6o, and its 2026-09-26 bug fix) are untouched.
+- Verified via Playwright/Chrome at 320px/400px/700px/1200px viewport
+  widths: exactly one row above the asset list on the "کیف پول" tab (icons
+  right, sort-menu+label left, confirmed vertically aligned — same `top`
+  coordinate — at every width), the "دارایی‌های من" text string is not
+  present anywhere in the rendered DOM, the sort menu still opens and an
+  actual re-sort of the list order is observed when switching to "بر اساس
+  نوع دارایی", the "چشم بازار" tab's own heading/label/row is pixel-for-pixel
+  unchanged, and the assets `<section>`'s accessible name resolves correctly
+  in both tab states with no dangling `aria-labelledby`. Build
+  (`npm run build`) passes.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -1619,6 +1673,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Bug fix (owner-reported, see §6o): "بر اساس نوع دارایی" ("sort by type") appeared to do nothing — selecting it produced the identical order as "بیشترین ارزش (تومان)". Root cause: the grouping key was `getCatalogAssetBySymbol(asset.code)?.category`, which only resolves for assets whose `code` exactly matches a catalog `symbol` — true only for assets added through the catalog-driven `AddAssetModal`. Every legacy/auto-coded asset (`getOrCreateCode()` in `assetCodeRegistry.ts`, format `<PREFIX>-<NNNN>`, e.g. `GOLD-0001`) — **including all 7 default sample assets** (§6h) — never matches a catalog symbol, so `getCatalogAssetBySymbol` silently returned `undefined` for every one of them and they all fell into the single `'other'` bucket, which is then sorted by value descending — identical output to the `'value'` mode whenever most/all of a user's real assets are legacy-coded (the common case for anyone who hasn't only ever added via the catalog picker). Fix: `sortAssetsForDisplay()` (`App.tsx`) now derives the grouping key directly from `asset.icon` (`Asset['icon']`, see §5 — always populated for every asset regardless of `code`) instead of the code/catalog lookup; the `'|| other'` fallback was dropped since `icon` already covers `'other'` natively. Group-value-descending ordering and within-group value-descending ordering are unchanged. Catalog-driven assets are unaffected (a no-op for them, since `AddAssetModal` already sets `icon` consistent with the catalog entry's category via `getAssetIconForCatalogEntry`). Verified via Playwright/Chrome with the default 7 sample assets (all legacy-coded): "بر اساس نوع دارایی" now visibly reorders the list (3 gold-icon assets grouped and ranked first by combined group value, ahead of cash/btc/usdt/eth), "بیشترین ارزش (تومان)" is unchanged, and adding 2 more gold-category + 1 cash-category catalog assets still groups/orders them correctly by `icon`. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested: reduced the vertical padding (`py`) on each `AssetRow` card by ~30% at every breakpoint — `AssetRow.tsx`'s outer `<li>` (§6): base `py-[17px]→[12px]`, the `351–480px` tier `py-[15px]→[11px]`, `<351px` `py-[13px]→[10px]`, and the `≥1050px` tier's previously-uniform `p-[14px]` was split into `py-[10px] px-[14px]` so only its vertical side shrinks. Horizontal padding (`px`), `gap`, `rounded`, `shadow`, and border values, plus all icon/text/button markup inside the `<li>`, are untouched — a padding-only tweak to make each card visually more compact (less empty space below the history/edit/delete icon row). Verified via Playwright/Chrome computed-style + screenshot checks at 320px/400px/700px/1200px viewport widths: all 4 `py` values match spec exactly, horizontal padding unchanged at each breakpoint, and no clipping/overlap of the icon/title/quantity/price/action-buttons. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6p): added a single "hide balance" eye toggle in `SummaryCard`'s header row (beside the existing refresh button) that masks/unmasks every toman **holding value** shown in the wallet at once — `SummaryCard`'s total + دلار/گرم طلا equivalents, and every `AssetRow`'s own row value — driven by one shared `isBalanceHidden` state, not a per-row toggle. New `maskAmount(formatted)` in `src/format.ts` (`replace(/[0-9۰-۹]/g, '•')`) turns an already-`format()`-ed string into a bullet-masked placeholder while keeping thousands separators intact, always applied as `maskAmount(format(...))` rather than a separate code path. New `EyeClosedIcon` (`src/components/icons.tsx`, the existing `MarketEyeIcon` eye shape plus a diagonal slash) pairs with the existing `MarketEyeIcon` (reused directly, not duplicated) for the visible state; the toggle button's icon color itself flips green (`#1f9d55`, visible) ↔ grey (`#9096aa`, hidden) as a second state signal beyond the icon shape. `App.tsx` gained `isBalanceHidden: boolean`, persisted to `localStorage` (key `oracle_balance_hidden_v1`, default `false`/visible) via the exact same try/catch-safe tiny-UI-preference pattern as `sortMode` (§6o) — a second deliberate exception to the service-layer-only rule, since it's display-only, not owner asset data. Left fully visible regardless of the toggle: each row's own quantity/unit line, the GOLD18/USDT live per-unit-rate sub-text (§6k), and the "هر دلار/هر گرم … تومان" rate lines in `SummaryCard` — those are prices, not the owner's holding amount. `AssetRow.tsx`/`SummaryCard.tsx` otherwise unchanged (masking is a pure display wrapper, no new edit/delete/history logic). Verified via Playwright/Chrome: default state unmasked (matching prior behavior), one click masks the total + both equivalents + all 7 sample rows simultaneously and turns the icon grey/crossed-eye, a second click restores everything and the green open-eye, and the hidden state survives a page reload (`oracle_balance_hidden_v1` holds `"true"` in `localStorage` across it). Build (`npm run build`) passes. |
+| 2026-09-26 | Owner-requested (see §6q): merged the "کیف پول" tab's two separate header rows above the asset list — `Toolbar` (import/clear-all/add icons) and its own following `<h2 id="assets-title">دارایی‌های من</h2>` + `AssetSortMenu` + "ارزش به تومان" row (added in the §6o sort-menu task) — into one single row: `Toolbar` now renders `justify-between` with the three icons on the right and the sort menu + label on the left (new `sortMode`/`onSortModeChange` props, threaded from `App.tsx`, which no longer imports `AssetSortMenu` itself), keeping the old heading row's `mb-[15px] min-[1050px]:mb-[19px]` spacing so the gap to the list below is unchanged. The "دارایی‌های من" heading `<h2>` was removed outright — that text no longer appears anywhere on screen. Since the wallet tab no longer has an `id="assets-title"` element, the assets `<section>` now switches its accessible-name attribute per tab instead of always using `aria-labelledby="assets-title"`: `aria-label="دارایی‌های من"` on the "کیف پول" tab, `aria-labelledby="assets-title"` (pointing at the market tab's own unchanged `<h2>`) on the "چشم بازار" tab — never a dangling reference. `AssetSortMenu.tsx`/`AssetRow.tsx`/`IconButton.tsx`/icons are unchanged; the "چشم بازار" tab's own header row/heading/`MarketWatchList` are untouched. Verified via Playwright/Chrome at 320/400/700/1200px: single aligned header row, heading text gone, sort menu still opens and actually re-sorts, market tab pixel-identical, section accessible name valid in both tab states. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
