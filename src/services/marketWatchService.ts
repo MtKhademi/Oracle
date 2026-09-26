@@ -30,6 +30,11 @@ export interface MarketWatchService {
   // normal tick) and notifies all current subscribers, without resetting the
   // 60-second timer.
   refreshNow(): Promise<MarketSnapshot>;
+  // The full static catalog of all seeded market items (no jitter — this is
+  // only used for picking an item to watch, see marketWatchlistService.ts/
+  // AddMarketWatchItemModal.tsx, never for display), independent of the
+  // live-jittered snapshot above.
+  getAllItems(): Promise<MarketItem[]>;
 }
 
 // The only place that needs to change to point at a real server-backed market feed later.
