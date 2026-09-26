@@ -81,23 +81,22 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i/§6v) for that asset — history-only, no `onTransactionRecorded` prop anymore. Separately holds `recordTransactionAssetId` (`string | null`, see §6v), set by each `AssetRow`'s pencil action (`onRecordTransaction`); when set, renders `<RecordTransactionModal>` for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler, now taking a 4th `unitPrice` param (see §6w), that updates that asset via `assetService.updateAsset`: for `type: 'buy' | 'sell'`, only `quantity` changes (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched, unchanged since §6v); for `type: 'replace'` (new in §6w), it instead sets **both** `quantity` and `unitPrice` directly to the entered values (not additive/subtractive — "this is the asset's new current state"), then sets the returned list into `items` either way. **`handleEdit` (the old direct quantity/unitPrice edit) was removed in §6v** — the pencil icon no longer bypasses the transaction system. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). Now also calls `useLivePrices()` once (see §6j/§6k) into `prices`, computes `total` via `getEffectiveUnitPrice(asset, prices)` per asset instead of raw `asset.unitPrice`, and passes `prices` down as a prop to both `<SummaryCard>` and every `<AssetRow>`. **Exception to "no direct `localStorage` access"** (added §6o): `sortMode` (`AssetSortMode`) is read/written straight to `localStorage` (key `oracle_asset_sort_mode_v1`) via small local `readStoredSortMode()`/`handleSortModeChange` helpers in `App.tsx` itself, the one deliberate exception to the service-layer-only rule (§6d) — it's a tiny UI display-preference, not asset/domain data, so a dedicated service felt like overkill; `sortedItems` (a `useMemo` over `items`/`sortMode`/`prices`, via `sortAssetsForDisplay()`) is what's actually mapped into `<AssetRow>` on the wallet tab — `items` itself is untouched/still insertion-ordered. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), and the Excel-import/clear-all/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). **No `isAddOpen` state or `AddAssetModal` render anymore** (removed in §6aa — adding a brand-new asset now only happens through `SelectAssetForTransactionModal`'s catalog search, see below). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, and the list of `<AssetRow>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i/§6v) for that asset — history-only, no `onTransactionRecorded` prop anymore. Separately holds `recordTransactionAssetId` (`string | null`, see §6v), set by each `AssetRow`'s record-transaction action (`onRecordTransaction`, `PlusIcon` since §6aa); when set, renders `<RecordTransactionModal>` for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler, now taking a 4th `unitPrice` param (see §6w), that updates that asset via `assetService.updateAsset`: for `type: 'buy' | 'sell'`, only `quantity` changes (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched, unchanged since §6v); for `type: 'replace'` (new in §6w), it instead sets **both** `quantity` and `unitPrice` directly to the entered values (not additive/subtractive — "this is the asset's new current state"), then sets the returned list into `items` either way. **`handleEdit` (the old direct quantity/unitPrice edit) was removed in §6v**, and **`handleAddAsset` (the old merge-by-code add-asset handler) was removed in §6aa**, replaced by a much smaller `handleAddNewAsset` (just `assetService.addAsset` + `setItems`, no transaction write — see §6aa for why) passed to `SelectAssetForTransactionModal` as `onAddAsset`. Still calls `useLivePrices()` once (see §6j/§6k) into `prices`, computes `total` via `getEffectiveUnitPrice(asset, prices)` per asset instead of raw `asset.unitPrice`, and passes `prices` down as a prop to `<SummaryCard>`, every `<AssetRow>`, and now `<SelectAssetForTransactionModal>` too (§6aa, so a newly picked GOLD18/USDT catalog asset can default to its live rate). **Exception to "no direct `localStorage` access"** (added §6o): `sortMode` (`AssetSortMode`) is read/written straight to `localStorage` (key `oracle_asset_sort_mode_v1`) via small local `readStoredSortMode()`/`handleSortModeChange` helpers in `App.tsx` itself, the one deliberate exception to the service-layer-only rule (§6d) — it's a tiny UI display-preference, not asset/domain data, so a dedicated service felt like overkill; `sortedItems` (a `useMemo` over `items`/`sortMode`/`prices`, via `sortAssetsForDisplay()`) is what's actually mapped into `<AssetRow>` on the wallet tab — `items` itself is untouched/still insertion-ordered. |
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j), and — added in §6m — `WalletIcon` (billfold glyph, tab toggle's "کیف پول" button), `MarketEyeIcon` (eye glyph, tab toggle's "چشم بازار" button), `CryptoIcon` (two overlapping coin circles, `MarketWatchList`'s "ارزها" category heading), `StockIcon` (bar-chart glyph, `MarketWatchList`'s "بورس" category heading), and `FixedIncomeIcon` (shield + checkmark glyph, `MarketWatchList`'s "صندوق‌های درآمد ثابت" category heading) — all same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style; the gold category reuses the existing `GoldBarIcon`, no new gold icon added — and, added in §6o, `MoreVerticalIcon` (three small **filled** dots stacked vertically, `fill="currentColor"` instead of this file's usual stroke style so the dots stay visible at this size — the "دارایی‌های من" sort-menu trigger button). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`MarketWatchList`/`AssetSortMenu`/`App.tsx` — no icon markup duplicated elsewhere. |
-| `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. Base className includes `aspect-square` (added in §6z) so every instance's width always tracks its actual rendered height, even when a flex sibling stretches that height (see §6z — this is what fixed `RecordTransactionModal`'s last-price button, which previously rendered as a narrow rectangle, not a square). This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add/add-transaction in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
+| `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) record-transaction/delete buttons. Base className includes `aspect-square` (added in §6z) so every instance's width always tracks its actual rendered height, even when a flex sibling stretches that height (see §6z — this is what fixed `RecordTransactionModal`'s last-price button, which previously rendered as a narrow rectangle, not a square). This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add-transaction in the toolbar, record-transaction/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
-| `src/components/Toolbar.tsx` | The single header row above the "کیف پول" asset list (see §6q): import/clear-all/add/add-transaction `IconButton`s on the right (the 4th, "ثبت تراکنش جدید", added in §6z, reuses `PencilIcon`), `AssetSortMenu` + "ارزش به تومان" label on the left — merged from what used to be two separate rows once the standalone "دارایی‌های من" heading was removed. Takes `onOpenImportModal`/`onClearAll`/`onAdd`/`onAddTransaction`/`sortMode`/`onSortModeChange` props from `App.tsx`; the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`; `onAddTransaction` opens `SelectAssetForTransactionModal` (see §6z). Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders `MarketWatchList` instead, with no `Toolbar`; `MarketWatchList` owns its own equivalent header row (see §6s/§6t). |
+| `src/components/Toolbar.tsx` | The single header row above the "کیف پول" asset list (see §6q): import/clear-all/add-transaction `IconButton`s on the right — the old "افزودن دارایی جدید" button was removed in §6aa (adding an asset now happens through the picker, §6aa) and the "ثبت تراکنش جدید" button (added in §6z) now uses `PlusIcon` instead of `PencilIcon` (re-pointed in §6aa, matching each `AssetRow`'s per-asset "+" button) — and the "ارزش به تومان" label + `AssetSortMenu` on the left, with the label rendered FIRST and the three-dot sort menu SECOND (§6aa — in the RTL row this moves the icon to sit directly beside "تومان" at the label's far-left end). Merged from what used to be two separate rows once the standalone "دارایی‌های من" heading was removed. Takes `onOpenImportModal`/`onClearAll`/`onAddTransaction`/`sortMode`/`onSortModeChange` props from `App.tsx` (no more `onAdd`); the import button just opens the unified import modal (see §6a) — no file `<input>` lives here, it's owned by `ImportModal`; `onAddTransaction` opens `SelectAssetForTransactionModal` (see §6z/§6aa). Only rendered on the "کیف پول" tab (see §6l) — the "چشم بازار" tab renders `MarketWatchList` instead, with no `Toolbar`; `MarketWatchList` owns its own equivalent header row (see §6s/§6t). |
 | `src/components/MarketWatchList.tsx` | The "چشم بازار" (market watch) list — a personal, editable watchlist (see §6r — supersedes the read-only version from §6l/§6m), not an always-show-everything view. Calls `useMarketWatch()` (the live-jittered snapshot) AND `useMarketWatchlist()` (the persisted watched-id subset, see §4/§6r) itself, filters `snapshot.items` down to only watched ids, then groups the result into up to 4 category sections in fixed order (`currency`→"ارزها"/`CryptoIcon`, `gold`→"طلا"/`GoldBarIcon`, `stock`→"بورس"/`StockIcon`, `fixed-income`→"صندوق‌های درآمد ثابت"/`FixedIncomeIcon` — the order/labels/icons now live in shared `src/services/marketCategoryMeta.tsx`, see §4/§6r), each with an icon+label heading and a plain `<ul>` of name/price rows (`format(item.priceToman)` + "تومان" plus a per-row danger/ghost trash `IconButton` calling `remove(item.id)` immediately, no confirmation). Exactly one header row above the groups (see §6s/§6t), `justify-between` with the `Toolbar`-style spacing (`mb-[15px] min-[1050px]:mb-[19px]`): the neutral/filled `PlusIcon` `IconButton` (`افزودن به چشم بازار`, opens `AddMarketWatchItemModal`, see §4/§6r) on the right, and the "بروزرسانی: HH:mm:ss" `<p>` (from `snapshot.updatedAt`) on the left — the "ارزش به تومان" label §6s originally paired here was replaced by this timestamp and the old separate timestamp row removed in §6t (redundant with each item row's own "تومان" unit). Shows "در حال دریافت قیمت‌ها..." while either `useMarketWatch()`/`useMarketWatchlist()` hasn't resolved yet, and "چیزی به چشم بازار اضافه نشده" when the filtered watched list is empty (all removed). |
 | `src/components/AddMarketWatchItemModal.tsx` | The "افزودن به چشم بازار" modal (see §6r), shelled like `AddAssetModal.tsx` (backdrop + centered card + `CloseIcon` + heading, `Escape`/backdrop-click/`stopPropagation` close behavior). Loads the full static catalog via `marketWatchService.getAllItems()` on mount, excludes ids already in the `watchedIds` prop, filters the remainder by a plain name-substring search input (same case-insensitive-substring convention as `AssetPicker`'s catalog filter, no fuzzy-search library), and groups results by category using the shared `marketCategoryMeta.tsx` (not duplicated from `MarketWatchList.tsx`). Clicking a result calls the `onAdd(id)` prop (wired to the watchlist hook's `add`) and closes itself. No separate floating dropdown panel to protect (the list IS the modal body), so it doesn't need `AssetPicker`'s `mousedown`-based outside-click detection — the modal's own backdrop/`Escape` handling is enough. Takes `onClose`/`watchedIds`/`onAdd` props. |
 | `src/components/PortfolioTrendChart.tsx` | Card below `SummaryCard` (see §6n) showing a hand-rolled inline-SVG line chart of portfolio growth normalized against USD and gold. Calls `portfolioHistoryService.listHistory()` itself in a `useEffect` (re-fetches when the `refreshKey` prop changes, bumped by `App.tsx` after each snapshot write), computes 3 "% of day 1" index series (toman/usd/gold, all starting at exactly 100), and renders 3 `<polyline>`s (`#5264e8`/`#1f9d55`/`#d7a144`) plus a 3-row legend (colored dot + label + latest %-change badge, green/red via the app's existing buy/sell color convention). Below the SVG, 3 relative-time X-axis labels ("۳۰ روز پیش" / "{N} روز پیش" for the midpoint / "امروز", real computed day-counts via `daysBetweenIso`, `format()` for Persian digits, `text-[11px]`, in a `dir="ltr"` row so left-to-right always matches the SVG's own coordinate space regardless of the page's RTL direction — no calendar-style dates, see §6n). Shows "داده کافی برای نمودار وجود ندارد" when history has fewer than 2 points. No charting library — plain `<svg>`. |
 | `src/components/ImportModal.tsx` | The unified Excel import modal (see §6a): combines file selection AND the default-mode choice in one screen (not two steps). A styled file-picker control (hidden `<input type="file" accept=".xlsx,.xls">` behind a button; shows the chosen file's name with a "تغییر فایل" link once picked) plus a 3-way segmented radio choice for the **default mode** applied to rows whose own نوع column is empty — جایگذاری با دارایی فعلی (replace) / اضافه کردن به دارایی فعلی (add) / کم کردن از دارایی فعلی (subtract), each with a title + one-line description, local `useState<ImportMode>('replace')`. A "بارگذاری" submit button, `disabled` until a file is chosen, calls `onSubmit(defaultMode, file)`. Reuses the `ProfileModal`/`AddAssetModal` overlay pattern (backdrop click / "×" / `Escape`). Takes `onClose`/`onSubmit` props. Replaces the old two-step `ImportModeModal` (deleted). |
 | `src/components/AssetSortMenu.tsx` | The three-dot sort-menu button + dropdown rendered inside `Toolbar` (see §6o/§6p) next to "ارزش به تومان" — `AssetSortMenu({ value, onChange })`, `AssetSortMode = 'value' \| 'type'`. Icon-only trigger button (`MoreVerticalIcon`) opens an `absolute`-positioned panel (same card/border/shadow tokens as `AssetPicker`'s dropdown) with the two radio-style options, a checkmark on the active one. Outside-click closing reuses `AssetPicker`'s exact `document` `mousedown` + container `ref` pattern (detects, never intercepts, the click) instead of a `fixed inset-0` overlay — deliberately avoiding the overlay-blocks-parent-modal-close bug class noted in `AssetPicker.tsx`'s own comment. Selecting an option calls `onChange(mode)` then closes itself. Only rendered on the "کیف پول" tab — the "چشم بازار" tab/`MarketWatchList` are untouched. |
-| `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit, value, history/edit/delete `IconButton`s) — a single, always-static view; no inline edit mode (removed in §6v). Takes `asset`/`prices` + `onDelete`/`onRecordTransaction`/`onHistory` callback props. The pencil `IconButton` calls `onRecordTransaction(asset.id)`, opening `RecordTransactionModal` (see §6v) instead of putting the row itself into an editable state. For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`. |
+| `src/components/AssetRow.tsx` | One asset `<li>` (icon, name, quantity/unit, value, history/record-transaction/delete `IconButton`s) — a single, always-static view; no inline edit mode (removed in §6v). Takes `asset`/`prices` + `onDelete`/`onRecordTransaction`/`onHistory` callback props. The record-transaction `IconButton` calls `onRecordTransaction(asset.id)`, opening `RecordTransactionModal` (see §6v) instead of putting the row itself into an editable state — it now renders `PlusIcon` with `ariaLabel="ثبت تراکنش"` (re-pointed from `PencilIcon`/`"ویرایش"` in §6aa; the button never opened an edit form, so the old pencil glyph + label were both stale). For a live-priced asset (`getLivePriceKeyForAsset(asset)`, see §6k — currently GOLD18/USDT only), the row's value and a small extra "rate per unit" line both use `getEffectiveUnitPrice(asset, prices)` instead of `asset.unitPrice`. |
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The card's very first row (see §6u) holds the wallet-icon button on the right and, on the left, the optional "نمایش نمونه" sample tag followed by the hide-balance eye toggle (§6p) and the manual-refresh `RefreshIcon` button (§6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. The standalone "ارزش کل دارایی‌ها" heading that used to sit above the big total (with the eye/refresh buttons beside it) was removed in §6u — the section itself keeps `aria-label="ارزش کل دارایی‌ها"` for its accessible name instead of the old `aria-labelledby`. |
-| `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
-| `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
+| `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. **Currently unused/orphaned** (§6aa) — its only caller, `AddAssetModal.tsx`, was deleted when the toolbar's standalone "افزودن دارایی جدید" button was removed; kept in the tree (not deleted) since nothing about the component itself is wrong, only its caller went away — a future feature needing a full catalog combobox (as opposed to `SelectAssetForTransactionModal`'s simpler name-substring list) could still reuse it. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i) — **history-only since §6v**, no add-transaction form. On mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with a 3-way type badge (خرید green / فروش red / **جایگذاری amber, added in §6w** — same `#d7a144`/`#fff5df` tone `SummaryCard`'s gold-gram row uses), Persian date, quantity+unit, and toman price-per-unit, plus pagination, a clear empty state, and a sample badge. A `'replace'` row is never deleted or hidden — every transaction before it stays visible here exactly as before (see §5/§6w); this modal only ever *displays* history, it never decides what to count for a summary. Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes only `asset`/`isSample`/`onClose` props — no longer takes `onTransactionRecorded` (moved to `RecordTransactionModal`, see §6v). |
 | `src/components/RecordTransactionModal.tsx` | The "ثبت تراکنش جدید" (record buy/sell/replace) modal (see §6v, extended to a 3-way toggle in §6w, last-price-fill/type-reactive submit button added in §6x, last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio changed in §6y) — split out of `TransactionHistoryModal` into its own single-purpose modal, opened by `AssetRow`'s pencil icon (not the history/clock icon). Same shell pattern as `TransactionHistoryModal` (backdrop/"×"/`Escape`, `stopPropagation` on the card). Owns a **3-way** فروش/خرید/جایگذاری toggle (`grid-cols-3`, added in §6w — خرید stays green `#1f9d55`, فروش stays red `#d95050`, جایگذاری is amber `#d7a144`, same gold tone as `SummaryCard`'s گرم طلا row), then a §6y inner `grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr] min-[560px]:col-span-2` wrapper holding just the مقدار/قیمت واحد به تومان (shared `stripToNumberString`/`formatWithThousands` comma-formatting; both labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" while جایگذاری is selected, see §6w) fields — this inner grid gives قیمت واحد 3 parts vs مقدار's 2 parts of the row's width at ≥560px (see §6y), independent of the outer form grid's `min-[560px]:grid-cols-2` (still governing تاریخ/یادداشت below, unaffected), then a type-reactive submit button (see §6x — green/"ثبت تراکنش خرید", red/"ثبت تراکنش فروش", or amber/"ثبت تراکنش جایگذاری", the same three toggle colors) — identical validation (`quantity > 0`, `unitPrice >= 0`, valid date) for all three types/toast messages/`transactionService.addTransaction` call as before. Also takes a **`prices: LivePrices | null`** prop (§6x, threaded from `App.tsx`'s existing `useLivePrices()` call, same one already passed to `AssetRow`/`SummaryCard`) — computes `lastPrice = getEffectiveUnitPrice(asset, prices)` (reusing `AssetRow`'s exact live-price-vs-stored-price logic, see §6k, no new price logic) and renders a small icon-only `IconButton` (`DollarIcon`, `tone="neutral"`, `variant="filled"`, `ariaLabel="پر کردن با آخرین قیمت"` — see §6y, replacing the §6x text "آخرین قیمت" button) directly beside the قیمت واحد input (a `flex` row inside the label, `min-w-0` on both the label and the inner `flex` wrapper so the input still shrinks properly at a `grid` breakpoint instead of overflowing — see §6x/§6y); clicking it fills `formUnitPrice` with that value (rounded to the nearest toman), `fillLastPrice`'s logic unchanged since §6x. Header shows "ثبت تراکنش جدید" + the asset's name (and the "نمایش نمونه" tag when `isSample`) so it's clear which asset the transaction is for. It does **not** reset its fields and stay open after a successful submit — it calls `onTransactionRecorded(assetId, type, quantity, unitPrice)` (the `unitPrice` param added in §6w so `App.tsx` can apply جایگذاری's exact-set semantics) then `onClose()` immediately, since this modal's only job is recording one transaction. Takes `asset`/`isSample`/`prices`/`onClose`/`onTransactionRecorded` props. |
-| `src/components/SelectAssetForTransactionModal.tsx` | The "ثبت تراکنش برای کدام دارایی؟" asset-picker modal (see §6z), opened from the wallet toolbar's new 4th "ثبت تراکنش جدید" button — lets the owner record a transaction for any existing asset without first finding its row and clicking its own pencil icon. Same shell as `RecordTransactionModal` (backdrop/`Escape`/"×"/`stopPropagation` on the card). Loads no data of its own — takes `items: Asset[]`/`onClose`/`onSelect` props straight from `App.tsx`'s existing state. A plain name-substring search input (same case-insensitive convention as `AssetPicker`/`AddMarketWatchItemModal`'s catalog filters, no fuzzy-search library, no keyboard-nav machinery — a full modal, not a dropdown) filters a scrollable list of asset buttons, each showing `AssetIcon`/`iconTint[asset.icon]` + the asset's name (same icon+tint pattern `AssetRow` uses). Clicking one calls `onSelect(asset.id)`; `App.tsx` closes this modal and sets `recordTransactionAssetId` to that id, opening the SAME `RecordTransactionModal` already wired to it — no duplicate transaction-recording logic. Shows "هنوز دارایی‌ای ثبت نشده" instead of the search/list when `items` is empty (guarded, though `App.tsx`'s `handleOpenAddTransaction` already prevents this modal from opening in that state via a warning toast). |
+| `src/components/SelectAssetForTransactionModal.tsx` | The "ثبت تراکنش برای کدام دارایی؟" asset-picker modal (see §6z, extended in §6aa), opened from the wallet toolbar's "ثبت تراکنش جدید" button — lets the owner record a transaction for any existing asset without first finding its row, **or** pick a catalog asset they don't own yet, which is silently added (quantity 0) and proceeds straight into the same flow (§6aa — this is now the app's only way to add a brand-new asset, since the standalone add-asset button/modal were removed). Same shell as `RecordTransactionModal` (backdrop/`Escape`/"×"/`stopPropagation` on the card). Takes `items: Asset[]`/`prices: LivePrices | null`/`onClose`/`onSelect: (assetId) => void`/`onAddAsset: (asset) => Promise<void>` props from `App.tsx`. A plain name-substring search input (same case-insensitive convention as `AssetPicker`/`AddMarketWatchItemModal`'s catalog filters, no fuzzy-search library, no keyboard-nav machinery — a full modal, not a dropdown) filters wallet `items` by name — always the primary/first section, exactly as before. While a query is active, it additionally filters the full catalog (`getCatalogAssets()`, same case-insensitive name-**or**-symbol match `AssetPicker` uses) down to entries not already owned (matched by `code === symbol` **or** an exact-name fallback, so legacy/auto-coded assets like the default samples — coded e.g. `USDT-0001`, not the catalog's `USDT` — are still correctly recognized as already-owned and never listed as "new") and renders them below a "دارایی‌های جدید" heading, each row tagged with a small "دارایی جدید" badge. Clicking an owned-asset row calls `onSelect(asset.id)` exactly as before. Clicking a not-yet-owned catalog row instead builds a brand-new `Asset` (quantity `0`, `unitPrice` from `getEffectiveUnitPrice` — 0 unless the symbol is GOLD18/USDT, see §6k — `code` = the catalog `symbol`), calls `onAddAsset(newAsset)` (awaited, guarded by a `pendingSymbol` state so a double-click can't race two creations), then `onSelect(newAsset.id)` — from `App.tsx`'s point of view this is indistinguishable from picking an existing asset; the exact same `RecordTransactionModal` opens next (defaulting to خرید, its own existing default), and the owner's very first submitted transaction sets the real quantity/price. No "هنوز دارایی‌ای ثبت نشده" empty-state guard anymore (removed in §6aa) — an empty wallet now shows a small inline hint above the (empty) list instead, since searching the catalog is always available regardless of wallet size. |
 | `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
@@ -281,35 +280,47 @@ type Transaction = {
   - `btc` → `₿`, `usdt` → `₮` (styled span, Arial)
   - otherwise inline SVG: `gold`, `cash`, `eth`, default = bar chart (also used for `other`).
 - `IconButton` (in `src/components/IconButton.tsx`) — the single small icon-button
-  component used everywhere: the toolbar's import/clear-all/add/add-transaction buttons
-  (`variant="filled"`, always-tinted background) and each asset row's history/edit/delete
-  buttons (`variant="ghost"`, tint only on hover). `tone="neutral"` = blue/violet tint,
-  `tone="danger"` = red tint. Base className includes `aspect-square` (added in §6z) so
-  every instance always renders as a true square regardless of any flex-stretch context.
-  Takes `icon`/`onClick`/`ariaLabel` props.
+  component used everywhere: the toolbar's import/clear-all/add-transaction buttons
+  (`variant="filled"`, always-tinted background) and each asset row's history/
+  record-transaction/delete buttons (`variant="ghost"`, tint only on hover).
+  `tone="neutral"` = blue/violet tint, `tone="danger"` = red tint. Base className
+  includes `aspect-square` (added in §6z) so every instance always renders as a
+  true square regardless of any flex-stretch context. Takes `icon`/`onClick`/
+  `ariaLabel` props.
 - `Toolbar` (in `src/components/Toolbar.tsx`) — the single header row above the
-  "کیف پول" asset list (see §6q): four `IconButton`s (import/clear-all/add/
-  add-transaction — the 4th added in §6z) on the right, `AssetSortMenu` + "ارزش به تومان"
-  on the left; the import button opens the import-mode modal (`onOpenImportModal`), so
-  the toolbar no longer owns a file input; the add-transaction button
-  (`onAddTransaction`) opens `SelectAssetForTransactionModal` (see §6z). Takes
-  `onOpenImportModal`/`onClearAll`/`onAdd`/`onAddTransaction`/`sortMode`/
-  `onSortModeChange` props from `App.tsx`.
+  "کیف پول" asset list (see §6q): three `IconButton`s (import/clear-all/
+  add-transaction — the standalone "add new asset" button was removed in §6aa)
+  on the right, "ارزش به تومان" + `AssetSortMenu` on the left, in that order
+  (swapped in §6aa so the sort-menu icon sits directly beside "تومان"); the
+  import button opens the import-mode modal (`onOpenImportModal`), so the
+  toolbar no longer owns a file input; the add-transaction button
+  (`onAddTransaction`) opens `SelectAssetForTransactionModal` (see §6z/§6aa) and
+  now renders `PlusIcon` (re-pointed from `PencilIcon` in §6aa, to match each
+  `AssetRow`'s own per-asset "+" button). Takes `onOpenImportModal`/`onClearAll`/
+  `onAddTransaction`/`sortMode`/`onSortModeChange` props from `App.tsx` (no more
+  `onAdd`, removed in §6aa).
 - `AssetRow` (in `src/components/AssetRow.tsx`) — one asset `<li>`: icon, name,
-  quantity/unit, value, and history/edit/delete `IconButton`s
-  (`aria-label="تاریخچه"`/`"ویرایش"`/`"حذف"`) — a single, always-static view (no
-  local inline-edit state or mode anymore, removed in §6v). History calls the
-  parent's `onHistory(id)` (opens the transaction-history modal, see §6i);
-  edit (pencil) calls the parent's `onRecordTransaction(id)` (opens
-  `RecordTransactionModal`, see §6v — no longer a direct quantity/unitPrice
-  edit); delete calls `onDelete(id)`.
+  quantity/unit, value, and history/record-transaction/delete `IconButton`s
+  (`aria-label="تاریخچه"`/`"ثبت تراکنش"`/`"حذف"` — the middle one re-pointed from
+  `PencilIcon`/`"ویرایش"` to `PlusIcon`/`"ثبت تراکنش"` in §6aa, a stale label fix
+  since it never opened an edit form) — a single, always-static view (no local
+  inline-edit state or mode anymore, removed in §6v). History calls the parent's
+  `onHistory(id)` (opens the transaction-history modal, see §6i); the "+" button
+  calls the parent's `onRecordTransaction(id)` (opens `RecordTransactionModal`,
+  see §6v — no longer a direct quantity/unitPrice edit); delete calls
+  `onDelete(id)`.
 - `SummaryCard` (in `src/components/SummaryCard.tsx`) — the summary card (cash
   `AssetIcon`, sample badge, big total, two secondary USD/gold-gram rows (see
   §6j), footer with asset count); takes `total`/`count`/`isSample`/`prices` props
   (`prices` threaded from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k).
-- `AddAssetModal` (in `src/components/AddAssetModal.tsx`) — the add-asset modal +
-  form; takes `onClose`/`onAdd` props and owns its own form state, validation, and the
-  `Escape`-key listener (see §6c for the comma-formatting logic inside it).
+- **No more standalone "add new asset" modal** (§6aa) — `AddAssetModal.tsx` and
+  its toolbar button were both deleted; adding a brand-new asset now only
+  happens by searching the catalog inside `SelectAssetForTransactionModal` (see
+  §6z/§6aa/§4), which silently creates it (quantity 0) and proceeds straight
+  into `RecordTransactionModal` for the real first buy. `AssetPicker.tsx`
+  itself (the searchable catalog combobox `AddAssetModal` used) is left in the
+  tree, currently unused/orphaned — nothing wrong with the component, just no
+  caller left.
 - App-level state: `items` (`Asset[]`, starts as the static `assets` sample; a
   mount-time `useEffect` calls `assetService.listAssets()` and, if it resolves to
   non-`null`, replaces `items` with the stored list) and `isSample` (`boolean`,
@@ -338,11 +349,12 @@ type Transaction = {
      anymore, so both use `aria-label` rather than `aria-labelledby`) → a
      "کیف پول"/"چشم بازار" tab toggle (see §6l, tab icons added in §6m) above
      everything else in this section, then, on the "کیف پول" tab: the single
-     `Toolbar` header row (import/clear-all/add icons on the right, sort menu
-     + "ارزش به تومان" on the left — see §6a/§6b/§6c/§6o/§6p; no separate
-     "دارایی‌های من" heading is rendered on this tab, see §6q), then `<ul>` of
-     `AssetRow` items (icon, name + quantity/unit, value + `تومان`,
-     ویرایش/حذف) — or the empty-state `<p>` when `items` is empty; on the
+     `Toolbar` header row (import/clear-all/add-transaction icons on the right,
+     "ارزش به تومان" + sort menu on the left, in that order since §6aa — see
+     §6a/§6b/§6o/§6p/§6z/§6aa; no separate "دارایی‌های من" heading is rendered
+     on this tab, see §6q), then `<ul>` of `AssetRow` items (icon, name +
+     quantity/unit, value + `تومان`, تاریخچه/ثبت‌تراکنش/حذف) — or the
+     empty-state `<p>` when `items` is empty; on the
      "چشم بازار" tab: `MarketWatchList` (see §6l, categorized in §6m, a
      personal editable watchlist with its own add/remove UI since §6r) —
      no `Toolbar` on this tab; `MarketWatchList` itself now renders its own
@@ -350,13 +362,13 @@ type Transaction = {
      تومان" on the left, see §6s) with the "بروزرسانی: …" timestamp on its
      own separate row below that.
   4. Trailing `<p>` disclaimer that values are samples — only rendered when `isSample`.
-  5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
+  5. **(removed in §6aa)** — the standalone add-asset modal no longer exists; see step 7c below for how a brand-new asset is now added.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
    7. Transaction-history modal (see §6i, history-only since §6v) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History/clock action was clicked); it only lists that asset's transactions, no add-transaction form.
-   7b. Record-transaction modal (see §6v, 3-way خرید/فروش/جایگذاری toggle added in §6w, last-price fill button + type-reactive submit button added in §6x, last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio changed in §6y) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's pencil action was clicked, OR an asset was just picked via the §6z picker below); a single "ثبت تراکنش جدید" form for that asset.
-   7c. Select-asset-for-transaction modal (see §6z) — rendered as a sibling after `<main>`, only when `isSelectAssetForTransactionOpen` is set (the toolbar's new "ثبت تراکنش جدید" button was clicked, with at least one asset in the wallet); picking an asset closes this modal and sets `recordTransactionAssetId`, opening 7b for that asset.
+   7b. Record-transaction modal (see §6v, 3-way خرید/فروش/جایگذاری toggle added in §6w, last-price fill button + type-reactive submit button added in §6x, last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio changed in §6y) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's "+" action was clicked, OR an asset was just picked/created via the §6z/§6aa picker below); a single "ثبت تراکنش جدید" form for that asset.
+   7c. Select-asset-for-transaction modal (see §6z, extended in §6aa) — rendered as a sibling after `<main>`, only when `isSelectAssetForTransactionOpen` is set (the toolbar's "ثبت تراکنش جدید" button was clicked); lets the owner pick any existing asset OR search the catalog and silently create a not-yet-owned one (quantity 0) — either way, picking/creating one closes this modal and sets `recordTransactionAssetId`, opening 7b for that asset. This is now the ONLY way to add a brand-new asset to the wallet (§6aa).
    8. Import modal (see §6a) — rendered as a sibling after `<main>`, only when `isImportModalOpen` is set (the toolbar's Excel-import button was clicked); a single screen combining file selection and the default replace/add/subtract mode choice, with a "بارگذاری" submit.
-- All of the above (steps 1–8) only render once a user is logged in — see §6g for
+- All of the above (steps 1–8, minus the removed step 5) only render once a user is logged in — see §6g for
   the login/signup/forgot-password screens shown instead when they are not.
 
 ## 6a. Excel import (fixed template only)
@@ -498,7 +510,15 @@ type Transaction = {
   `toast.success('همه دارایی‌ها پاک شد')`. See §6/§6d for the `null` vs `[]`
   distinction this relies on and the service layer generally.
 
-## 6c. Add-asset modal (catalog-driven)
+## 6c. Add-asset modal (catalog-driven) — **SUPERSEDED, see §6aa**
+
+> **This entire modal/button was removed in §6aa** — kept below for historical
+> context only (the catalog-driven concepts it introduced, e.g. `code` =
+> catalog `symbol`, `getAssetIconForCatalogEntry`, are still very much in use,
+> just now triggered from `SelectAssetForTransactionModal`, see §6z/§6aa,
+> instead of this standalone modal). Do not treat any state/prop/file named
+> below (`isAddOpen`, `AddAssetModal.tsx`, `handleAddAsset`) as current —
+> check §4/§6/§6aa for what replaced it.
 
 - A third `Toolbar` `IconButton` (`tone="neutral"`, `PlusIcon`) sits after the
   clear-all button, `aria-label="افزودن دارایی جدید"`, toggles `App.tsx`'s
@@ -2378,6 +2398,163 @@ type Transaction = {
   (`oracle_assets_v1: []`) shows the warning toast and never opens the
   picker. `npm run build` (typecheck + vite build) passes.
 
+## 6aa. Consolidated "+" iconography, removed the standalone add-asset button, and taught the picker to add new assets
+
+- **Owner request, four parts**, all about tidying up how a transaction gets
+  recorded and how a brand-new asset gets added, now that both flows exist
+  side by side (§6v/§6z):
+  1. `AssetRow`'s per-asset record-transaction button used `PencilIcon` +
+     `ariaLabel="ویرایش"` — stale on both counts (it never opened an edit
+     form even before §6v, and a pencil no longer matches what "+" means
+     everywhere else in the app). Swapped to `PlusIcon` +
+     `ariaLabel="ثبت تراکنش"`.
+  2. `Toolbar`'s standalone "افزودن دارایی جدید" button (`PlusIcon`, opened
+     the old `AddAssetModal`) was removed entirely — redundant now that
+     `SelectAssetForTransactionModal` can add a brand-new asset itself (part
+     4 below), and having two different "+" buttons that did different
+     things (one added an asset, one opened a transaction picker) was
+     confusing.
+  3. The toolbar's remaining "ثبت تراکنش جدید" button switched from
+     `PencilIcon` to `PlusIcon` — after (1) and (2), "+" now consistently
+     means "record a transaction" everywhere (toolbar and per-row), with no
+     competing pencil icon left anywhere in the wallet UI.
+  4. `SelectAssetForTransactionModal` gained a second capability: besides
+     picking an existing wallet asset (unchanged), searching now also
+     matches the full catalog (`getCatalogAssets()`) and offers up
+     not-yet-owned results, each tagged "دارایی جدید". Picking one silently
+     creates it (quantity 0) and proceeds straight into
+     `RecordTransactionModal` — no separate "confirm adding this asset"
+     step. This makes the picker the app's only remaining way to add a
+     brand-new asset, so the old standalone modal (part 2) could be deleted
+     outright rather than just hidden.
+- **`src/components/AssetRow.tsx`** (see §4/§6): `PencilIcon` import replaced
+  with `PlusIcon`; the record-transaction `<IconButton>`'s `icon`/`ariaLabel`
+  updated to match. `onRecordTransaction` callback/behavior unchanged.
+- **`src/components/Toolbar.tsx`** (see §4/§6): the "افزودن دارایی جدید"
+  `<IconButton>` and its `onAdd` prop were deleted outright (not just
+  hidden/disabled). The remaining "ثبت تراکنش جدید" button's icon changed
+  `PencilIcon`→`PlusIcon`. The right-side icon group now holds exactly 3
+  buttons (import/clear-all/add-transaction) instead of 4. Separately, the
+  left-side `<span>` swapped its two children's order — "ارزش به تومان" now
+  renders BEFORE `<AssetSortMenu>` (previously after) — no other change to
+  either element's markup/props/behavior; since this row is RTL, "first in
+  markup" renders on the right, so this visually moves the three-dot
+  sort-menu icon from the label's right side to sit directly beside the
+  word "تومان" at the label's own left end, which was the requested target
+  position.
+- **`src/components/SelectAssetForTransactionModal.tsx`** (see §4) rewritten
+  to add the catalog-search capability, on top of everything it already did
+  (see §6z for the unchanged baseline: shell/backdrop/`Escape`, existing
+  wallet-asset name search+list, `onSelect(assetId)` callback contract):
+  - New props: `prices: LivePrices | null` (threaded from `App.tsx`'s
+    existing `useLivePrices()` call, same one `AssetRow`/`RecordTransactionModal`
+    already receive) and `onAddAsset: (asset: Asset) => Promise<void>` (a
+    new, deliberately narrow `App.tsx` handler — see below).
+  - While a search query is active, catalog assets (`getCatalogAssets()`,
+    same module-level static import `AssetPicker.tsx` uses) whose `name` OR
+    `symbol` contains the query (case-insensitive substring, same convention
+    as `AssetPicker`) are filtered down further to just the ones **not**
+    already in the wallet. "Already owned" is checked two ways —
+    `owned.code === catalogAsset.symbol` (the normal case for anything
+    previously added via the catalog) **or** an exact case-insensitive
+    `owned.name === catalogAsset.name` match — the second check exists
+    because legacy/auto-coded assets (the default 7 samples, and anything
+    added before catalog codes existed, see §5/§6h) carry an
+    auto-generated `<PREFIX>-<NNNN>` code instead of the catalog symbol
+    (e.g. the sample "تتر" is coded `USDT-0001`, not `USDT`) — without the
+    name fallback, the catalog's own "تتر" (`USDT`) would incorrectly show
+    up as a "new" pick-and-create option right next to the already-owned
+    one. Matches are rendered below a "دارایی‌های جدید" heading, each row
+    carrying a small rounded "دارایی جدید" badge (`bg-[#eef0ff]
+    text-[#5264e8]`, the same neutral-tint token used elsewhere in the app)
+    so it's visually distinct from an ordinary owned-asset row. With no
+    query, this section doesn't render at all — behavior is identical to
+    before §6aa.
+  - Selecting a not-yet-owned catalog result (`pickCatalogAsset`) builds a
+    new `Asset` — `id: crypto.randomUUID()`, `name`/`unit`/`icon` from the
+    catalog entry (`getUnitLabel`/`getAssetIconForCatalogEntry`, same
+    helpers `AddAssetModal` used to use), `code` = the catalog `symbol`,
+    **`quantity: 0`** (deliberate — the very next screen is a خرید
+    transaction that sets the real amount), and `unitPrice` from
+    `getEffectiveUnitPrice(newAsset, prices)` (see §6k) — this resolves to
+    the live mock rate for GOLD18/USDT and `0` for everything else (no new
+    price source invented; `0` is fine since it's immediately overwritten
+    by the first real transaction). Calls `onAddAsset(newAsset)` (awaited),
+    then `onSelect(newAsset.id)` — from the picker's own perspective this is
+    indistinguishable from selecting an existing asset; `App.tsx` doesn't
+    know or care whether the id it received was pre-existing or just
+    created. A `pendingSymbol` state (plus `disabled` on the catalog rows
+    while it's set) guards against a double-click racing two creations of
+    the same asset.
+  - The old `items.length === 0` empty-state guard (which fully replaced
+    the search input/list with a "هنوز دارایی‌ای ثبت نشده" message) is gone
+    — an empty wallet is no longer a dead end, since the catalog search is
+    always available regardless of how many assets are already owned. In
+    its place, a small inline hint ("هنوز دارایی‌ای ثبت نشده — نام دارایی
+    موردنظر را جست‌وجو کنید تا اضافه شود") renders above the (empty) list
+    only while there's no active query and no owned assets, disappearing
+    the moment either becomes true.
+- **`App.tsx` wiring** (see §4/§6):
+  - `handleAddAsset` (the old merge-by-catalog-code add-asset handler, plus
+    its `AddAssetModal` import/render and `isAddOpen` state) was deleted
+    entirely — confirmed via a full-repo search that `AddAssetModal`/
+    `AssetPicker`/`isAddOpen`/`onAdd` had no other callers before removing
+    anything, so nothing else in the app depended on them.
+  - A new, much smaller `handleAddNewAsset` (renamed from the deleted
+    handler's role, not its logic) replaces it: just
+    `assetService.addAsset(newAsset)` + `setItems`/`setIsSample(false)` —
+    **no transaction is written here** (unlike the old `handleAddAsset`,
+    which always wrote an initial `buy`), because this asset is created at
+    quantity 0 specifically so the immediately-following
+    `RecordTransactionModal` submission is itself the first real
+    transaction; writing a second, redundant zero-quantity "buy" here would
+    double up history for no reason. Passed to
+    `<SelectAssetForTransactionModal onAddAsset={handleAddNewAsset}>`.
+  - `handleOpenAddTransaction`'s old `items.length === 0` guard (which
+    showed `toast.warning('ابتدا یک دارایی اضافه کنید')` and refused to
+    open the picker) was removed — the toolbar's "ثبت تراکنش جدید" button
+    now always opens `SelectAssetForTransactionModal` unconditionally,
+    matching that modal's own new empty-wallet-friendly behavior above.
+  - `<Toolbar>`'s call site dropped `onAdd`; `<SelectAssetForTransactionModal>`'s
+    call site gained `prices={prices}` and `onAddAsset={handleAddNewAsset}`.
+- **`src/components/AddAssetModal.tsx` deleted outright** — confirmed via a
+  full-repo search first that its only remaining reference was `App.tsx`'s
+  own import/render (now removed); `src/components/AssetPicker.tsx` (the
+  searchable catalog combobox `AddAssetModal` used) is **not** deleted —
+  it has no functional problem, it's just currently orphaned (no caller),
+  kept in the tree in case a future feature wants a full combobox again
+  (§4 notes this explicitly so it isn't mistaken for dead code to prune
+  blindly).
+- **Untouched by this task:** `RecordTransactionModal.tsx`'s own
+  validation/submit/toggle/last-price logic, `TransactionHistoryModal.tsx`,
+  `AssetSortMenu.tsx`'s dropdown behavior itself (only its position in the
+  parent row's markup changed), the چشم بازار tab/`MarketWatchList`, the
+  Excel import, and every other `IconButton` usage's own click
+  handler/tone/variant.
+- **Verified via Playwright/Firefox**: the toolbar renders exactly 3 icon
+  buttons (import/clear-all/add-transaction, no "افزودن دارایی جدید"), the
+  add-transaction button's SVG matches `PlusIcon`'s path, `AssetRow`'s "+"
+  button's SVG also matches `PlusIcon` and opens `RecordTransactionModal`
+  for that row's asset, and no `aria-label="ویرایش"` button exists anywhere.
+  The "ارزش به تومان" label's bounding box sits to the right of the
+  sort-menu icon's bounding box (confirming the swap, in this RTL layout).
+  Opening the picker with an empty query shows no "دارایی جدید"/"دارایی‌های
+  جدید" text; searching "نیم سکه" (an unowned catalog asset) shows exactly
+  one "دارایی جدید"-badged result under a "دارایی‌های جدید" heading;
+  selecting it closes the picker, opens `RecordTransactionModal` for "نیم
+  سکه" defaulting to خرید, and — after submitting a خرید of quantity 3 —
+  the asset persists in `localStorage` with `code: 'COIN-HALF'` and
+  `quantity: 3`, and appears as a normal row in the wallet list; reopening
+  the picker and searching "نیم سکه" again now shows it as an owned result
+  with no badge (no duplicate). Searching "تتر" (an already-owned, legacy
+  auto-coded sample asset) still lists it as an owned result and shows no
+  "دارایی جدید" badge for it, confirming the name-fallback owned-check.
+  Against a fully empty wallet, opening the picker shows the inline hint
+  (no warning toast, no dead end) and searching "اتریوم" successfully
+  creates+selects it (persisted at `quantity: 0` before any transaction is
+  submitted). A no-match search still shows "دارایی‌ای پیدا نشد". `npm run
+  build` (typecheck + vite build) passes.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -2512,6 +2689,7 @@ creates a different browser origin; existing assets and profile data in
 
 | 2026-09-26 | Owner-requested (see §6y): shrunk `RecordTransactionModal`'s "آخرین قیمت" (last-price fill) text button down to a small icon-only `IconButton` (`DollarIcon` + `ariaLabel="پر کردن با آخرین قیمت"`, `tone="neutral"`, `variant="filled"`) reusing the app's existing shared `IconButton` component and the existing `DollarIcon` (already used by `SummaryCard`'s دلار row, §6j) — no new components added, `fillLastPrice`'s own fill logic completely unchanged, only the trigger element replaced. Also wrapped just the مقدار/قیمت واحد fields (previously two direct children of the form's outer `grid gap-[10px] min-[560px]:grid-cols-2`) in their own inner `grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr] min-[560px]:col-span-2` container, giving قیمت واحد 3 parts vs مقدار's 2 parts of the row's width at ≥560px (unit-price values run to many more digits than quantity values) while leaving the outer grid — and so تاریخ/یادداشت's existing equal-width layout below — completely untouched; below 560px both fields still stack full-width exactly as before. Verified via Playwright/Firefox at 320/400/700/1200px: icon button renders with no leftover "آخرین قیمت" text anywhere, no overlap/clipping at any width, قیمت واحد's column visibly wider than مقدار's at ≥560px while تاریخ/یادداشت stay equal, both fields still stack full-width below 560px, and clicking the icon still fills قیمت واحد with the asset's exact stored `unitPrice` (`7,500,000`) unchanged. `npm run build` (typecheck + vite build) passes. |
 | 2026-09-26 | Owner-requested (see §6z): (1) added `aspect-square` to the one shared `IconButton` base className so every icon button in the app always renders as a true square, fixing the last-price button (§6y) rendering as a narrow rectangle inside its flex-stretched-height container — a shared-component fix, deliberately no one-off override added to `RecordTransactionModal.tsx` itself. (2) added a 4th toolbar `IconButton` ("ثبت تراکنش جدید", reusing `PencilIcon`) that opens a new `SelectAssetForTransactionModal.tsx` (searchable, name-filtered list of existing assets, shelled like `RecordTransactionModal`) — picking an asset there closes the picker and sets the app's existing `recordTransactionAssetId` state, opening the SAME `RecordTransactionModal` already wired to it (no duplicate transaction-recording logic). `App.tsx`'s new `handleOpenAddTransaction` shows a `toast.warning('ابتدا یک دارایی اضافه کنید')` instead of opening the picker when the wallet is empty. Verified via Playwright/Firefox: every `IconButton` (toolbar's 4 + `AssetRow`'s pencil + the last-price button) now measures as an exact square; toolbar button → search → select → `RecordTransactionModal` opens for that exact asset with the same toggle/last-price button/no leftover picker; closing the picker via ×/Escape/backdrop leaves no transaction modal open; empty-wallet click shows the warning toast and never opens the picker. `npm run build` passes. |
+| 2026-09-26 | Owner-requested (see §6aa), four related UI refinements: (1) `AssetRow`'s per-asset record-transaction button switched `PencilIcon`/`ariaLabel="ویرایش"` → `PlusIcon`/`ariaLabel="ثبت تراکنش"` (fixing a stale label — it never opened an edit form). (2) `Toolbar`'s standalone "افزودن دارایی جدید" `IconButton`/`onAdd` prop was deleted outright (confirmed via a full-repo search that nothing besides `App.tsx`'s own now-removed `isAddOpen`/`handleAddAsset`/`<AddAssetModal>` wiring depended on it before deleting `src/components/AddAssetModal.tsx` itself; `AssetPicker.tsx`, `AddAssetModal`'s own searchable-combobox dependency, was left in place as now-orphaned-but-harmless, not deleted). (3) the remaining "ثبت تراکنش جدید" toolbar button switched `PencilIcon`→`PlusIcon`, so "+" now consistently means "record a transaction" everywhere with no competing pencil icon left in the wallet UI. (4) `SelectAssetForTransactionModal.tsx` gained a second capability: while a search query is active, it now also matches the full asset catalog (`getCatalogAssets()`) down to entries not already owned (checked by `code === symbol` OR an exact-name fallback — the latter needed because legacy/auto-coded assets, e.g. the default samples, carry a `<PREFIX>-<NNNN>` code instead of the catalog symbol) and lists them below a "دارایی‌های جدید" heading with a "دارایی جدید" badge; picking one silently creates a new `Asset` at `quantity: 0` (`unitPrice` from `getEffectiveUnitPrice`, so GOLD18/USDT default to their live mock rate) via a new, deliberately transaction-free `handleAddNewAsset` in `App.tsx`, then proceeds straight into the same `RecordTransactionModal` flow as any existing-asset pick — no separate confirmation step, and the first submitted transaction is what sets the real quantity/price. The old `items.length === 0` guard (empty-state message replacing the whole search/list, plus `App.tsx`'s empty-wallet warning-toast guard before even opening the picker) was removed — an empty wallet now just shows a small inline hint above the list, since catalog search is always available. Separately, `Toolbar`'s "ارزش به تومان" label and `AssetSortMenu` swapped order (label now renders first in markup), which — in this RTL row — moves the three-dot sort-menu icon to sit directly beside "تومان" at the label's own left end. Verified via Playwright/Firefox: toolbar shows exactly 3 icon buttons (no "افزودن دارایی جدید") with the add-transaction button's SVG confirmed as `PlusIcon`; `AssetRow`'s "+" button SVG likewise confirmed as `PlusIcon` and still opens `RecordTransactionModal`; zero `aria-label="ویرایش"` buttons remain; the sort-menu icon's bounding box sits left of (before, in RTL) the label's; searching an unowned catalog asset ("نیم سکه") shows exactly one "دارایی جدید"-badged result, selecting it opens `RecordTransactionModal` defaulting to خرید, and after submitting a خرید of quantity 3 the asset persists in `localStorage` with `code: 'COIN-HALF'`/`quantity: 3` and appears as a normal (now unbadged, owned) row on a second search; searching an already-owned legacy-coded sample ("تتر") still shows no badge (confirming the name-fallback); against a fully empty wallet the picker opens with no warning toast, shows the inline hint, and successfully creates+selects a new asset at `quantity: 0`; a no-match search still shows "دارایی‌ای پیدا نشد". `npm run build` (typecheck + vite build) passes. |
 ## 12. Agent playbook (how to progress this app)
 
 For every change:

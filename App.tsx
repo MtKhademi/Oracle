@@ -12,7 +12,6 @@ import { getEffectiveUnitPrice } from './src/services/livePriceMapping';
 import { portfolioHistoryService } from './src/services/portfolioHistoryService';
 import { useLivePrices } from './src/hooks/useLivePrices';
 import { format } from './src/format';
-import { AddAssetModal } from './src/components/AddAssetModal';
 import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
 import type { AssetSortMode } from './src/components/AssetSortMenu';
@@ -220,7 +219,6 @@ function resolveEffectiveType(rowType: RowType | null, defaultMode: ImportMode):
 export default function App() {
   const [items, setItems] = useState<Asset[]>(assets);
   const [isSample, setIsSample] = useState(true);
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -324,27 +322,15 @@ export default function App() {
     })();
   }, [total, prices]);
 
-  const handleAddAsset = async (newAsset: Asset) => {
-    // Merge-by-code: a catalog-driven add (see AddAssetModal.tsx) whose `code`
-    // (the catalog symbol) matches an asset already in the list is treated as
-    // "I'm adding to what I already have" — quantity is ADDED to the existing
-    // amount (unlike Excel import, which replaces) and unit price is updated to
-    // the newly entered one. No match (or no code) creates a new asset as before.
-    const existing = newAsset.code ? items.find(asset => asset.code === newAsset.code) : undefined;
-    const today = new Date().toISOString().slice(0, 10);
-    if (existing) {
-      const next = await assetService.updateAsset(existing.id, { quantity: existing.quantity + newAsset.quantity, unitPrice: newAsset.unitPrice });
-      await transactionService.addTransaction({ assetId: existing.id, type: 'buy', quantity: newAsset.quantity, unitPrice: newAsset.unitPrice, date: today });
-      setItems(next);
-      setIsSample(false);
-      toast.success(`مقدار ${existing.name} افزایش یافت`);
-      return;
-    }
+  // Adds a freshly created asset to the wallet (no transaction recorded here)
+  // — used by SelectAssetForTransactionModal when a catalog asset not yet in
+  // the wallet is picked: it arrives with quantity 0, and the very next step
+  // (the RecordTransactionModal that opens immediately after) is the first
+  // real خرید that sets its actual amount/price.
+  const handleAddNewAsset = async (newAsset: Asset) => {
     const next = await assetService.addAsset(newAsset);
-    await transactionService.addTransaction({ assetId: newAsset.id, type: 'buy', quantity: newAsset.quantity, unitPrice: newAsset.unitPrice, date: today });
     setItems(next);
     setIsSample(false);
-    toast.success('دارایی جدید اضافه شد');
   };
 
   const handleTransactionRecorded = async (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => {
@@ -385,14 +371,11 @@ export default function App() {
     });
   };
 
-  // Opens the "ثبت تراکنش برای کدام دارایی؟" picker (see §6z of
-  // AI-KNOWLEDGE.md), reached from the toolbar's new "ثبت تراکنش جدید"
-  // button — guards against an empty wallet, where there's nothing to pick.
+  // Opens the "ثبت تراکنش برای کدام دارایی؟" picker (see §6z/§6aa of
+  // AI-KNOWLEDGE.md), reached from the toolbar's "ثبت تراکنش جدید" button.
+  // No empty-wallet guard anymore — an empty wallet just shows the picker's
+  // own hint and lets the owner search a catalog asset and add it.
   const handleOpenAddTransaction = () => {
-    if (items.length === 0) {
-      toast.warning('ابتدا یک دارایی اضافه کنید');
-      return;
-    }
     setIsSelectAssetForTransactionOpen(true);
   };
 
@@ -471,7 +454,7 @@ export default function App() {
           <button type="button" onClick={() => setActiveSectionTab('market')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'market' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><MarketEyeIcon/>چشم بازار</button>
         </div>
         {activeSectionTab === 'wallet' ? <>
-          <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)} onAddTransaction={handleOpenAddTransaction} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
+          <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAddTransaction={handleOpenAddTransaction} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
           {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onRecordTransaction={setRecordTransactionAssetId} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
           <MarketWatchList/>
@@ -479,12 +462,11 @@ export default function App() {
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
-    {isAddOpen && <AddAssetModal onClose={() => setIsAddOpen(false)} onAdd={handleAddAsset}/>}
     {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onSubmit={handleImportFile}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
     {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
-    {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }}/>}
+    {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} prices={prices} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }} onAddAsset={handleAddNewAsset}/>}
   </div>;
 }

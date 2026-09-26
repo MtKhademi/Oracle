@@ -4,7 +4,7 @@ import type { LivePrices } from '../services/priceService';
 import { getEffectiveUnitPrice, getLivePriceKeyForAsset } from '../services/livePriceMapping';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
-import { HistoryIcon, PencilIcon, TrashIcon } from './icons';
+import { HistoryIcon, PlusIcon, TrashIcon } from './icons';
 
 const assetIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
@@ -23,7 +23,7 @@ export function AssetRow({ asset, prices, isBalanceHidden, onDelete, onRecordTra
       <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{isBalanceHidden ? maskAmount(format(asset.quantity * effectiveUnitPrice)) : format(asset.quantity * effectiveUnitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>
       <div className="flex gap-[8px]">
         <IconButton icon={<HistoryIcon/>} onClick={() => onHistory(asset.id)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
-        <IconButton icon={<PencilIcon/>} onClick={() => onRecordTransaction(asset.id)} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>
+        <IconButton icon={<PlusIcon/>} onClick={() => onRecordTransaction(asset.id)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
         <IconButton icon={<TrashIcon/>} onClick={() => onDelete(asset.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>
       </div>
     </div>
