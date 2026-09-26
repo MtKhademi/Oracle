@@ -6,7 +6,8 @@ import type { TransactionType } from '../types/transaction';
 import type { LivePrices } from '../services/priceService';
 import { getEffectiveUnitPrice } from '../services/livePriceMapping';
 import { formatWithThousands, stripToNumberString, todayLocalIso } from '../format';
-import { CloseIcon } from './icons';
+import { CloseIcon, DollarIcon } from './icons';
+import { IconButton } from './IconButton';
 
 export function RecordTransactionModal({ asset, isSample, prices, onClose, onTransactionRecorded }: { asset: Asset; isSample: boolean; prices: LivePrices | null; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
   const lastPrice = getEffectiveUnitPrice(asset, prices);
@@ -53,15 +54,17 @@ export function RecordTransactionModal({ asset, isSample, prices, onClose, onTra
           <button type="button" onClick={() => setFormType('sell')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'sell' ? 'bg-[#d95050] text-white' : 'text-[#7a8097]'}`}>فروش</button>
           <button type="button" onClick={() => setFormType('replace')} className={`text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${formType === 'replace' ? 'bg-[#d7a144] text-white' : 'text-[#7a8097]'}`}>جایگذاری</button>
         </div>
-        <label className="text-[11px] text-[#7a8097] grid gap-1">{formType === 'replace' ? 'مقدار جدید' : 'مقدار'}
-          <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-        </label>
-        <label className="text-[11px] text-[#7a8097] grid gap-1 min-w-0">{formType === 'replace' ? 'قیمت واحد جدید (تومان)' : 'قیمت واحد به تومان'}
-          <span className="flex gap-[6px] min-w-0">
-            <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="flex-1 min-w-0 border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-            <button type="button" onClick={fillLastPrice} className="shrink-0 whitespace-nowrap text-[11px] font-medium text-[#5264e8] bg-[#eef0ff] hover:bg-[#e2e5ff] rounded-[10px] px-3 cursor-pointer transition-colors">آخرین قیمت</button>
-          </span>
-        </label>
+        <div className="grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr] min-[560px]:col-span-2">
+          <label className="text-[11px] text-[#7a8097] grid gap-1">{formType === 'replace' ? 'مقدار جدید' : 'مقدار'}
+            <input type="text" inputMode="numeric" value={formatWithThousands(formQuantity)} onChange={e => setFormQuantity(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1 min-w-0">{formType === 'replace' ? 'قیمت واحد جدید (تومان)' : 'قیمت واحد به تومان'}
+            <span className="flex gap-[6px] min-w-0">
+              <input type="text" inputMode="numeric" value={formatWithThousands(formUnitPrice)} onChange={e => setFormUnitPrice(stripToNumberString(e.target.value))} className="flex-1 min-w-0 border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+              <IconButton icon={<DollarIcon/>} onClick={fillLastPrice} ariaLabel="پر کردن با آخرین قیمت" tone="neutral" variant="filled"/>
+            </span>
+          </label>
+        </div>
         <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ
           <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
