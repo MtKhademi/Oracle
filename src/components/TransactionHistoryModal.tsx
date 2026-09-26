@@ -57,9 +57,9 @@ export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: A
         {asset.quantity > 0 && <p className="text-[11px] text-[#969eb2] leading-[1.9] mt-2">تراکنش‌های گذشتهٔ این دارایی هنوز ثبت نشده‌اند.</p>}
       </div> : <>
       <ul className="m-0 p-0 list-none grid gap-[6px]">
-        {pageItems.map(({ transaction }) => <li key={transaction.id} className={transaction.type === 'buy' ? 'border border-[#c8ecd4] bg-[#f0fdf5] rounded-[12px] py-2 px-3' : 'border border-[#f3c8c8] bg-[#fdf0f0] rounded-[12px] py-2 px-3'}>
+        {pageItems.map(({ transaction }) => <li key={transaction.id} className={transaction.type === 'buy' ? 'border border-[#c8ecd4] bg-[#f0fdf5] rounded-[12px] py-2 px-3' : transaction.type === 'sell' ? 'border border-[#f3c8c8] bg-[#fdf0f0] rounded-[12px] py-2 px-3' : 'border border-[#f0dca0] bg-[#fffbf0] rounded-[12px] py-2 px-3'}>
           <div className="flex items-center justify-between gap-2">
-            <span className={transaction.type === 'buy' ? 'text-[11px] font-medium text-[#1f9d55] bg-[#d7f5e0] rounded-[8px] px-2 py-[2px]' : 'text-[11px] font-medium text-[#d95050] bg-[#fde3e3] rounded-[8px] px-2 py-[2px]'}>{transaction.type === 'buy' ? 'خرید' : 'فروش'}</span>
+            <span className={transaction.type === 'buy' ? 'text-[11px] font-medium text-[#1f9d55] bg-[#d7f5e0] rounded-[8px] px-2 py-[2px]' : transaction.type === 'sell' ? 'text-[11px] font-medium text-[#d95050] bg-[#fde3e3] rounded-[8px] px-2 py-[2px]' : 'text-[11px] font-medium text-[#d7a144] bg-[#fff5df] rounded-[8px] px-2 py-[2px]'}>{transaction.type === 'buy' ? 'خرید' : transaction.type === 'sell' ? 'فروش' : 'جایگذاری'}</span>
             <span className="text-[11px] text-[#999fb2]">{formatDate(transaction.date)}</span>
           </div>
           <div className="flex items-center justify-between gap-2 mt-1 text-[12px] text-[#2a2f3d]">

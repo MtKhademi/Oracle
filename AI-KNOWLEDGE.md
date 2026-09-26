@@ -81,7 +81,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | ---- | -------------- |
 | `index.html` | Document shell: RTL, Vazirmatn-ready, `<title>Oracle \| سرمایه‌های من</title>`, loads `/src/main.tsx`. |
 | `src/main.tsx` | React entry: mounts `<App/>` plus a single `sonner` `<Toaster dir="rtl" position="top-center" richColors/>` in `<div id="root">` under `StrictMode`; imports Vazirmatn 400/500/700 + `styles.css`. |
-| `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i/§6v) for that asset — history-only, no `onTransactionRecorded` prop anymore. Separately holds `recordTransactionAssetId` (`string | null`, see §6v), set by each `AssetRow`'s pencil action (`onRecordTransaction`); when set, renders `<RecordTransactionModal>` for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler that updates that asset's `quantity` via `assetService.updateAsset` (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched) and sets the returned list into `items`. **`handleEdit` (the old direct quantity/unitPrice edit) was removed in §6v** — the pencil icon no longer bypasses the transaction system. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). Now also calls `useLivePrices()` once (see §6j/§6k) into `prices`, computes `total` via `getEffectiveUnitPrice(asset, prices)` per asset instead of raw `asset.unitPrice`, and passes `prices` down as a prop to both `<SummaryCard>` and every `<AssetRow>`. **Exception to "no direct `localStorage` access"** (added §6o): `sortMode` (`AssetSortMode`) is read/written straight to `localStorage` (key `oracle_asset_sort_mode_v1`) via small local `readStoredSortMode()`/`handleSortModeChange` helpers in `App.tsx` itself, the one deliberate exception to the service-layer-only rule (§6d) — it's a tiny UI display-preference, not asset/domain data, so a dedicated service felt like overkill; `sortedItems` (a `useMemo` over `items`/`sortMode`/`prices`, via `sortAssetsForDisplay()`) is what's actually mapped into `<AssetRow>` on the wallet tab — `items` itself is untouched/still insertion-ordered. |
+| `App.tsx` | Thin composition root: `parseImportRows()` (6-column Excel parser plus `resolveRowType`/`resolveRowDate`/`resolveEffectiveType`/`formatLocalIsoDate`/`parseIsoDateStrict` helpers, see §6a), the asset list `useState` (starts as the static `assets` sample with `isSample=true`; a mount-time `useEffect` calls `assetService.listAssets()` and swaps in the stored list + `isSample=false` if anything was previously saved), `isAddOpen` state, and the Excel-import/clear-all/add/delete handlers — each of which is now `async` and calls the matching `assetService.xxx(...)` method, awaits the returned full list, and sets it into state (see §6d). A separate mount-time `useEffect` calls `authService.getCurrentUser()` into `currentUser`/`isAuthChecked` state (see §6g); while unchecked, a minimal loading screen renders, and once checked, `currentUser === null` renders `<AuthScreen>` instead of the dashboard. Once authenticated, renders `<SummaryCard>`, `<Toolbar>`, the list of `<AssetRow>`, and `<AddAssetModal>` (see §6, §6c) — no longer holds any icon/button/modal markup itself. `handleLogout` calls `authService.logOut()`, clears `currentUser`, and closes the drawer; passed to `<SideDrawer onLogout>`. Also holds `historyAssetId` (`string | null`), set by each `AssetRow`'s History action (`onHistory`); when set, renders `<TransactionHistoryModal>` (see §6i/§6v) for that asset — history-only, no `onTransactionRecorded` prop anymore. Separately holds `recordTransactionAssetId` (`string | null`, see §6v), set by each `AssetRow`'s pencil action (`onRecordTransaction`); when set, renders `<RecordTransactionModal>` for that asset, passing `onTransactionRecorded={handleTransactionRecorded}` — an `async` handler, now taking a 4th `unitPrice` param (see §6w), that updates that asset via `assetService.updateAsset`: for `type: 'buy' | 'sell'`, only `quantity` changes (buy adds, sell subtracts clamped at 0; `unitPrice` is deliberately untouched, unchanged since §6v); for `type: 'replace'` (new in §6w), it instead sets **both** `quantity` and `unitPrice` directly to the entered values (not additive/subtractive — "this is the asset's new current state"), then sets the returned list into `items` either way. **`handleEdit` (the old direct quantity/unitPrice edit) was removed in §6v** — the pencil icon no longer bypasses the transaction system. `handleAddAsset` now also writes a `buy` transaction on both the merge-into-existing and brand-new branches (the entered quantity at the entered unit price, dated today) via `transactionService.addTransaction(...)` (see §6i). Now also calls `useLivePrices()` once (see §6j/§6k) into `prices`, computes `total` via `getEffectiveUnitPrice(asset, prices)` per asset instead of raw `asset.unitPrice`, and passes `prices` down as a prop to both `<SummaryCard>` and every `<AssetRow>`. **Exception to "no direct `localStorage` access"** (added §6o): `sortMode` (`AssetSortMode`) is read/written straight to `localStorage` (key `oracle_asset_sort_mode_v1`) via small local `readStoredSortMode()`/`handleSortModeChange` helpers in `App.tsx` itself, the one deliberate exception to the service-layer-only rule (§6d) — it's a tiny UI display-preference, not asset/domain data, so a dedicated service felt like overkill; `sortedItems` (a `useMemo` over `items`/`sortMode`/`prices`, via `sortAssetsForDisplay()`) is what's actually mapped into `<AssetRow>` on the wallet tab — `items` itself is untouched/still insertion-ordered. |
 | `src/components/icons.tsx` | Shared small stroke-based SVG icon components: `UploadIcon`, `TrashIcon`, `PlusIcon`, `CloseIcon`, `PencilIcon`, `UserIcon`, `SettingsIcon`, `InfoIcon`, `HelpIcon`, `LogoutIcon` (all `w-4 h-4 block`, `viewBox="0 0 24 24"`, `fill="none" stroke="currentColor" strokeWidth="1.8"`), plus `HistoryIcon` (a clock-with-rewind-arrow glyph, used by `AssetRow`'s per-row "History" action, see §6i), `HamburgerIcon` (`w-[30px] h-[30px] block`, same stroke style, three horizontal lines — used only in the header, see §6e), `UserAvatarPlaceholderIcon` (`w-11 h-11 block`, same person glyph as `UserIcon` at a larger size — the profile avatar's empty-state placeholder, see §6f), `DollarIcon` (a bold inline `$` glyph, same Arial-glyph pattern as the `₮`/`₿` symbols in `AssetIcon.tsx`, used only by `SummaryCard`'s USD row, see §6j), `GoldBarIcon` (a standalone copy of the gold-bar SVG paths from `AssetIcon`'s `'gold'` case, used only by `SummaryCard`'s gold-gram row, see §6j — kept separate from `AssetIcon` so `SummaryCard` doesn't need the full asset-icon type-switch just for a decorative badge), `RefreshIcon` (circular-arrows/refresh glyph, same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style as the rest of this file, used only by `SummaryCard`'s manual-refresh button, see §6j), and — added in §6m — `WalletIcon` (billfold glyph, tab toggle's "کیف پول" button), `MarketEyeIcon` (eye glyph, tab toggle's "چشم بازار" button), `CryptoIcon` (two overlapping coin circles, `MarketWatchList`'s "ارزها" category heading), `StockIcon` (bar-chart glyph, `MarketWatchList`'s "بورس" category heading), and `FixedIncomeIcon` (shield + checkmark glyph, `MarketWatchList`'s "صندوق‌های درآمد ثابت" category heading) — all same 24x24/`stroke="currentColor"`/`strokeWidth="1.8"` style; the gold category reuses the existing `GoldBarIcon`, no new gold icon added — and, added in §6o, `MoreVerticalIcon` (three small **filled** dots stacked vertically, `fill="currentColor"` instead of this file's usual stroke style so the dots stay visible at this size — the "دارایی‌های من" sort-menu trigger button). Used by `Toolbar`/`AssetRow`/`AddAssetModal`/`SideDrawer`/`ProfileModal`/`SummaryCard`/`MarketWatchList`/`AssetSortMenu`/`App.tsx` — no icon markup duplicated elsewhere. |
 | `src/components/IconButton.tsx` | Single reusable small icon-button component (`icon`, `onClick`, `ariaLabel`, `tone: 'neutral' \| 'danger'`, `variant: 'filled' \| 'ghost'`). `tone` controls the hover/background color (blue/violet tint for neutral, red tint for danger); `variant` distinguishes the toolbar's always-tinted `'filled'` buttons from the asset row's `'ghost'` (transparent-until-hover) edit/delete buttons. This is the ONLY icon-button implementation in the app — every small icon button (import/clear-all/add in the toolbar, edit/delete on each row) renders `<IconButton/>`, no hand-written button markup remains duplicated. |
 | `src/components/AssetIcon.tsx` | `AssetIcon({type})` (per-asset-category glyph) + the `iconTint` color map, relocated unchanged from `App.tsx`. Used by `SummaryCard` (cash icon) and `AssetRow`. |
@@ -95,8 +95,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/SummaryCard.tsx` | The summary card showing the total (toman), sample badge, and asset count. Takes `total`/`count`/`isSample`/`prices` props (`prices` is now passed down from `App.tsx`'s single `useLivePrices()` call, see §6j/§6k — this component no longer calls the hook itself). Renders two additional small labeled rows below the toman total — دلار (green `DollarIcon` badge) and گرم طلا (gold `GoldBarIcon` badge, same tint as `iconTint.gold`) — each converting the toman total via the live prices, plus a smaller muted per-unit-rate sub-text on each row ("هر دلار/هر گرم … تومان", see §6j); while `prices` is `null`, the same two rows render `invisible` (kept in the layout, just not shown) so there's no flash of a zero value and no layout shift once prices arrive. The card's very first row (see §6u) holds the wallet-icon button on the right and, on the left, the optional "نمایش نمونه" sample tag followed by the hide-balance eye toggle (§6p) and the manual-refresh `RefreshIcon` button (§6j) that calls `Promise.all([priceService.refreshNow(), marketWatchService.refreshNow()])` — refreshing both the portfolio-total price feed AND the independent چشم بازار feed together, see §6m; a `useEffect` watching the `prices` prop drives a local `isSpinning` state that spins the icon (`animate-spin`) for ~700ms on every price change, whichever source caused it, and disables the button meanwhile. The standalone "ارزش کل دارایی‌ها" heading that used to sit above the big total (with the eye/refresh buttons beside it) was removed in §6u — the section itself keeps `aria-label="ارزش کل دارایی‌ها"` for its accessible name instead of the old `aria-labelledby`. |
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
-| `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i) — **history-only since §6v**, no add-transaction form. On mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with type (خرید/فروش), Persian date, quantity+unit, and toman price-per-unit, plus pagination, a clear empty state, and a sample badge. Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes only `asset`/`isSample`/`onClose` props — no longer takes `onTransactionRecorded` (moved to `RecordTransactionModal`, see §6v). |
-| `src/components/RecordTransactionModal.tsx` | The "ثبت تراکنش جدید" (record buy/sell) modal (see §6v) — split out of `TransactionHistoryModal` into its own single-purpose modal, opened by `AssetRow`'s pencil icon (not the history/clock icon). Same shell pattern as `TransactionHistoryModal` (backdrop/"×"/`Escape`, `stopPropagation` on the card). Owns the خرید/فروش toggle + مقدار/قیمت واحد به تومان (shared `stripToNumberString`/`formatWithThousands` comma-formatting)/تاریخ (defaults to `todayLocalIso()`, see §4 `src/format.ts`)/یادداشت (optional) form fields and the "ثبت تراکنش" submit — identical validation/toast messages/`transactionService.addTransaction` call as the old embedded form. Header shows "ثبت تراکنش جدید" + the asset's name (and the "نمایش نمونه" tag when `isSample`) so it's clear which asset the transaction is for. Unlike the old embedded form, it does **not** reset its fields and stay open after a successful submit — it calls `onTransactionRecorded(assetId, type, quantity)` then `onClose()` immediately, since this modal's only job is recording one transaction (an intentional small UX difference from the old always-open-until-manually-closed behavior). Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
+| `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i) — **history-only since §6v**, no add-transaction form. On mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with a 3-way type badge (خرید green / فروش red / **جایگذاری amber, added in §6w** — same `#d7a144`/`#fff5df` tone `SummaryCard`'s gold-gram row uses), Persian date, quantity+unit, and toman price-per-unit, plus pagination, a clear empty state, and a sample badge. A `'replace'` row is never deleted or hidden — every transaction before it stays visible here exactly as before (see §5/§6w); this modal only ever *displays* history, it never decides what to count for a summary. Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes only `asset`/`isSample`/`onClose` props — no longer takes `onTransactionRecorded` (moved to `RecordTransactionModal`, see §6v). |
+| `src/components/RecordTransactionModal.tsx` | The "ثبت تراکنش جدید" (record buy/sell/replace) modal (see §6v, extended to a 3-way toggle in §6w) — split out of `TransactionHistoryModal` into its own single-purpose modal, opened by `AssetRow`'s pencil icon (not the history/clock icon). Same shell pattern as `TransactionHistoryModal` (backdrop/"×"/`Escape`, `stopPropagation` on the card). Owns a **3-way** فروش/خرید/جایگذاری toggle (`grid-cols-3`, added in §6w — خرید stays green `#1f9d55`, فروش stays red `#d95050`, جایگذاری is amber `#d7a144`, same gold tone as `SummaryCard`'s گرم طلا row) + مقدار/قیمت واحد به تومان (shared `stripToNumberString`/`formatWithThousands` comma-formatting; both labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" while جایگذاری is selected, see §6w)/تاریخ (defaults to `todayLocalIso()`, see §4 `src/format.ts`)/یادداشت (optional) form fields and the "ثبت تراکنش" submit — identical validation (`quantity > 0`, `unitPrice >= 0`, valid date) for all three types/toast messages/`transactionService.addTransaction` call as the old خرید/فروش-only form. Header shows "ثبت تراکنش جدید" + the asset's name (and the "نمایش نمونه" tag when `isSample`) so it's clear which asset the transaction is for. It does **not** reset its fields and stay open after a successful submit — it calls `onTransactionRecorded(assetId, type, quantity, unitPrice)` (the `unitPrice` param added in §6w so `App.tsx` can apply جایگذاری's exact-set semantics) then `onClose()` immediately, since this modal's only job is recording one transaction. Takes `asset`/`isSample`/`onClose`/`onTransactionRecorded` props. |
 | `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
@@ -109,11 +109,11 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/services/assetService.ts` | Defines the `AssetService` interface (`listAssets`/`addAsset`/`updateAsset`/`deleteAsset`/`importAssets(rows)`/`clearAssets`, all `Promise`-returning), the `ImportMode` (`'replace' \| 'add' \| 'subtract'`, the modal's default-mode choice), `ImportEffectiveType` (`'buy' \| 'sell' \| 'replace'`, a row's resolved per-row type), `ImportRow` (`{ asset, effectiveType, effectiveDate }`, one row ready to apply), and `ImportAssetChange` (`{ assetId, type: 'buy' \| 'sell', quantity, unitPrice, date }`) types, and exports the single `assetService` instance the whole app imports — currently `= localAssetService`. This is the ONLY line that needs to change to swap in a server-backed implementation later; no component/`App.tsx` code would need to change (see §6d). |
 | `src/services/localAssetService.ts` | The `localAssetService: AssetService` implementation, backed by `src/storage.ts`'s `loadAssets`/`saveAssets`. Each method reads the current list, applies the change, writes the result back via `saveAssets`, and resolves with the new full list. `importAssets(rows)` applies each row's own `effectiveType` independently (not one mode for the whole file) matched by `code` — `replace` overwrites or appends (no `changes` entry), `buy` adds the imported quantity (updating unit price) or appends and records a `buy` dated the row's `effectiveDate`, `sell` subtracts (clamped at 0, unit price untouched) and records a `sell` dated the row's `effectiveDate`, or skips unmatched rows (`skippedNoMatch++`) — and resolves the full `ImportResult` incl. the `changes` transaction list (see §6a/§6d). Does not duplicate the try/catch/localStorage logic — always calls into `storage.ts`. |
 | `src/storage.ts` | `loadAssets()`/`saveAssets()` — read/write the asset list to `localStorage` under key `oracle_assets_v1`, wrapped in try/catch so a browser that blocks storage doesn't crash the app (`loadAssets` returns `null`, `saveAssets` no-ops on failure). Only called from `src/services/localAssetService.ts`. Also `loadWatchedMarketItemIds()`/`saveWatchedMarketItemIds(ids)` (see §6r) — same try/catch-safe, null-on-missing-or-invalid convention, under key `oracle_market_watchlist_v1`; only called from `src/services/localMarketWatchlistService.ts`. |
-| `src/types/transaction.ts` | `TransactionType` (`'buy' \| 'sell'`) and `Transaction` (`id`/`assetId`/`type`/`quantity`/`unitPrice`/`date`/optional `note`) — the durable buy/sell history model for each asset, ready for the follow-up transaction-history UI. |
+| `src/types/transaction.ts` | `TransactionType` (`'buy' \| 'sell' \| 'replace'`, `'replace'` added in §6w) and `Transaction` (`id`/`assetId`/`type`/`quantity`/`unitPrice`/`date`/optional `note`) — the durable buy/sell/replace history model for each asset. A `'replace'` transaction's `quantity`/`unitPrice` mean "the new total state as of this date", not a delta — see §5/§6w. |
 | `src/transactionStorage.ts` | `loadTransactions()`/`saveTransactions()` — read/write the transaction list to `localStorage` under key `oracle_transactions_v1`, using the same try/catch-safe array storage pattern as assets/auth/profile. Only called from `src/services/localTransactionService.ts`. |
 | `src/services/transactionService.ts` | Defines the `TransactionService` interface (`listTransactions`/`listTransactionsForAsset`/`addTransaction`/`updateTransaction`/`deleteTransaction`/`deleteTransactionsForAsset`) and exports the single `transactionService` instance — currently `= localTransactionService`, matching the swap-one-line service-layer pattern used by assets/profile/auth. |
 | `src/services/localTransactionService.ts` | The `localTransactionService: TransactionService` implementation, backed by `src/transactionStorage.ts`. Transaction IDs use the same `crypto.randomUUID()` pattern already used for asset rows; add/update reject invalid `quantity <= 0` or `unitPrice < 0`; asset deletion cleanup is triggered by the UI handler in `App.tsx`, not by coupling this service to `localAssetService`. |
-| `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order; `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet (no-op otherwise). `ensureInitialTransaction` is now called by `TransactionHistoryModal` the first time an asset's history is opened (see §6i); `computeHoldingSummary` is still not used by the UI (the P/L display is a later task). |
+| `src/services/transactionCalculations.ts` | Pure transaction math and migration helpers: `computeHoldingSummary(transactions)` calculates current quantity, weighted-average cost, and realized P/L in chronological order — since §6w, it first finds the most recent `'replace'` transaction (if any) and treats it as a reset checkpoint (see §5/§6w): everything before it is ignored for this calculation only (never deleted from storage), and `quantity`/`averageCost`/`realizedPnL` are re-initialized from that replace's `quantity`/`unitPrice`/`0` before the normal buy/sell accumulation loop continues over whatever comes after it; a `'replace'` transaction is itself never treated as a buy or sell. `ensureInitialTransaction(asset)` lazily creates one synthetic initial buy for a pre-existing asset only if it has no transaction history yet (no-op otherwise, unaffected by §6w). `ensureInitialTransaction` is now called by `TransactionHistoryModal` the first time an asset's history is opened (see §6i); `computeHoldingSummary` is still not used by the UI (the P/L display is a later task) — its `'replace'`-aware behavior was sanity-checked with a temporary throwaway script during §6w's implementation, not a permanent test file. |
 | `src/services/priceService.ts` | Defines `LivePrices` (`{ usdToman, goldGramToman, btcToman, ethToman, updatedAt }`, the first 4 toman-denominated, `updatedAt` a `Date.now()` timestamp — see §6l) and the `PriceService` interface (`getPrices(): Promise<LivePrices>`, `subscribe(callback): () => void` — calls back immediately with the current prices, then again on every refresh, returns an unsubscribe function — and `refreshNow(): Promise<LivePrices>`, which immediately re-computes prices and notifies all current subscribers without resetting the 60s interval), and exports the single `priceService` instance — currently `= mockPriceService` (see §6j). Same singleton-swap pattern as `assetService`/`profileService`/`authService`/`transactionService` (see §6d): this is the only line that needs to change to point at a real server-backed price feed later. |
 | `src/services/mockPriceService.ts` | The `mockPriceService: PriceService` implementation (see §6j) — **entirely mock, no real price API**. Keeps in-memory current values (`usdToman: 230000` ≈ 1 US dollar, `goldGramToman: 24000000` ≈ 1 gram of 18-karat gold, `btcToman: 10500000000`/`ethToman: 360000000` — see §6l — realistic-looking starting points, not `src/assets.ts`'s old sample-data magnitudes) nudged each step by a shared `jitterStep()` function using a **fixed absolute toman amount** (`usdToman ±20`, `goldGramToman ±2,000,000`, `btcToman ±50,000,000`, `ethToman ±5,000,000`, not percentage-based), which also stamps `updatedAt: Date.now()` every time it runs, on a single shared `setInterval` (60000ms) once at least one subscriber is active; `getPrices()` resolves the current in-memory values immediately; `subscribe(callback)` calls `callback` immediately with the current values, adds it to a `Set` of subscribers notified on every tick, and returns an unsubscribe function that removes it and clears the interval once the last subscriber leaves (no leaked timer when no UI is mounted); `refreshNow()` calls the same `jitterStep()` immediately and notifies all current subscribers, independent of the interval timer — both the tick and manual refresh always apply the identical jitter logic, including the `updatedAt` stamp. |
 | `src/hooks/useLivePrices.ts` | `useLivePrices(): LivePrices \| null` — a small hook wrapping `priceService.subscribe(...)` in `useEffect` (subscribes on mount, unsubscribes on unmount via the returned cleanup function), holding the latest `LivePrices` in `useState`, starting `null` until the first callback arrives so the caller (now only `App.tsx`, see §6j/§6k — it threads the result down as a `prices` prop rather than each component calling the hook itself) can render a loading/placeholder state instead of flashing zeroed-out values. |
@@ -213,7 +213,7 @@ type Asset = {
 type Transaction = {
   id: string;
   assetId: string;      // related Asset.id
-  type: 'buy' | 'sell';
+  type: 'buy' | 'sell' | 'replace'; // 'replace' added in §6w
   quantity: number;     // intended to be > 0
   unitPrice: number;    // toman per unit at transaction time, intended to be >= 0
   date: string;         // ISO date, e.g. "2026-09-24"
@@ -224,22 +224,41 @@ type Transaction = {
 - Transactions are stored separately from assets in `localStorage` under
   `oracle_transactions_v1` via `src/transactionStorage.ts` and
   `src/services/localTransactionService.ts` (see §4). The dashboard UI shows each
-  asset's transaction history in a modal with an add-transaction form (see §6i) —
-  opening a history panel now lazily creates a synthetic initial buy for a
-  quantity-holding asset that has no history yet (`ensureInitialTransaction`, see
-  below); it never edits or deletes transactions.
+  asset's transaction history in a modal with a separate record-transaction form
+  (see §6i/§6v) — opening a history panel now lazily creates a synthetic initial
+  buy for a quantity-holding asset that has no history yet
+  (`ensureInitialTransaction`, see below); it never edits or deletes transactions.
 - `assetId` points to the related `Asset.id` (not `Asset.code`). When an asset is
   deleted from the current UI, `App.tsx` calls `assetService.deleteAsset(id)` and
   then `transactionService.deleteTransactionsForAsset(id)`; clear-all similarly
   deletes transaction rows for every asset that was present before clearing. This
   keeps the asset and transaction services independent while preventing orphaned
   transaction rows.
+- **`'replace'` (added in §6w) — a non-destructive history checkpoint, not a
+  delta.** For a `'replace'` transaction, `quantity`/`unitPrice` mean "this is the
+  asset's true total quantity / price basis as of this date", not an
+  amount-to-add/subtract like `'buy'`/`'sell'`. Recording one **never deletes**
+  any earlier transaction — every prior row stays in `localStorage` and keeps
+  showing in `TransactionHistoryModal` exactly as before (see §6i/§6w); it is
+  purely a *calculation-time* reset point, used so far only by
+  `computeHoldingSummary` (below) — a UI still not calling that function can
+  simply ignore this distinction entirely and treat `'replace'` rows as
+  additional history rows to display.
 - `computeHoldingSummary(transactions)` uses weighted-average cost: process by
-  chronological `date` (stable by original array order for tied dates), buys update
-  average cost, sells keep average cost unchanged and add realized P/L as
-  `(sellUnitPrice - currentAverageCost) * sellQuantity`. If bad data sells more
-  than currently held, quantity is clamped at 0 while realized P/L still uses the
-  requested sell quantity.
+  chronological `date` (stable by original array order for tied dates). Since
+  §6w, it first locates the **most recent** (by that same chronological/tie-break
+  order) `'replace'` transaction, if any; if found, every transaction before it
+  is dropped from this calculation only (never from storage) and
+  `quantity`/`averageCost`/`realizedPnL` are seeded from that replace's
+  `quantity`/`unitPrice`/`0` — the normal accumulation loop below then continues
+  from there over whatever comes after it. If no `'replace'` transaction exists,
+  behavior is unchanged from before §6w. Within that (possibly truncated) window,
+  buys update average cost, sells keep average cost unchanged and add realized
+  P/L as `(sellUnitPrice - currentAverageCost) * sellQuantity`; a `'replace'`
+  transaction is itself never treated as a buy or a sell by this loop — it acts
+  only as the reset anchor described above, never adding/subtracting its own
+  quantity a second time. If bad data sells more than currently held, quantity is
+  clamped at 0 while realized P/L still uses the requested sell quantity.
 - `ensureInitialTransaction(asset)` is a lazy migration helper for pre-existing
   assets: if an asset has no transactions, it creates one synthetic `buy` for the
   current `asset.quantity`/`asset.unitPrice` dated today (a no-op when the asset
@@ -330,7 +349,7 @@ type Transaction = {
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
    7. Transaction-history modal (see §6i, history-only since §6v) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History/clock action was clicked); it only lists that asset's transactions, no add-transaction form.
-   7b. Record-transaction modal (see §6v) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's pencil action was clicked); a single "ثبت تراکنش جدید" buy/sell form for that asset.
+   7b. Record-transaction modal (see §6v, 3-way خرید/فروش/جایگذاری toggle added in §6w) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's pencil action was clicked); a single "ثبت تراکنش جدید" form for that asset.
    8. Import modal (see §6a) — rendered as a sibling after `<main>`, only when `isImportModalOpen` is set (the toolbar's Excel-import button was clicked); a single screen combining file selection and the default replace/add/subtract mode choice, with a "بارگذاری" submit.
 - All of the above (steps 1–8) only render once a user is logged in — see §6g for
   the login/signup/forgot-password screens shown instead when they are not.
@@ -865,15 +884,19 @@ type Transaction = {
   which still shows exactly one row per asset and the toman total.
 - `TransactionHistoryModal` (`src/components/TransactionHistoryModal.tsx`) shows
   that asset's transactions only (filtered by `assetId` — opening one asset never
-  surfaces another asset's rows). Each row shows the type as a small
-  badge (خرید = buy, blue/violet tint; فروش = sell, neutral grey tint), the date
-  formatted in Persian via `formatDate` (§4 `src/format.ts`), the quantity with the
-  asset's unit (8 decimals, same as the dashboard), and the price per unit in
-  toman. Optional `note` is shown when present. **Since §6v this modal is
-  history-only** — the add-transaction form described below was split out into
-  `RecordTransactionModal`, opened from the pencil icon instead (see §6v); the
-  bullets below describe the writing mechanics that still apply, just via the
-  separate modal now.
+  surfaces another asset's rows). Each row shows the type as a small 3-way
+  badge (خرید = buy, green; فروش = sell, red; **جایگذاری = replace, amber —
+  added in §6w**, same `#d7a144`/`#fff5df` tone as `SummaryCard`'s گرم طلا row),
+  the date formatted in Persian via `formatDate` (§4 `src/format.ts`), the
+  quantity with the asset's unit (8 decimals, same as the dashboard), and the
+  price per unit in toman. Optional `note` is shown when present. **Since §6v
+  this modal is history-only** — the add-transaction form described below was
+  split out into `RecordTransactionModal`, opened from the pencil icon instead
+  (see §6v); the bullets below describe the writing mechanics that still apply,
+  just via the separate modal now. A `'replace'` row is displayed exactly like
+  any other row, never hidden or specially collapsed — its non-destructive
+  reset semantics (see §5/§6w) only affect `computeHoldingSummary`, which this
+  modal doesn't call.
 - **Lazy opening balance (see §5):** on mount the modal awaits
   `ensureInitialTransaction(asset)` before listing — a pre-existing asset with a
   positive `quantity` but no transaction history gets one synthetic initial `buy`
@@ -886,36 +909,53 @@ type Transaction = {
   (e.g. `crypto.randomUUID()` unavailable in the non-secure deployed context — see
   the secure-context note below) the modal still lists whatever is already stored
   instead of hanging on the loading state.
-- **Record-transaction form (now `RecordTransactionModal`, see §6v):** a
-  "ثبت تراکنش جدید" form lets the owner manually log a past or new buy/sell for
-  an asset (backfilling pre-feature purchases, recording a sale, ...), opened
-  by `AssetRow`'s pencil icon. Fields: a خرید/فروش segmented toggle (same
-  tab-toggle styling as `AuthScreen`'s login/signup tabs — `grid grid-cols-2`,
-  active = `bg-[#5264e8] text-white`), a مقدار (quantity) and a قیمت واحد به تومان
-  (unit price) input using the shared `stripToNumberString`/`formatWithThousands`
-  comma-formatting (text inputs, `inputMode="numeric"`, same as `AddAssetModal`,
-  see §6c), a `<input type="date">` defaulting to today (local date, via
-  `todayLocalIso()` in `src/format.ts`), and an
-  optional یادداشت (note) text input; the submit button reads "ثبت تراکنش".
-  On submit: client-side validation requires `quantity > 0` and `unitPrice >= 0`
-  (and a date) — otherwise `toast.error('مقدار و قیمت واحد را به‌درستی وارد
-  کنید.')` and the service is not called. Valid input →
+- **Record-transaction form (now `RecordTransactionModal`, see §6v; extended to
+  a 3-way toggle in §6w):** a "ثبت تراکنش جدید" form lets the owner manually log
+  a past or new خرید/فروش/**جایگذاری** for an asset (backfilling pre-feature
+  purchases, recording a sale, or — since §6w — checkpointing the asset's true
+  current state when they've fallen behind on logging individual
+  transactions), opened by `AssetRow`'s pencil icon. Fields: a **3-way**
+  segmented toggle (same tab-toggle styling as `AuthScreen`'s login/signup
+  tabs, now `grid grid-cols-3`, added in §6w — خرید stays green
+  `bg-[#1f9d55]`, فروش stays red `bg-[#d95050]`, جایگذاری is amber
+  `bg-[#d7a144]`, the same gold tone `SummaryCard`'s گرم طلا row already uses),
+  a مقدار/**مقدار جدید** (quantity) and a قیمت واحد به تومان/**قیمت واحد جدید
+  (تومان)** (unit price) input (labels switch to the "جدید" variants only
+  while جایگذاری is selected, see §6w, to make the "this is the new total, not
+  a delta" meaning explicit) using the shared
+  `stripToNumberString`/`formatWithThousands` comma-formatting (text inputs,
+  `inputMode="numeric"`, same as `AddAssetModal`, see §6c), a `<input
+  type="date">` defaulting to today (local date, via `todayLocalIso()` in
+  `src/format.ts`), and an optional یادداشت (note) text input; the submit
+  button reads "ثبت تراکنش". On submit: client-side validation requires
+  `quantity > 0` and `unitPrice >= 0` (and a date) for **all three** types,
+  unchanged by §6w — otherwise `toast.error('مقدار و قیمت واحد را به‌درستی
+  وارد کنید.')` and the service is not called. Valid input →
   `transactionService.addTransaction({ assetId, type, quantity, unitPrice, date,
   note: note || undefined })`; on success `toast.success('تراکنش ثبت شد')`, the
-  `onTransactionRecorded(assetId, type, quantity)` prop fires, then the modal
-  **closes itself** (since §6v — it no longer resets and stays open, because this
-  modal's only job is recording one transaction at a time). On failure (the
-  service throws, e.g. its internal validation) `toast.error(...)` with the
-  error message and the form is left open/untouched.
+  `onTransactionRecorded(assetId, type, quantity, unitPrice)` prop fires (the
+  `unitPrice` param added in §6w so `App.tsx` can apply جایگذاری's exact-set
+  semantics — خرید/فروش ignore it, unchanged), then the modal **closes itself**
+  (since §6v — it no longer resets and stays open, because this modal's only
+  job is recording one transaction at a time). On failure (the service throws,
+  e.g. its internal validation) `toast.error(...)` with the error message and
+  the form is left open/untouched.
 - **Asset quantity sync:** `App.tsx`'s `handleTransactionRecorded` (passed as
   `onTransactionRecorded`) looks the asset up in `items` and calls
-  `assetService.updateAsset(assetId, { quantity })` — buy: `current + quantity`;
-  sell: `Math.max(0, current - quantity)` (never negative) — then sets the
-  returned list into `items`. The asset's `unitPrice` is **deliberately never
-  touched** from this flow: the transaction's unit price is only that record's
-  historical trade price (kept in transaction history for future P/L
-  calculation); `unitPrice` is otherwise never edited anywhere in the app —
-  there is no more direct quantity/unitPrice edit at all (removed in §6v).
+  `assetService.updateAsset(...)`: for خرید/فروش (unchanged since §6v) —
+  `{ quantity }` only, buy: `current + quantity`; sell: `Math.max(0, current -
+  quantity)` (never negative), `unitPrice` untouched. For **جایگذاری (new in
+  §6w)** — `{ quantity, unitPrice }`, both **set directly** to the entered
+  values (not additive/subtractive — "this is the asset's new current state"),
+  since a replace isn't a purchase/sale event but a full snapshot. Either way
+  the returned list is set into `items`. Outside the جایگذاری branch,
+  `unitPrice` is **deliberately never touched**: the transaction's unit price
+  is only that record's historical trade price (kept in transaction history
+  for future P/L calculation); there is still no *direct* quantity/unitPrice
+  edit anywhere in the app (removed in §6v) — recording a جایگذاری transaction
+  is the only way to directly set `unitPrice` now, and it always goes through
+  `transactionService.addTransaction` first, same as any other recorded
+  transaction.
 - **Add-asset writes (see §6c):** `App.tsx`'s `handleAddAsset` now records a `buy`
   transaction in both branches — the merge-into-existing branch (an
   already-listed catalog asset) and the brand-new-asset branch:
@@ -952,11 +992,17 @@ type Transaction = {
   direct quantity/unitPrice edit that bypasses the transaction system — the
   pencil icon opens `RecordTransactionModal`, and every asset-quantity change
   it makes goes through `transactionService.addTransaction` +
-  `onTransactionRecorded`, same as any other buy/sell. Excel import
-  **does** write transactions, but only for rows whose *effective type* (see §6a) is
-  `buy`/`sell` (per-row `نوع`, or the modal's default mode when a row leaves it
-  empty); a row whose effective type is `replace` — a full-snapshot value — writes
-  none, since a snapshot is not a purchase event.
+  `onTransactionRecorded`, same as any other خرید/فروش/جایگذاری (see §6w).
+  Excel import **does** write transactions, but only for rows whose *effective
+  type* (see §6a) is `buy`/`sell` (per-row `نوع`, or the modal's default mode
+  when a row leaves it empty); a row whose effective type is `replace` — a
+  full-snapshot value — writes **none**, since a snapshot is not a purchase
+  event. **Do not confuse this with the جایگذاری `TransactionType` added in
+  §6w** — they share the same Persian word and both mean "set the exact
+  current state", but the Excel-import `replace` mode never writes a
+  transaction row at all (see §6a), while a pencil-icon جایگذاری always writes
+  one (a visible, amber-badged history entry) — they are two independent
+  mechanisms that happen to share a name and a similar snapshot intent.
 - **Secure-context note:** `RecordTransactionModal`'s form (and the `handleAddAsset` and
   Excel-import buy/sell transaction writes) rely on
   `localTransactionService.addTransaction`, whose `crypto.randomUUID()` ID
@@ -1117,14 +1163,27 @@ type Transaction = {
   گرم`. **(Historical note, superseded by §6v):** this section used to also
   describe an inline edit-mode replacing the unit-price `<input>` with a
   read-only "قیمت زنده" label — that whole inline-edit mode (and `onEdit`)
-  was removed in §6v; `RecordTransactionModal`'s buy/sell form never touches
+  was removed in §6v; `RecordTransactionModal`'s خرید/فروش form never touches
   `unitPrice` for live-priced assets either, since it only records the
   transaction's own historical trade price, not the asset's live/stored
   `unitPrice`.
+- **جایگذاری vs. live-priced assets — a known interaction (see §6w):** unlike
+  خرید/فروش, a recorded جایگذاری transaction *does* write `unitPrice`
+  directly to the asset (see §6i/§6w's `handleTransactionRecorded`). For a
+  GOLD18/USDT asset this stored value is immediately shadowed again by
+  `getEffectiveUnitPrice` (this section) on every render, so the row/total
+  still show the live price, not whatever was entered — the write isn't
+  wrong, it's just inert for those two assets until/unless they're ever
+  un-mapped from the live feed. This wasn't explicitly special-cased in §6w
+  (recording a جایگذاری against GOLD18/USDT still works and updates
+  `quantity` correctly) — just don't be surprised the entered *price* doesn't
+  visibly change anything for those two assets specifically.
 - **Why `unitPrice` is still a required `Asset` field, not removed:** even
-  though it's never hand-edited anymore (§6v), `Asset.unitPrice` (§5) still
-  backs every non-live-priced asset's row value and is preserved unchanged
-  if a live-priced asset is ever un-mapped from the live feed later.
+  though it's never *directly* hand-edited (there's still no dedicated
+  quantity/unitPrice edit UI, removed in §6v), `Asset.unitPrice` (§5) is now
+  settable via a recorded جایگذاری transaction (§6w) as well as still backing
+  every non-live-priced asset's row value, and is preserved unchanged if a
+  live-priced asset is ever un-mapped from the live feed later.
 - This only engages for an asset whose `code` is exactly `GOLD18` or `USDT`
   (the catalog symbols — see §5/§6c) — a manually re-added asset with a
   similar name but no catalog `code`, or a legacy pre-catalog asset that only
@@ -1962,6 +2021,115 @@ type Transaction = {
   inline `<input aria-label="مقدار ...">`/ذخیره/انصراف markup exists anywhere
   in the rendered page at any point. Build (`npm run build`) passes.
 
+## 6w. "جایگذاری" (replace) transaction type — a non-destructive history checkpoint
+
+- **Owner request:** the owner sometimes falls behind on logging individual
+  خرید/فروش transactions for an asset. Rather than reconstructing every
+  missed trade, they wanted a third recording option that means "this is my
+  asset's true current state as of today" — a checkpoint, not a delta.
+- **Design constraint (explicitly agreed non-destructive):** recording a
+  جایگذاری transaction must **never delete** any earlier transaction for that
+  asset. Every prior خرید/فروش/جایگذاری row stays in `localStorage` and keeps
+  showing in `TransactionHistoryModal` exactly as before (see §6i) — the
+  "reset" only applies to any *future calculation* over the history, starting
+  with `computeHoldingSummary` (see §5), which is instructed to ignore
+  everything before the most recent replace and start counting from there.
+  `TransactionHistoryModal` itself has no concept of this reset — it always
+  lists 100% of stored rows, oldest data included.
+- **`src/types/transaction.ts`:** `TransactionType` widened to `'buy' | 'sell'
+  | 'replace'` — no other field changes; `Transaction.quantity`/`unitPrice`
+  on a `'replace'` row mean "the new total quantity"/"the new price basis",
+  not deltas (documented directly on the type's own field comments and in
+  §5).
+- **`src/services/transactionCalculations.ts`'s `computeHoldingSummary`:**
+  after the existing chronological sort (by `date`, stable by original array
+  index for ties — unchanged), it now scans for the **last** (most recent by
+  that same order) transaction with `type === 'replace'`. If found:
+  `quantity`/`averageCost`/`realizedPnL` are seeded from that transaction's
+  `quantity`/`unitPrice`/`0` instead of `0`/`0`/`0`, and the accumulation loop
+  starts from the position **immediately after** it in the sorted array —
+  everything at or before that position is skipped entirely (not deleted,
+  just not counted here). If no `'replace'` exists anywhere in the list,
+  behavior is byte-for-byte identical to before this task. Inside the loop, a
+  `'replace'` transaction is explicitly skipped (`continue`) rather than
+  falling into the buy/sell branches — it is never double-counted as an
+  additional buy on top of the reset it already performed. Multiple replaces
+  in history are handled correctly too: only the single most recent one
+  matters, any earlier replace is just as invisible to this calculation as
+  any earlier buy/sell. Verified with a temporary throwaway `tsx` script
+  (not committed — `computeHoldingSummary` still has no permanent test file
+  in this codebase) covering: no-replace unchanged behavior, buys/sells
+  before **and** after a replace, replace as the very last transaction,
+  multiple replaces (only the latest counts), and same-date tie-breaking
+  (replace sorts by original array position on a date collision, same as
+  every other transaction type already did) — all 5 scenarios passed.
+- **`RecordTransactionModal.tsx` (the pencil-icon form, see §6v):** the
+  خرید/فروش toggle became a **3-way** `grid-cols-3` toggle — فروش/خرید/جایگذاری
+  in that left-to-right order (خرید stays visually primary/first as before;
+  جایگذاری is the new third segment) — خرید active state unchanged
+  (`bg-[#1f9d55] text-white`), فروش unchanged (`bg-[#d95050] text-white`),
+  جایگذاری active state is amber (`bg-[#d7a144] text-white`) — deliberately
+  reusing `SummaryCard`'s existing گرم طلا gold tone (`#d7a144`/`#fff5df`
+  pair) rather than inventing a new color, so "replace" reads as a distinct,
+  intentional third color rather than an arbitrary one. While جایگذاری is
+  selected, the two number field labels switch from "مقدار"/"قیمت واحد به
+  تومان" to **"مقدار جدید"/"قیمت واحد جدید (تومان)"** — making the "this is
+  the new total, not a delta" meaning explicit at the point of entry; خرید's
+  and فروش's labels are untouched. Validation is identical for all three
+  types (`quantity > 0`, `unitPrice >= 0`, valid date). On submit, a
+  جایگذاری transaction is written via the same
+  `transactionService.addTransaction({ assetId, type: 'replace', quantity,
+  unitPrice, date, note })` call every other type already used — no special
+  casing in the write path itself, only in how `App.tsx` reacts to it (next
+  bullet). The `onTransactionRecorded` prop's signature gained a 4th
+  parameter, `unitPrice: number` (previously `(assetId, type, quantity) =>
+  void`, now `(assetId, type: TransactionType, quantity, unitPrice) => void`)
+  — خرید/فروش call sites in `App.tsx` simply ignore the new parameter,
+  unchanged behavior; جایگذاری needs it to know what to set `unitPrice` to.
+- **`App.tsx`'s `handleTransactionRecorded`:** gained the same 4th `unitPrice`
+  parameter (now typed with the shared `TransactionType`, imported from
+  `src/types/transaction.ts`, instead of an inline `'buy' | 'sell'` literal
+  union). For `type === 'buy' | 'sell'` the function is **byte-for-byte
+  unchanged** (still only touches `quantity`, `unitPrice` param simply
+  unused) — the owner explicitly required existing خرید/فروش behavior to be
+  untouched. A new `if (type === 'replace')` branch, checked first, calls
+  `assetService.updateAsset(assetId, { quantity, unitPrice })` — **both**
+  fields set directly to the entered values (not additive/subtractive, unlike
+  خرید/فروش) — then returns early, since a replace's semantics don't fit the
+  buy-adds/sell-subtracts branch below it at all.
+- **`TransactionHistoryModal.tsx`:** the per-row badge/card styling (`<li>`
+  outer classes + inner `<span>` badge) became a 3-way branch instead of a
+  binary `type === 'buy' ? green : red`: خرید unchanged (`border-[#c8ecd4]
+  bg-[#f0fdf5]` card / `text-[#1f9d55] bg-[#d7f5e0]` badge), فروش unchanged
+  (`border-[#f3c8c8] bg-[#fdf0f0]` card / `text-[#d95050] bg-[#fde3e3]`
+  badge), جایگذاری new (`border-[#f0dca0] bg-[#fffbf0]` card —
+  slightly-more-saturated amber border/background than the flat
+  `#d7a144`/`#fff5df` badge pair, tuned so the card itself doesn't read too
+  pale next to the existing green/red cards — badge itself is
+  `text-[#d7a144] bg-[#fff5df]`, the exact `SummaryCard` gold tone), labeled
+  "جایگذاری" instead of "خرید"/"فروش". A replace row is otherwise a perfectly
+  normal history row — same date/quantity/unit-price/note layout, same
+  pagination, no special treatment beyond the color/label.
+- **Untouched by this task:** `ensureInitialTransaction` (still only ever
+  writes a synthetic `'buy'`), `TransactionHistoryModal`'s pagination/loading/
+  empty states, the Excel-import `replace` mode (see §6a/§6i's disambiguation
+  bullet — a same-named but functionally distinct mechanism that never
+  writes a transaction row at all), and every
+  AssetRow/AssetSortMenu/eye-toggle/چشم بازار feature.
+- **Verified:** via Playwright/Chrome — the pencil-icon modal shows all three
+  toggle options (فروش/خرید/جایگذاری); selecting جایگذاری relabels both
+  number fields to "مقدار جدید"/"قیمت واحد جدید (تومان)"; submitting
+  quantity=10/unitPrice=500,000 against an asset that already held 5 units
+  set its displayed quantity to **exactly** 10 (not 15 — confirming
+  exact-set, not additive) and its stored `unitPrice` to exactly 500,000; the
+  modal auto-closed on success; re-opening the history modal showed **both**
+  the new جایگذاری row (amber, computed `background-color: rgb(255, 245,
+  223)` / `color: rgb(215, 161, 68)` — the exact `#fff5df`/`#d7a144` pair) and
+  the original, untouched خرید row from before the replace (still green,
+  still present — confirming non-destructive/no-deletion). Ran the
+  `computeHoldingSummary` sanity script described above (5 scenarios, all
+  passed). `npm run build` (typecheck + vite build) passes.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -2089,6 +2257,8 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Owner-requested (see §6t): replaced the "ارزش به تومان" label on the "چشم بازار" tab's header row (added in §6s) with the "بروزرسانی: …" update timestamp, and dropped the now-empty second row it used to occupy — redundant since every item row already shows its own "تومان" unit next to the price. `MarketWatchList.tsx` (the only file changed) merged the two rows into the single existing `justify-between` row: the `<span>` label became the `<p>` timestamp (same text/classes as before, "+" `IconButton` unchanged, first in JSX/right side), and the now-empty `<div className="px-1">` row that used to hold that `<p>` was deleted outright. Exactly one header row now sits above the category groups; "ارزش به تومان" no longer appears anywhere in the app. `App.tsx`, the wallet tab, `isAddOpen`/`AddMarketWatchItemModal`/category grouping/per-item remove all untouched. Verified via Playwright/Chrome at 320/400/700/1200px: same-row bounding-box check ("+" right of the timestamp), zero "ارزش به تومان" matches, no leftover gap where the second row used to be, timestamp still live/refresh-driven, "+" still opens the modal, remove→re-add smoke test (14→13→14 items). Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6u): removed the "ارزش کل دارایی‌ها" heading from `SummaryCard`'s wallet-tab card — judged unnecessary since the number's context is already obvious — and moved the hide-balance eye toggle (§6p) and manual-refresh button (§6j) that used to sit on that heading's own row up onto the card's very first row instead (which already held the wallet-icon button and the optional "نمایش نمونه" sample tag). `SummaryCard.tsx` (the only file changed): deleted the `<h1 id="total-title">`; the eye/refresh `<span>` group now renders on the left side of the first row, after the optional sample tag, both wrapped together in one `<span className="flex items-center gap-2">`; the now-empty second row was deleted outright; the big-total block's top margin changed from `mt-[5px]` to `mt-4 min-[1050px]:mt-5 max-[481px]:mt-3` to keep the vertical gap looking balanced with the removed row's height gone; the outer `<section>` switched from `aria-labelledby="total-title"` to `aria-label="ارزش کل دارایی‌ها"` to keep a valid accessible name. Every button's classes/`onClick`/`aria-label`/icon logic unchanged — only position moved. Nothing else (`App.tsx`, the wallet tab's `Toolbar`/`AssetRow`/`AssetSortMenu`, the "چشم بازار" tab, masking behavior, the USD/gold equivalent lines, the footer) touched. Verified via Playwright/Chrome at 320/400/700/1200px: zero visible matches for "ارزش کل دارایی‌ها" (still present only as the section's `aria-label`), first row holds wallet button (right) + sample tag/eye/refresh group (left) with no wrap/overlap at any breakpoint, eye toggle still masks/unmasks the total, refresh button still spins. Build (`npm run build`) passes. |
 | 2026-09-26 | Owner-requested (see §6v): split `TransactionHistoryModal` (the history/clock icon's modal) away from the "ثبت تراکنش جدید" buy/sell form it used to embed, and repointed `AssetRow`'s pencil icon at the split-out form instead of the old direct-edit mechanism it used to open. Moved `todayLocalIso()` from a local definition in `TransactionHistoryModal.tsx` into shared `src/format.ts` (exported). `TransactionHistoryModal.tsx` lost its form state/`handleAddSubmit`/form JSX and the `onTransactionRecorded` prop — it is now history-only (list + pagination + empty/loading states + sample badge), taking just `{ asset, isSample, onClose }`. New `src/components/RecordTransactionModal.tsx` holds the moved form verbatim (same خرید/فروش toggle, مقدار/قیمت واحد/تاریخ/یادداشت fields, validation, `transactionService.addTransaction` call, toasts), titled "ثبت تراکنش جدید" with the asset's name shown below, taking `{ asset, isSample, onClose, onTransactionRecorded }` — the one behavior change is it now calls `onClose()` right after a successful submit instead of resetting its fields to stay open (single-purpose action modal, matching `AddAssetModal`'s pattern). `AssetRow.tsx`'s old inline-edit mechanism (`isEditing`/`draftQuantity`/`draftUnitPrice`/`error` state, `startEdit`/`save`, the two-visual-mode conditional branches, and the `onEdit` prop) was removed entirely — the row is now always the single static view; the pencil `IconButton` (unchanged icon/aria-label/tone/variant) now calls a new `onRecordTransaction(id)` prop instead of `startEdit`. `App.tsx` dropped `handleEdit` entirely, added `recordTransactionAssetId`/`recordTransactionAsset` state mirroring the existing `historyAssetId`/`historyAsset` pattern, updated the `<AssetRow>` call site (`onEdit={handleEdit}` → `onRecordTransaction={setRecordTransactionAssetId}`), and rendered the new `<RecordTransactionModal>` alongside the (now simplified) `<TransactionHistoryModal>` call, reusing the existing, unchanged `handleTransactionRecorded` handler as `onTransactionRecorded` for the new modal (no new quantity-update logic needed — that handler already implements the buy-adds/sell-subtracts-clamped-at-0 semantics a transaction-based edit requires). Verified via Playwright/Chrome: the history modal shows zero "ثبت تراکنش جدید" text anywhere; the pencil icon opens the separate, correctly-titled record-transaction modal; submitting there updates the asset's quantity and auto-closes; re-opening history shows the new transaction in the list; no inline edit inputs/ذخیره/انصراف markup exists anywhere on the page at any point; both modals are independently openable/closeable via their own state. Build (`npm run build`) passes. |
+
+| 2026-09-26 | Owner-requested (see §6w): added a third "جایگذاری" (replace) `TransactionType` — `'buy' \| 'sell' \| 'replace'` in `src/types/transaction.ts` — as a **non-destructive history checkpoint**: recording one never deletes any earlier transaction (every prior row stays in `localStorage` and keeps showing in `TransactionHistoryModal` exactly as before), it only affects future *calculations* over the history. `computeHoldingSummary` (`src/services/transactionCalculations.ts`) now finds the most recent `'replace'` transaction (if any) after its existing chronological sort, drops everything before it from the calculation only, and seeds `quantity`/`averageCost`/`realizedPnL` from that replace's `quantity`/`unitPrice`/`0` before continuing the normal buy/sell accumulation loop over whatever comes after — a `'replace'` row is itself never treated as a buy or sell (explicitly skipped in the loop, never double-counted); with no `'replace'` present, behavior is unchanged. Verified with a temporary throwaway `tsx` script covering 5 scenarios (no-replace baseline, buys/sells before+after a replace, replace-as-last-transaction, multiple replaces where only the latest counts, same-date tie-breaking) — all passed; `computeHoldingSummary` still has no UI caller and no permanent test file. `RecordTransactionModal.tsx`'s خرید/فروش toggle became a 3-way `grid-cols-3` toggle (فروش/خرید/جایگذاری) — جایگذاری's active state reuses `SummaryCard`'s existing گرم طلا gold tone (`bg-[#d7a144] text-white`) rather than a new color; while جایگذاری is selected the مقدار/قیمت واحد به تومان field labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" to make the new-total-not-a-delta meaning explicit (خرید/فروش labels untouched); validation is identical for all three types. `onTransactionRecorded` gained a 4th `unitPrice: number` parameter (خرید/فروش call sites ignore it, unchanged behavior). `App.tsx`'s `handleTransactionRecorded` gained the same 4th parameter and a new `if (type === 'replace')` branch, checked first, that calls `assetService.updateAsset(assetId, { quantity, unitPrice })` — both fields **set directly** to the entered values (not additive/subtractive) — while خرید/فروش remain byte-for-byte unchanged. `TransactionHistoryModal.tsx`'s per-row badge/card styling became a 3-way branch — خرید/فروش unchanged (green/red), جایگذاری new (amber card `border-[#f0dca0] bg-[#fffbf0]`, badge `text-[#d7a144] bg-[#fff5df]` — the exact `SummaryCard` gold pair), labeled "جایگذاری". Explicitly disambiguated in §6i from the same-named Excel-import `replace` mode (§6a), which is a functionally distinct mechanism that never writes a transaction row at all — a pencil-icon جایگذاری always does. `ensureInitialTransaction`, `TransactionHistoryModal`'s pagination/loading/empty states, and every AssetRow/AssetSortMenu/eye-toggle/چشم بازار feature untouched. Verified via Playwright/Chrome: 3-way toggle present; selecting جایگذاری relabels both number fields; submitting quantity=10/unitPrice=500,000 against an asset already holding 5 set its displayed quantity to exactly 10 (not 15, confirming exact-set) and stored `unitPrice` to exactly 500,000; modal auto-closed on success; re-opened history modal showed both the new amber جایگذاری row (computed colors matched `#fff5df`/`#d7a144` exactly) **and** the original untouched خرید row from before the replace (confirming non-destructive/no-deletion); zero "ثبت تراکنش جدید" text leaked into the history modal. Build (`npm run build`) passes. |
 
 ## 12. Agent playbook (how to progress this app)
 
