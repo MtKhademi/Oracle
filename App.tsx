@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { assets, type Asset } from './src/assets';
@@ -14,6 +14,7 @@ import { format } from './src/format';
 import { AddAssetModal } from './src/components/AddAssetModal';
 import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
+import { AssetSortMenu, type AssetSortMode } from './src/components/AssetSortMenu';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
 import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
@@ -23,7 +24,59 @@ import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
 import { Toolbar } from './src/components/Toolbar';
+import type { LivePrices } from './src/services/priceService';
 import type { User } from './src/types';
+
+const ASSET_SORT_MODE_STORAGE_KEY = 'oracle_asset_sort_mode_v1';
+const ASSET_SORT_MODES: readonly AssetSortMode[] = ['value', 'type'];
+
+// Reads the persisted sort-mode choice (see the "دارایی‌های من" sort menu,
+// AssetSortMenu.tsx) from localStorage, same try/catch-safe pattern as the
+// rest of this app's storage helpers (src/storage.ts etc.) — falls back to
+// 'value' (the default) on a missing key, an unrecognized value, or a
+// browser that blocks storage.
+function readStoredSortMode(): AssetSortMode {
+  try {
+    const raw = localStorage.getItem(ASSET_SORT_MODE_STORAGE_KEY);
+    return (ASSET_SORT_MODES as readonly string[]).includes(raw ?? '') ? (raw as AssetSortMode) : 'value';
+  } catch {
+    return 'value';
+  }
+}
+
+// The toman value of one asset — the same quantity × effective-unit-price
+// calculation AssetRow/App.tsx's `total` already use (see
+// src/services/livePriceMapping.ts), reused here instead of being
+// reimplemented for sorting.
+function getAssetTomanValue(asset: Asset, prices: LivePrices | null): number {
+  return asset.quantity * getEffectiveUnitPrice(asset, prices);
+}
+
+// Sorts the asset list for display only (does not mutate/reorder the stored
+// `items` array) according to the owner's chosen sort mode — see the
+// "دارایی‌های من" sort menu (AssetSortMenu.tsx) and §6o of AI-KNOWLEDGE.md.
+function sortAssetsForDisplay(items: Asset[], sortMode: AssetSortMode, prices: LivePrices | null): Asset[] {
+  if (sortMode === 'value') {
+    return [...items].sort((a, b) => getAssetTomanValue(b, prices) - getAssetTomanValue(a, prices));
+  }
+  // 'type': group by the catalog category (getCatalogAssetBySymbol(asset.code)
+  // .category, same category resolution used elsewhere — e.g.
+  // getCategoryLabel() below), order groups by total group value descending,
+  // and sort assets within each group by their own value descending.
+  const groups = new Map<string, Asset[]>();
+  for (const asset of items) {
+    const categoryId = (asset.code && getCatalogAssetBySymbol(asset.code)?.category) || 'other';
+    const group = groups.get(categoryId);
+    if (group) group.push(asset);
+    else groups.set(categoryId, [asset]);
+  }
+  const orderedGroups = [...groups.entries()].sort(
+    ([, aAssets], [, bAssets]) =>
+      bAssets.reduce((sum, asset) => sum + getAssetTomanValue(asset, prices), 0) -
+      aAssets.reduce((sum, asset) => sum + getAssetTomanValue(asset, prices), 0),
+  );
+  return orderedGroups.flatMap(([, groupAssets]) => [...groupAssets].sort((a, b) => getAssetTomanValue(b, prices) - getAssetTomanValue(a, prices)));
+}
 
 const EXPECTED_IMPORT_HEADERS = ['نماد', 'تعداد', 'قیمت واحد (تومان)'];
 const ROW_TYPE_VALUES = ['buy', 'sell', 'replace'] as const;
@@ -157,8 +210,20 @@ export default function App() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [sortMode, setSortMode] = useState<AssetSortMode>(readStoredSortMode);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
+
+  const handleSortModeChange = (mode: AssetSortMode) => {
+    setSortMode(mode);
+    try {
+      localStorage.setItem(ASSET_SORT_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Same best-effort/no-op-on-failure convention as the rest of the
+      // app's localStorage writes (see src/storage.ts) — a blocked storage
+      // API shouldn't crash the sort action itself, it just won't persist.
+    }
+  };
 
   useEffect(() => {
     authService.getCurrentUser().then(user => {
@@ -200,6 +265,12 @@ export default function App() {
   };
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * getEffectiveUnitPrice(asset, prices), 0);
+
+  // Display-only sorted view of the wallet's asset list (see the
+  // "دارایی‌های من" sort menu, AssetSortMenu.tsx, and §6o of
+  // AI-KNOWLEDGE.md) — `items` itself (state, storage, add/edit/delete)
+  // stays in its original insertion order; only what's rendered changes.
+  const sortedItems = useMemo(() => sortAssetsForDisplay(items, sortMode, prices), [items, sortMode, prices]);
 
   // Records/updates today's portfolio snapshot (see
   // src/services/portfolioHistoryService.ts) once total/prices are both
@@ -353,8 +424,8 @@ export default function App() {
         </div>
         {activeSectionTab === 'wallet' ? <>
           <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
-          <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
-          {items.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{items.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+          <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="flex items-center gap-1"><AssetSortMenu value={sortMode} onChange={handleSortModeChange}/><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></span></div>
+          {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
           <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">چشم بازار</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
           <MarketWatchList/>

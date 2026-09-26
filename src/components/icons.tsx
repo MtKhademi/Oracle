@@ -147,3 +147,15 @@ export function FixedIncomeIcon() {
     <path d="m9 12 2 2 4-4"/>
   </svg>;
 }
+
+// Three small stacked filled dots — the "more options" / sort-menu trigger
+// button above the asset list (see AssetSortMenu.tsx). Filled circles (not
+// stroked, unlike most icons in this file) so the dots stay clearly visible
+// at this small size.
+export function MoreVerticalIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="5" r="1.8"/>
+    <circle cx="12" cy="12" r="1.8"/>
+    <circle cx="12" cy="19" r="1.8"/>
+  </svg>;
+}
