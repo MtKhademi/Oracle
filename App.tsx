@@ -19,6 +19,7 @@ import { AuthScreen } from './src/components/AuthScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
 import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
+import { RecordTransactionModal } from './src/components/RecordTransactionModal';
 import { HamburgerIcon, MarketEyeIcon, WalletIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
@@ -222,6 +223,7 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
+  const [recordTransactionAssetId, setRecordTransactionAssetId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
@@ -358,12 +360,6 @@ export default function App() {
     setIsSample(false);
   };
 
-  const handleEdit = async (id: string, quantity: number, unitPrice: number) => {
-    const next = await assetService.updateAsset(id, { quantity, unitPrice });
-    setItems(next);
-    setIsSample(false);
-  };
-
   const clearAllAssets = async () => {
     const idsToDelete = items.map(asset => asset.id);
     const next = await assetService.clearAssets();
@@ -437,6 +433,7 @@ export default function App() {
   }
 
   const historyAsset = historyAssetId ? items.find(asset => asset.id === historyAssetId) : undefined;
+  const recordTransactionAsset = recordTransactionAssetId ? items.find(asset => asset.id === recordTransactionAssetId) : undefined;
 
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
@@ -455,7 +452,7 @@ export default function App() {
         </div>
         {activeSectionTab === 'wallet' ? <>
           <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
-          {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+          {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onRecordTransaction={setRecordTransactionAssetId} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
           <MarketWatchList/>
         </>}
@@ -466,6 +463,7 @@ export default function App() {
     {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onSubmit={handleImportFile}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
-    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
+    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
+    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
   </div>;
 }

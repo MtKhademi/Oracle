@@ -21,6 +21,14 @@ export const formatWithThousands = (raw: string) => {
   return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
 };
 
+// Today's date as a local (not UTC) YYYY-MM-DD ISO string — used to default
+// the transaction-form date input in RecordTransactionModal.
+export const todayLocalIso = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 const persianDateFormatter = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium' });
 
 export const formatDate = (isoDate: string) => {
