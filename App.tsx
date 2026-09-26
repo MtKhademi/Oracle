@@ -29,6 +29,7 @@ import type { User } from './src/types';
 
 const ASSET_SORT_MODE_STORAGE_KEY = 'oracle_asset_sort_mode_v1';
 const ASSET_SORT_MODES: readonly AssetSortMode[] = ['value', 'type'];
+const BALANCE_HIDDEN_STORAGE_KEY = 'oracle_balance_hidden_v1';
 
 // Reads the persisted sort-mode choice (see the "دارایی‌های من" sort menu,
 // AssetSortMenu.tsx) from localStorage, same try/catch-safe pattern as the
@@ -41,6 +42,18 @@ function readStoredSortMode(): AssetSortMode {
     return (ASSET_SORT_MODES as readonly string[]).includes(raw ?? '') ? (raw as AssetSortMode) : 'value';
   } catch {
     return 'value';
+  }
+}
+
+// Reads the persisted "hide balance" toggle (see SummaryCard's eye button)
+// from localStorage, same try/catch-safe/display-only-preference pattern as
+// readStoredSortMode above — falls back to `false` (visible, today's
+// behavior) on a missing key or a browser that blocks storage.
+function readStoredBalanceHidden(): boolean {
+  try {
+    return localStorage.getItem(BALANCE_HIDDEN_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
   }
 }
 
@@ -214,6 +227,7 @@ export default function App() {
   const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
   const [historyVersion, setHistoryVersion] = useState(0);
   const [sortMode, setSortMode] = useState<AssetSortMode>(readStoredSortMode);
+  const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(readStoredBalanceHidden);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
 
@@ -226,6 +240,20 @@ export default function App() {
       // app's localStorage writes (see src/storage.ts) — a blocked storage
       // API shouldn't crash the sort action itself, it just won't persist.
     }
+  };
+
+  const handleToggleBalanceHidden = () => {
+    setIsBalanceHidden(current => {
+      const next = !current;
+      try {
+        localStorage.setItem(BALANCE_HIDDEN_STORAGE_KEY, String(next));
+      } catch {
+        // Same best-effort/no-op-on-failure convention as
+        // handleSortModeChange above — a blocked storage API shouldn't
+        // crash the toggle, it just won't persist across a reload.
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -417,7 +445,7 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} onOpenWallet={() => setActiveSectionTab('wallet')}/>
+        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('wallet')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-labelledby="assets-title">
@@ -428,7 +456,7 @@ export default function App() {
         {activeSectionTab === 'wallet' ? <>
           <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)}/>
           <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">دارایی‌های من</h2><span className="flex items-center gap-1"><AssetSortMenu value={sortMode} onChange={handleSortModeChange}/><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></span></div>
-          {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
+          {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
           <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><h2 id="assets-title" className="text-[17px] font-bold max-[481px]:text-[15px]">چشم بازار</h2><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
           <MarketWatchList/>

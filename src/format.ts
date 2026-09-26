@@ -1,5 +1,12 @@
 export const format = (value: number, decimals = 0) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: decimals }).format(value);
 
+// Masks an already-formatted number string (Latin or Persian digits) for the
+// "hide balance" toggle (see App.tsx's isBalanceHidden / SummaryCard /
+// AssetRow) — replaces every digit with a bullet while keeping thousands
+// separators/grouping intact, so the masked value still reads as a
+// number-shaped placeholder, e.g. "۱,۸۹۶,۳۳۲,۵۴۶" -> "•,•••,•••,•••".
+export const maskAmount = (formatted: string) => formatted.replace(/[0-9۰-۹]/g, '•');
+
 export const stripToNumberString = (raw: string) => {
   let cleaned = raw.replace(/[^\d.]/g, '');
   const firstDot = cleaned.indexOf('.');
