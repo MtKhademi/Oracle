@@ -32,6 +32,6 @@ export function IconButton({ icon, onClick, ariaLabel, tone, variant = 'filled' 
     type="button"
     onClick={onClick}
     aria-label={ariaLabel}
-    className={`grid place-items-center cursor-pointer transition-colors ${variantClasses[variant]} ${toneClasses[tone][variant]}`}
+    className={`grid place-items-center aspect-square cursor-pointer transition-colors ${variantClasses[variant]} ${toneClasses[tone][variant]}`}
   >{icon}</button>;
 }

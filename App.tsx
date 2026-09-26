@@ -21,6 +21,7 @@ import { MarketWatchList } from './src/components/MarketWatchList';
 import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
 import { RecordTransactionModal } from './src/components/RecordTransactionModal';
+import { SelectAssetForTransactionModal } from './src/components/SelectAssetForTransactionModal';
 import { HamburgerIcon, MarketEyeIcon, WalletIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
@@ -225,6 +226,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [recordTransactionAssetId, setRecordTransactionAssetId] = useState<string | null>(null);
+  const [isSelectAssetForTransactionOpen, setIsSelectAssetForTransactionOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
@@ -383,6 +385,17 @@ export default function App() {
     });
   };
 
+  // Opens the "ثبت تراکنش برای کدام دارایی؟" picker (see §6z of
+  // AI-KNOWLEDGE.md), reached from the toolbar's new "ثبت تراکنش جدید"
+  // button — guards against an empty wallet, where there's nothing to pick.
+  const handleOpenAddTransaction = () => {
+    if (items.length === 0) {
+      toast.warning('ابتدا یک دارایی اضافه کنید');
+      return;
+    }
+    setIsSelectAssetForTransactionOpen(true);
+  };
+
   const handleImportFile = async (defaultMode: ImportMode, file: File) => {
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
       toast.error('فقط فایل اکسل (.xlsx یا .xls) پذیرفته می‌شود');
@@ -458,7 +471,7 @@ export default function App() {
           <button type="button" onClick={() => setActiveSectionTab('market')} className={`flex items-center justify-center gap-1.5 text-[13px] font-medium rounded-[8px] py-1.5 cursor-pointer transition-colors ${activeSectionTab === 'market' ? 'bg-[#5264e8] text-white' : 'text-[#7a8097]'}`}><MarketEyeIcon/>چشم بازار</button>
         </div>
         {activeSectionTab === 'wallet' ? <>
-          <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
+          <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)} onAddTransaction={handleOpenAddTransaction} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
           {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onRecordTransaction={setRecordTransactionAssetId} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
           <MarketWatchList/>
@@ -472,5 +485,6 @@ export default function App() {
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
     {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
+    {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }}/>}
   </div>;
 }
