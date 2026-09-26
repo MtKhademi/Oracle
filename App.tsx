@@ -7,6 +7,7 @@ import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
+import type { TransactionType } from './src/types/transaction';
 import { getEffectiveUnitPrice } from './src/services/livePriceMapping';
 import { portfolioHistoryService } from './src/services/portfolioHistoryService';
 import { useLivePrices } from './src/hooks/useLivePrices';
@@ -344,9 +345,15 @@ export default function App() {
     toast.success('دارایی جدید اضافه شد');
   };
 
-  const handleTransactionRecorded = async (assetId: string, type: 'buy' | 'sell', quantity: number) => {
+  const handleTransactionRecorded = async (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => {
     const currentAsset = items.find(asset => asset.id === assetId);
     if (!currentAsset) return;
+    if (type === 'replace') {
+      const next = await assetService.updateAsset(assetId, { quantity, unitPrice });
+      setItems(next);
+      setIsSample(false);
+      return;
+    }
     const newQuantity = type === 'buy' ? currentAsset.quantity + quantity : Math.max(0, currentAsset.quantity - quantity);
     const next = await assetService.updateAsset(assetId, { quantity: newQuantity });
     setItems(next);

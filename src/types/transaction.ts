@@ -1,4 +1,4 @@
-export type TransactionType = 'buy' | 'sell';
+export type TransactionType = 'buy' | 'sell' | 'replace';
 
 export type Transaction = {
   id: string;
