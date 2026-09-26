@@ -457,7 +457,6 @@ export default function App() {
           <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAdd={() => setIsAddOpen(true)} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
           {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onEdit={handleEdit} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : <>
-          <div className="flex justify-end items-center px-1 mb-[15px] min-[1050px]:mb-[19px]"><span className="text-[11px] text-[#656e87]">ارزش به تومان</span></div>
           <MarketWatchList/>
         </>}
       </section>
