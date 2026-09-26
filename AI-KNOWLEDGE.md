@@ -96,7 +96,7 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/components/AddAssetModal.tsx` | The add-asset modal + form (catalog asset picker/quantity/unit/unit-price, see §6c), using the shared `stripToNumberString`/`formatWithThousands` comma-formatting helpers (now in `src/format.ts`, imported — no longer defined locally) for the quantity/unit-price inputs. Takes `onClose`/`onAdd` callback props; owns its own form state and the `Escape`-key listener. |
 | `src/components/AssetPicker.tsx` | Custom searchable combobox (text input + dropdown panel) for picking a catalog asset — see §6c. Plain React state + Tailwind only, no external combobox/autocomplete library. Takes `selectedSymbol`/`onSelect` props; owns its own open/query/highlighted-index state. |
 | `src/components/TransactionHistoryModal.tsx` | Per-asset transaction-history modal (see §6i) — **history-only since §6v**, no add-transaction form. On mount it runs `ensureInitialTransaction(asset)` (lazy synthetic opening buy for assets with quantity but no history yet, see §5) and then loads that asset's transactions via `transactionService.listTransactionsForAsset(...)`, listing them newest-first with a 3-way type badge (خرید green / فروش red / **جایگذاری amber, added in §6w** — same `#d7a144`/`#fff5df` tone `SummaryCard`'s gold-gram row uses), Persian date, quantity+unit, and toman price-per-unit, plus pagination, a clear empty state, and a sample badge. A `'replace'` row is never deleted or hidden — every transaction before it stays visible here exactly as before (see §5/§6w); this modal only ever *displays* history, it never decides what to count for a summary. Reuses the `ProfileModal` overlay pattern (backdrop click / "×" / `Escape`). No edit/delete of transactions yet (later task). Takes only `asset`/`isSample`/`onClose` props — no longer takes `onTransactionRecorded` (moved to `RecordTransactionModal`, see §6v). |
-| `src/components/RecordTransactionModal.tsx` | The "ثبت تراکنش جدید" (record buy/sell/replace) modal (see §6v, extended to a 3-way toggle in §6w, "آخرین قیمت"/type-reactive submit button added in §6x) — split out of `TransactionHistoryModal` into its own single-purpose modal, opened by `AssetRow`'s pencil icon (not the history/clock icon). Same shell pattern as `TransactionHistoryModal` (backdrop/"×"/`Escape`, `stopPropagation` on the card). Owns a **3-way** فروش/خرید/جایگذاری toggle (`grid-cols-3`, added in §6w — خرید stays green `#1f9d55`, فروش stays red `#d95050`, جایگذاری is amber `#d7a144`, same gold tone as `SummaryCard`'s گرم طلا row) + مقدار/قیمت واحد به تومان (shared `stripToNumberString`/`formatWithThousands` comma-formatting; both labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" while جایگذاری is selected, see §6w)/تاریخ (defaults to `todayLocalIso()`, see §4 `src/format.ts`)/یادداشت (optional) form fields and a type-reactive submit button (see §6x — green/"ثبت تراکنش خرید", red/"ثبت تراکنش فروش", or amber/"ثبت تراکنش جایگذاری", the same three toggle colors) — identical validation (`quantity > 0`, `unitPrice >= 0`, valid date) for all three types/toast messages/`transactionService.addTransaction` call as before. Now also takes a **`prices: LivePrices | null`** prop (§6x, threaded from `App.tsx`'s existing `useLivePrices()` call, same one already passed to `AssetRow`/`SummaryCard`) — computes `lastPrice = getEffectiveUnitPrice(asset, prices)` (reusing `AssetRow`'s exact live-price-vs-stored-price logic, see §6k, no new price logic) and renders an "آخرین قیمت" button directly beside the قیمت واحد input (a `flex` row inside the label, `min-w-0` on both the label and the inner `flex` wrapper so the input still shrinks properly at a `grid` breakpoint instead of overflowing — see §6x); clicking it fills `formUnitPrice` with that value (rounded to the nearest toman). Header shows "ثبت تراکنش جدید" + the asset's name (and the "نمایش نمونه" tag when `isSample`) so it's clear which asset the transaction is for. It does **not** reset its fields and stay open after a successful submit — it calls `onTransactionRecorded(assetId, type, quantity, unitPrice)` (the `unitPrice` param added in §6w so `App.tsx` can apply جایگذاری's exact-set semantics) then `onClose()` immediately, since this modal's only job is recording one transaction. Takes `asset`/`isSample`/`prices`/`onClose`/`onTransactionRecorded` props. |
+| `src/components/RecordTransactionModal.tsx` | The "ثبت تراکنش جدید" (record buy/sell/replace) modal (see §6v, extended to a 3-way toggle in §6w, last-price-fill/type-reactive submit button added in §6x, last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio changed in §6y) — split out of `TransactionHistoryModal` into its own single-purpose modal, opened by `AssetRow`'s pencil icon (not the history/clock icon). Same shell pattern as `TransactionHistoryModal` (backdrop/"×"/`Escape`, `stopPropagation` on the card). Owns a **3-way** فروش/خرید/جایگذاری toggle (`grid-cols-3`, added in §6w — خرید stays green `#1f9d55`, فروش stays red `#d95050`, جایگذاری is amber `#d7a144`, same gold tone as `SummaryCard`'s گرم طلا row), then a §6y inner `grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr] min-[560px]:col-span-2` wrapper holding just the مقدار/قیمت واحد به تومان (shared `stripToNumberString`/`formatWithThousands` comma-formatting; both labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" while جایگذاری is selected, see §6w) fields — this inner grid gives قیمت واحد 3 parts vs مقدار's 2 parts of the row's width at ≥560px (see §6y), independent of the outer form grid's `min-[560px]:grid-cols-2` (still governing تاریخ/یادداشت below, unaffected), then a type-reactive submit button (see §6x — green/"ثبت تراکنش خرید", red/"ثبت تراکنش فروش", or amber/"ثبت تراکنش جایگذاری", the same three toggle colors) — identical validation (`quantity > 0`, `unitPrice >= 0`, valid date) for all three types/toast messages/`transactionService.addTransaction` call as before. Also takes a **`prices: LivePrices | null`** prop (§6x, threaded from `App.tsx`'s existing `useLivePrices()` call, same one already passed to `AssetRow`/`SummaryCard`) — computes `lastPrice = getEffectiveUnitPrice(asset, prices)` (reusing `AssetRow`'s exact live-price-vs-stored-price logic, see §6k, no new price logic) and renders a small icon-only `IconButton` (`DollarIcon`, `tone="neutral"`, `variant="filled"`, `ariaLabel="پر کردن با آخرین قیمت"` — see §6y, replacing the §6x text "آخرین قیمت" button) directly beside the قیمت واحد input (a `flex` row inside the label, `min-w-0` on both the label and the inner `flex` wrapper so the input still shrinks properly at a `grid` breakpoint instead of overflowing — see §6x/§6y); clicking it fills `formUnitPrice` with that value (rounded to the nearest toman), `fillLastPrice`'s logic unchanged since §6x. Header shows "ثبت تراکنش جدید" + the asset's name (and the "نمایش نمونه" tag when `isSample`) so it's clear which asset the transaction is for. It does **not** reset its fields and stay open after a successful submit — it calls `onTransactionRecorded(assetId, type, quantity, unitPrice)` (the `unitPrice` param added in §6w so `App.tsx` can apply جایگذاری's exact-set semantics) then `onClose()` immediately, since this modal's only job is recording one transaction. Takes `asset`/`isSample`/`prices`/`onClose`/`onTransactionRecorded` props. |
 | `src/components/SideDrawer.tsx` | The header's side-menu drawer (see §6e): slide-in-from-right panel + backdrop, containing the menu item list. مشخصات opens the profile view (`onOpenProfile` prop, see §6f); خروج now calls `onLogout` (real logout, see §6g); تنظیمات/درباره Oracle/راهنما remain placeholders that just close the drawer. Takes `onClose`/`onOpenProfile`/`onLogout` props; owns its own open/close slide-in animation state and the `Escape`-key listener. |
 | `src/components/ProfileModal.tsx` | The مشخصات (profile) modal (see §6f): avatar (image or placeholder icon) + "تغییر عکس" file picker, and نام و نام خانوادگی/شماره تماس/ایمیل inputs, pre-filled from `profileService.getProfile()` on open. Save button calls `profileService.saveProfile(...)`, shows a success toast, then closes. Takes only `onClose`; owns its own form state and the `Escape`-key listener. |
 | `src/components/AuthScreen.tsx` | Full-page login/signup screen (see §6g), shown instead of the dashboard when no user is logged in. Tab toggle between "ورود" and "ثبت‌نام", styled with the same card/input tokens as `AddAssetModal`/`ProfileModal`. Login calls `authService.logIn(...)`; signup calls `authService.signUp(...)` (client-side password/repeat match check first). On success calls the `onAuthenticated(user)` prop; on failure shows `toast.error(result.error)`. Renders `<ForgotPasswordModal>` when its "رمز عبور را فراموش کرده‌اید؟" link is clicked. |
@@ -349,7 +349,7 @@ type Transaction = {
   5. Add-asset modal (see §6c) — rendered as a sibling after `<main>`, only when open.
   6. Side-menu drawer (see §6e) and, opened from it, the profile modal (see §6f) — both rendered as siblings after `<main>`, only when open.
    7. Transaction-history modal (see §6i, history-only since §6v) — rendered as a sibling after `<main>`, only when `historyAssetId` is set (one asset row's History/clock action was clicked); it only lists that asset's transactions, no add-transaction form.
-   7b. Record-transaction modal (see §6v, 3-way خرید/فروش/جایگذاری toggle added in §6w, "آخرین قیمت" button + type-reactive submit button added in §6x) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's pencil action was clicked); a single "ثبت تراکنش جدید" form for that asset.
+   7b. Record-transaction modal (see §6v, 3-way خرید/فروش/جایگذاری toggle added in §6w, last-price fill button + type-reactive submit button added in §6x, last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio changed in §6y) — rendered as a sibling after `<main>`, only when `recordTransactionAssetId` is set (one asset row's pencil action was clicked); a single "ثبت تراکنش جدید" form for that asset.
    8. Import modal (see §6a) — rendered as a sibling after `<main>`, only when `isImportModalOpen` is set (the toolbar's Excel-import button was clicked); a single screen combining file selection and the default replace/add/subtract mode choice, with a "بارگذاری" submit.
 - All of the above (steps 1–8) only render once a user is logged in — see §6g for
   the login/signup/forgot-password screens shown instead when they are not.
@@ -910,7 +910,9 @@ type Transaction = {
   the secure-context note below) the modal still lists whatever is already stored
   instead of hanging on the loading state.
 - **Record-transaction form (now `RecordTransactionModal`, see §6v; extended to
-  a 3-way toggle in §6w; "آخرین قیمت" button + type-reactive submit in §6x):**
+  a 3-way toggle in §6w; last-price-fill button + type-reactive submit in §6x;
+  last-price control shrunk to an icon button + مقدار/قیمت‌واحد width ratio
+  changed in §6y):**
   a "ثبت تراکنش جدید" form lets the owner manually log
   a past or new خرید/فروش/**جایگذاری** for an asset (backfilling pre-feature
   purchases, recording a sale, or — since §6w — checkpointing the asset's true
@@ -920,16 +922,26 @@ type Transaction = {
   tabs, now `grid grid-cols-3`, added in §6w — خرید stays green
   `bg-[#1f9d55]`, فروش stays red `bg-[#d95050]`, جایگذاری is amber
   `bg-[#d7a144]`, the same gold tone `SummaryCard`'s گرم طلا row already uses),
-  a مقدار/**مقدار جدید** (quantity) and a قیمت واحد به تومان/**قیمت واحد جدید
-  (تومان)** (unit price) input (labels switch to the "جدید" variants only
+  then (since §6y) an inner `grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr]
+  min-[560px]:col-span-2` wrapper (independent of the outer form grid's own
+  `min-[560px]:grid-cols-2`, still unchanged and still governing تاریخ/یادداشت
+  below) holding just the مقدار/**مقدار جدید** (quantity) and قیمت واحد به
+  تومان/**قیمت واحد جدید (تومان)** (unit price) fields — giving قیمت واحد 3
+  parts vs مقدار's 2 parts of that row's width at ≥560px, since unit-price
+  values run to many more digits than quantity values; below 560px both still
+  stack full-width, unchanged. Labels switch to the "جدید" variants only
   while جایگذاری is selected, see §6w, to make the "this is the new total, not
   a delta" meaning explicit) using the shared
   `stripToNumberString`/`formatWithThousands` comma-formatting (text inputs,
   `inputMode="numeric"`, same as `AddAssetModal`, see §6c) — the قیمت واحد
-  input now sits beside an "آخرین قیمت" button (§6x, `flex` row inside the
-  label) that fills it with `getEffectiveUnitPrice(asset, prices)` — the same
+  input now sits beside a small icon-only `IconButton` (`DollarIcon`,
+  `tone="neutral"`, `variant="filled"`, `ariaLabel="پر کردن با آخرین قیمت"` —
+  §6y, replacing §6x's text "آخرین قیمت" button now that there's no visible
+  label to give the control its accessible name; `flex` row inside the label)
+  that fills it with `getEffectiveUnitPrice(asset, prices)` — the same
   live-or-stored per-unit rate `AssetRow` already shows next to that asset,
-  reusing that helper rather than duplicating price logic — a `<input
+  reusing that helper rather than duplicating price logic, `fillLastPrice`'s
+  logic itself unchanged since §6x — a `<input
   type="date">` defaulting to today (local date, via `todayLocalIso()` in
   `src/format.ts`), and an optional یادداشت (note) text input; the submit
   button (§6x) is type-reactive: green/"ثبت تراکنش خرید",
@@ -2219,6 +2231,62 @@ type Transaction = {
   assertions and visual screenshots. `npm run build` (typecheck + vite build)
   passes.
 
+## 6y. Last-price button shrunk to an icon + مقدار narrower than قیمت واحد
+
+- **Owner request:** two small refinements to §6x's last-price control and
+  field layout in `RecordTransactionModal`: (1) the "آخرین قیمت" text button
+  eats into the already-tight قیمت واحد column at the form's
+  `min-[560px]:grid-cols-2` two-column breakpoint — replace it with a
+  smaller icon-only button; (2) at that same breakpoint, مقدار and قیمت واحد
+  get equal-width columns even though unit-price values run to many more
+  digits than quantity values — give قیمت واحد more room.
+- **Icon-only last-price button:** the §6x text `<button>آخرین قیمت</button>`
+  is now `<IconButton icon={<DollarIcon/>} onClick={fillLastPrice}
+  ariaLabel="پر کردن با آخرین قیمت" tone="neutral" variant="filled"/>` —
+  reusing the app's one shared `IconButton` component (`src/components/
+  IconButton.tsx`, see §4) instead of a bespoke `<button>`, and reusing the
+  existing `DollarIcon` (`src/components/icons.tsx`, already used by
+  `SummaryCard`'s دلار row, see §6j) instead of adding a new icon. No new
+  components were created. `fillLastPrice`'s own logic (`setFormUnitPrice(
+  String(Math.round(lastPrice)))`) is completely unchanged — only the trigger
+  element changed. Since the visible "آخرین قیمت" text is gone, the
+  `ariaLabel` ("پر کردن با آخرین قیمت") is now this control's only accessible
+  name, so it stays fully descriptive rather than a generic "پر کردن".
+- **مقدار/قیمت واحد width ratio:** the two fields — previously two direct
+  children of the form's outer `grid gap-[10px] min-[560px]:grid-cols-2` (so
+  they got equal-width columns at ≥560px, same as تاریخ/یادداشت below them)
+  — are now wrapped in their own inner
+  `<div className="grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr]
+  min-[560px]:col-span-2">`, sitting as a single `min-[560px]:col-span-2`
+  item inside the outer grid (in the same position the two labels used to
+  occupy). This gives قیمت واحد 3 parts vs مقدار's 2 parts of the row's width
+  at ≥560px — visibly wider, never equal or reversed — while leaving the
+  outer form grid's own `min-[560px]:grid-cols-2` completely untouched, so
+  تاریخ and یادداشت below keep their existing equal-width side-by-side layout
+  unaffected. Below 560px the inner grid has no `grid-cols` override, so it
+  falls back to a single implicit column — مقدار and قیمت واحد still stack
+  full-width exactly as before, unchanged from pre-§6y behavior. The §6x
+  `min-w-0` fix (on the قیمت واحد `<label>` and its inner `flex` `<span>`,
+  needed so the input+icon-button row shrinks to its own grid column instead
+  of overflowing) is untouched and still required — it now applies to the
+  narrower of the inner grid's two tracks instead of the outer grid's own
+  column, same fix, same reason.
+- **Untouched by this task:** the toggle segments, the submit button,
+  validation, `fillLastPrice`'s calculation, `getEffectiveUnitPrice`, the
+  `prices` prop threading, تاریخ/یادداشت fields/labels, and everything in
+  `App.tsx`.
+- **Verified via Playwright/Firefox** at four viewport widths (320/400/700/
+  1200px): the last-price control renders as a small icon button (no
+  "آخرین قیمت" text anywhere in the DOM) sitting directly beside the قیمت واحد
+  input with no overlap/clipping at any width; at 700px/1200px (≥560px) قیمت
+  واحد's input column measures visibly wider than مقدار's, while تاریخ/یادداشت
+  below remain equal-width; at 320px/400px (<560px) both مقدار and قیمت واحد
+  stack full-width at equal column width, matching pre-§6y behavior; clicking
+  the icon button against a non-live-priced sample asset still filled the
+  قیمت واحد input with that asset's exact stored `unitPrice`
+  (`7,500,000`), confirming `fillLastPrice`'s behavior is unchanged. `npm run
+  build` (typecheck + vite build) passes.
+
 ## 7. Design system (Tailwind CSS v4)
 
 - Styling is done entirely with Tailwind utility classes directly in `App.tsx` / `index.html`.
@@ -2350,6 +2418,8 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Owner-requested (see §6w): added a third "جایگذاری" (replace) `TransactionType` — `'buy' \| 'sell' \| 'replace'` in `src/types/transaction.ts` — as a **non-destructive history checkpoint**: recording one never deletes any earlier transaction (every prior row stays in `localStorage` and keeps showing in `TransactionHistoryModal` exactly as before), it only affects future *calculations* over the history. `computeHoldingSummary` (`src/services/transactionCalculations.ts`) now finds the most recent `'replace'` transaction (if any) after its existing chronological sort, drops everything before it from the calculation only, and seeds `quantity`/`averageCost`/`realizedPnL` from that replace's `quantity`/`unitPrice`/`0` before continuing the normal buy/sell accumulation loop over whatever comes after — a `'replace'` row is itself never treated as a buy or sell (explicitly skipped in the loop, never double-counted); with no `'replace'` present, behavior is unchanged. Verified with a temporary throwaway `tsx` script covering 5 scenarios (no-replace baseline, buys/sells before+after a replace, replace-as-last-transaction, multiple replaces where only the latest counts, same-date tie-breaking) — all passed; `computeHoldingSummary` still has no UI caller and no permanent test file. `RecordTransactionModal.tsx`'s خرید/فروش toggle became a 3-way `grid-cols-3` toggle (فروش/خرید/جایگذاری) — جایگذاری's active state reuses `SummaryCard`'s existing گرم طلا gold tone (`bg-[#d7a144] text-white`) rather than a new color; while جایگذاری is selected the مقدار/قیمت واحد به تومان field labels switch to "مقدار جدید"/"قیمت واحد جدید (تومان)" to make the new-total-not-a-delta meaning explicit (خرید/فروش labels untouched); validation is identical for all three types. `onTransactionRecorded` gained a 4th `unitPrice: number` parameter (خرید/فروش call sites ignore it, unchanged behavior). `App.tsx`'s `handleTransactionRecorded` gained the same 4th parameter and a new `if (type === 'replace')` branch, checked first, that calls `assetService.updateAsset(assetId, { quantity, unitPrice })` — both fields **set directly** to the entered values (not additive/subtractive) — while خرید/فروش remain byte-for-byte unchanged. `TransactionHistoryModal.tsx`'s per-row badge/card styling became a 3-way branch — خرید/فروش unchanged (green/red), جایگذاری new (amber card `border-[#f0dca0] bg-[#fffbf0]`, badge `text-[#d7a144] bg-[#fff5df]` — the exact `SummaryCard` gold pair), labeled "جایگذاری". Explicitly disambiguated in §6i from the same-named Excel-import `replace` mode (§6a), which is a functionally distinct mechanism that never writes a transaction row at all — a pencil-icon جایگذاری always does. `ensureInitialTransaction`, `TransactionHistoryModal`'s pagination/loading/empty states, and every AssetRow/AssetSortMenu/eye-toggle/چشم بازار feature untouched. Verified via Playwright/Chrome: 3-way toggle present; selecting جایگذاری relabels both number fields; submitting quantity=10/unitPrice=500,000 against an asset already holding 5 set its displayed quantity to exactly 10 (not 15, confirming exact-set) and stored `unitPrice` to exactly 500,000; modal auto-closed on success; re-opened history modal showed both the new amber جایگذاری row (computed colors matched `#fff5df`/`#d7a144` exactly) **and** the original untouched خرید row from before the replace (confirming non-destructive/no-deletion); zero "ثبت تراکنش جدید" text leaked into the history modal. Build (`npm run build`) passes. |
 
 | 2026-09-26 | Owner-requested (see §6x): added an "آخرین قیمت" (fill last price) button beside `RecordTransactionModal`'s قیمت واحد input, and made its submit button color/label reactive to the selected type. New `prices: LivePrices | null` prop threaded from `App.tsx`'s existing `useLivePrices()` call (same one already passed to `AssetRow`/`SummaryCard`) — `lastPrice = getEffectiveUnitPrice(asset, prices)` computed at the top, reusing `AssetRow`'s exact live-vs-stored price helper (§6k) with no new price logic. The button (`flex` row inside the قیمت واحد `<label>`, beside the `<input>`) calls `fillLastPrice`, setting `formUnitPrice` to `String(Math.round(lastPrice))` (nearest whole toman, matching `format()`'s default `maximumFractionDigits: 0`); the field stays fully editable afterward. Submit button changed from a single static `bg-[#5264e8]`/"ثبت تراکنش" button to one whose className/label derive from `formType`, reusing the toggle's own three colors: خرید green `bg-[#1f9d55]`/"ثبت تراکنش خرید", فروش red `bg-[#d95050]`/"ثبت تراکنش فروش", جایگذاری amber `bg-[#d7a144]`/"ثبت تراکنش جایگذاری" — updates immediately on toggle switch, before submitting; the submit handler's own validation/save/toast/close logic is untouched. Found and fixed a layout bug during Playwright verification: the قیمت واحد `<label>` is a `grid` item and its inner `flex` wrapper defaulted to `min-width: auto`, so at the form's `min-[560px]:grid-cols-2` two-column breakpoint the input+button row overflowed sideways into the neighboring مقدار field instead of shrinking to its own column — fixed by adding `min-w-0` to both the `<label>` and the inner `<span>` (the `<input>`'s own `flex-1 min-w-0` alone wasn't enough; the ancestors needed it too). Verified via Playwright/Chrome at 320/400/700/1200px: button visible beside the input at every width with no overlap/overflow (confirmed both via computed-`width` measurements before/after the `min-w-0` fix and screenshots); clicking it filled the exact stored `unitPrice` for a non-live-priced sample asset (`7,500,000`) and the exact live rate for a freshly-added GOLD18 asset (`24,000,000`, matching `AssetRow`'s own displayed rate); submit button's computed background-color/label switched correctly across all three toggle selections without a reload. `TransactionHistoryModal`/`AssetRow`/the toggle segments/validation/`handleTransactionRecorded` untouched. `npm run build` (typecheck + vite build) passes. |
+
+| 2026-09-26 | Owner-requested (see §6y): shrunk `RecordTransactionModal`'s "آخرین قیمت" (last-price fill) text button down to a small icon-only `IconButton` (`DollarIcon` + `ariaLabel="پر کردن با آخرین قیمت"`, `tone="neutral"`, `variant="filled"`) reusing the app's existing shared `IconButton` component and the existing `DollarIcon` (already used by `SummaryCard`'s دلار row, §6j) — no new components added, `fillLastPrice`'s own fill logic completely unchanged, only the trigger element replaced. Also wrapped just the مقدار/قیمت واحد fields (previously two direct children of the form's outer `grid gap-[10px] min-[560px]:grid-cols-2`) in their own inner `grid gap-[10px] min-[560px]:grid-cols-[2fr_3fr] min-[560px]:col-span-2` container, giving قیمت واحد 3 parts vs مقدار's 2 parts of the row's width at ≥560px (unit-price values run to many more digits than quantity values) while leaving the outer grid — and so تاریخ/یادداشت's existing equal-width layout below — completely untouched; below 560px both fields still stack full-width exactly as before. Verified via Playwright/Firefox at 320/400/700/1200px: icon button renders with no leftover "آخرین قیمت" text anywhere, no overlap/clipping at any width, قیمت واحد's column visibly wider than مقدار's at ≥560px while تاریخ/یادداشت stay equal, both fields still stack full-width below 560px, and clicking the icon still fills قیمت واحد with the asset's exact stored `unitPrice` (`7,500,000`) unchanged. `npm run build` (typecheck + vite build) passes. |
 ## 12. Agent playbook (how to progress this app)
 
 For every change:
