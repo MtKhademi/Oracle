@@ -7,6 +7,7 @@ import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
+import { walletService, type WalletAccount } from './src/services/walletService';
 import type { TransactionType } from './src/types/transaction';
 import { getEffectiveUnitPrice } from './src/services/livePriceMapping';
 import { portfolioHistoryService } from './src/services/portfolioHistoryService';
@@ -27,6 +28,7 @@ import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
 import { SectionTabs, type SectionTab } from './src/components/SectionTabs';
 import { SectionHeaderCard } from './src/components/SectionHeaderCard';
+import { WalletTab } from './src/components/WalletTab';
 import { Toolbar } from './src/components/Toolbar';
 import type { LivePrices } from './src/services/priceService';
 import type { User } from './src/types';
@@ -233,6 +235,7 @@ export default function App() {
   const [historyVersion, setHistoryVersion] = useState(0);
   const [sortMode, setSortMode] = useState<AssetSortMode>(readStoredSortMode);
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(readStoredBalanceHidden);
+  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[] | null>(null);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
 
@@ -266,6 +269,14 @@ export default function App() {
       setCurrentUser(user);
       setIsAuthChecked(true);
     });
+  }, []);
+
+  // Loads the "کیف پول" (cash/bank account) list (see §6ad) — `null` stays
+  // until this resolves (WalletTab shows its own loading line), after which
+  // every walletService mutation pushes the returned full list back through
+  // setWalletAccounts, keeping App.tsx canonical like `items` ↔ assetService.
+  useEffect(() => {
+    walletService.listAccounts().then(stored => setWalletAccounts(stored ?? []));
   }, []);
 
   useEffect(() => {
@@ -459,12 +470,7 @@ export default function App() {
           {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onRecordTransaction={setRecordTransactionAssetId} onHistory={setHistoryAssetId}/>)}</ul>}
         </> : activeSectionTab === 'market' ? <>
           <MarketWatchList tabs={<SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>}/>
-        </> : <>
-          <SectionHeaderCard>
-            <SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>
-          </SectionHeaderCard>
-          <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">به‌زودی — پیگیری حساب‌های نقدی این‌جا اضافه می‌شود</p>
-        </>}
+        </> : <WalletTab tabs={<SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>} accounts={walletAccounts} onAccountsChanged={setWalletAccounts}/>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
     </main>
