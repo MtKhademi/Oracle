@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMarketWatch, useMarketWatchlist } from '../hooks/useMarketWatch';
 import { format } from '../format';
 import type { MarketCategory, MarketItem } from '../services/marketWatchService';
@@ -6,6 +6,7 @@ import { categoryMeta, categoryOrder } from '../services/marketCategoryMeta';
 import { IconButton } from './IconButton';
 import { PlusIcon, TrashIcon } from './icons';
 import { AddMarketWatchItemModal } from './AddMarketWatchItemModal';
+import { SectionHeaderCard } from './SectionHeaderCard';
 
 const timeFormatter = new Intl.DateTimeFormat('fa-IR', { timeStyle: 'medium' });
 
@@ -28,24 +29,33 @@ function groupByCategory(items: MarketItem[]): Partial<Record<MarketCategory, Ma
 // marketWatchlistService — NOT useLivePrices()/priceService/assetService,
 // which remain untouched for the portfolio total, AssetRow's GOLD18/USDT
 // live pricing, and the wallet's own asset list.
-export function MarketWatchList() {
+export function MarketWatchList({ tabs }: { tabs?: ReactNode } = {}) {
   const snapshot = useMarketWatch();
   const { watchedIds, add, remove } = useMarketWatchlist();
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   if (!snapshot || watchedIds === null) {
-    return <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">در حال دریافت قیمت‌ها...</p>;
+    return <>
+      <SectionHeaderCard>
+        {tabs}
+        <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">در حال دریافت قیمت‌ها...</p>
+      </SectionHeaderCard>
+    </>;
   }
 
   const updatedAtLabel = timeFormatter.format(new Date(snapshot.updatedAt));
   const watchedItems = snapshot.items.filter(item => watchedIds.includes(item.id));
   const groups = groupByCategory(watchedItems);
 
-  return <div className="grid gap-[18px]">
-    <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]">
-      <IconButton icon={<PlusIcon/>} onClick={() => setIsAddOpen(true)} ariaLabel="افزودن به چشم بازار" tone="neutral"/>
-      <p className="text-[10px] text-[#a2a8b9]">بروزرسانی: {updatedAtLabel}</p>
-    </div>
+  return <>
+    <SectionHeaderCard>
+      {tabs}
+      <div className="flex justify-between items-center px-1 min-[1050px]:mb-[19px]">
+        <IconButton icon={<PlusIcon/>} onClick={() => setIsAddOpen(true)} ariaLabel="افزودن به چشم بازار" tone="neutral"/>
+        <p className="text-[10px] text-[#a2a8b9]">بروزرسانی: {updatedAtLabel}</p>
+      </div>
+    </SectionHeaderCard>
+    <div className="grid gap-[18px]">
     {watchedItems.length === 0
       ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">چیزی به چشم بازار اضافه نشده</p>
       : categoryOrder.map(category => {
@@ -72,5 +82,6 @@ export function MarketWatchList() {
         </section>;
       })}
     {isAddOpen && <AddMarketWatchItemModal onClose={() => setIsAddOpen(false)} watchedIds={watchedIds} onAdd={add}/>}
-  </div>;
+    </div>
+  </>;
 }

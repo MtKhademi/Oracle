@@ -15,7 +15,7 @@ export function Toolbar({ onOpenImportModal, onClearAll, onAddTransaction, sortM
   sortMode: AssetSortMode;
   onSortModeChange: (mode: AssetSortMode) => void;
 }) {
-  return <div className="flex justify-between items-center px-1 mb-[15px] min-[1050px]:mb-[19px]">
+  return <div className="flex justify-between items-center px-1 min-[1050px]:mb-[19px]">
     <div className="flex gap-[8px]">
       <IconButton icon={<UploadIcon/>} onClick={onOpenImportModal} ariaLabel="ایمپورت اکسل" tone="neutral"/>
       <IconButton icon={<TrashIcon/>} onClick={onClearAll} ariaLabel="پاک کردن همه دارایی‌ها" tone="danger"/>
