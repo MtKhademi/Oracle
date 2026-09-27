@@ -7,6 +7,10 @@ export interface WalletAccount {
   id: string;
   name: string;
   balance: number;
+  bankName?: string;
+  cardNumber?: string;
+  accountNumber?: string;
+  shebaNumber?: string;
 }
 
 export interface WalletService {

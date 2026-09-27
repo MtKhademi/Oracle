@@ -238,6 +238,7 @@ export default function App() {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[] | null>(null);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
+  const walletSeededRef = useRef(false);
 
   const handleSortModeChange = (mode: AssetSortMode) => {
     setSortMode(mode);
@@ -271,12 +272,28 @@ export default function App() {
     });
   }, []);
 
-  // Loads the "کیف پول" (cash/bank account) list (see §6ad) — `null` stays
-  // until this resolves (WalletTab shows its own loading line), after which
-  // every walletService mutation pushes the returned full list back through
-  // setWalletAccounts, keeping App.tsx canonical like `items` ↔ assetService.
+  // Loads the "کیف پول" (cash/bank account) list (see §6ad/§6af) — `null`
+  // stays until this resolves (WalletTab shows its own loading line), after
+  // which every walletService mutation pushes the returned full list back
+  // through setWalletAccounts, keeping App.tsx canonical like `items` ↔
+  // assetService. `listAccounts()` resolving `null` means "never saved
+  // before" (an `[]` means "owner removed every account"), so only on `null`
+  // is the default "نقدی" account seeded — exactly once, and it is never
+  // recreated after the owner deletes it (the seeded write stores `[]`-or-
+  // more, so every later load resolves an array, never `null` again). The ref
+  // dedupes the dev-only StrictMode double effect run (both reads would see
+  // `null` before either seed writes, so without it a fresh browser would
+  // get two "نقدی" accounts).
   useEffect(() => {
-    walletService.listAccounts().then(stored => setWalletAccounts(stored ?? []));
+    if (walletSeededRef.current) return;
+    walletSeededRef.current = true;
+    walletService.listAccounts().then(async stored => {
+      if (stored === null) {
+        setWalletAccounts(await walletService.addAccount({ name: 'نقدی', balance: 0 }));
+        return;
+      }
+      setWalletAccounts(stored);
+    });
   }, []);
 
   useEffect(() => {

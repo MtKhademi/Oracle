@@ -14,9 +14,13 @@ const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center roun
 // mode; otherwise the form is pre-filled with that account's values (edit
 // mode). `onSubmit` resolves true only when the save succeeded (it owns the
 // walletService call + toasts), so the modal closes itself on success only.
-function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, balance: number) => Promise<boolean> }) {
+function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string) => Promise<boolean> }) {
   const [formName, setFormName] = useState(account ? account.name : '');
   const [formBalance, setFormBalance] = useState(account ? String(account.balance) : '0');
+  const [formBankName, setFormBankName] = useState(account?.bankName ?? '');
+  const [formCardNumber, setFormCardNumber] = useState(account?.cardNumber ?? '');
+  const [formAccountNumber, setFormAccountNumber] = useState(account?.accountNumber ?? '');
+  const [formShebaNumber, setFormShebaNumber] = useState(account?.shebaNumber ?? '');
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -36,7 +40,11 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
       toast.error('موجودی را به‌درستی وارد کنید.');
       return;
     }
-    const saved = await onSubmit(name, balance);
+    const bankName = formBankName.trim() || undefined;
+    const cardNumber = formCardNumber.trim() || undefined;
+    const accountNumber = formAccountNumber.trim() || undefined;
+    const shebaNumber = formShebaNumber.trim() || undefined;
+    const saved = await onSubmit(name, balance, bankName, cardNumber, accountNumber, shebaNumber);
     if (saved) onClose();
   };
 
@@ -47,6 +55,18 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
       <form onSubmit={handleSubmit} className="grid gap-[10px]">
         <label className="text-[11px] text-[#7a8097] grid gap-1">نام حساب
           <input type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="مثلا: کارت بانک ملی" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+        </label>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">نام بانک
+          <input type="text" value={formBankName} onChange={e => setFormBankName(e.target.value)} placeholder="مثلا: بانک ملی" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+        </label>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">شماره کارت
+          <input type="text" value={formCardNumber} onChange={e => setFormCardNumber(e.target.value)} placeholder="مثلا: 6104 3399 0000 0000" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+        </label>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">شماره حساب
+          <input type="text" value={formAccountNumber} onChange={e => setFormAccountNumber(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+        </label>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">شماره شبا
+          <input type="text" value={formShebaNumber} onChange={e => setFormShebaNumber(e.target.value)} placeholder="IRxx xxx xxx xxx xxx xxxx xxx" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">موجودی به تومان
           <input type="text" inputMode="numeric" value={formatWithThousands(formBalance)} onChange={e => setFormBalance(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
@@ -68,10 +88,11 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
 export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactNode; accounts: WalletAccount[] | null; onAccountsChanged: (accounts: WalletAccount[]) => void }) {
   const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
 
-  const handleAccountSubmit = async (name: string, balance: number): Promise<boolean> => {
+  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
     try {
-      const next = editing ? await walletService.updateAccount(editing.id, { name, balance }) : await walletService.addAccount({ name, balance });
+      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber };
+      const next = editing ? await walletService.updateAccount(editing.id, changes) : await walletService.addAccount(changes);
       toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
       onAccountsChanged(next);
       return true;
@@ -112,6 +133,12 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
         <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
         <div className="flex-1 min-w-0">
           <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
+          {(account.bankName || account.cardNumber || account.accountNumber || account.shebaNumber) && <div className="grid gap-[2px] mt-[3px]">
+            {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
+            {account.cardNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.cardNumber}</p>}
+            {account.accountNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.accountNumber}</p>}
+            {account.shebaNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.shebaNumber}</p>}
+          </div>}
         </div>
         <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
           <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(account.balance)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>
