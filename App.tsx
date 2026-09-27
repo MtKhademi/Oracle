@@ -313,6 +313,12 @@ export default function App() {
 
   const total = items.reduce((sum, asset) => sum + asset.quantity * getEffectiveUnitPrice(asset, prices), 0);
 
+  // "کیف پول" (cash/bank account) balances — `walletAccounts` is still
+  // `null` until the mount-time load resolves, so guard the reduce (see §6ae).
+  // Display-only: feeds `SummaryCard`'s combined "ارزش کل دارایی"; the
+  // portfolio-history snapshot below still uses the investment `total` alone.
+  const walletTotal = (walletAccounts ?? []).reduce((sum, account) => sum + account.balance, 0);
+
   // Display-only sorted view of the wallet's asset list (see the
   // "دارایی‌های من" sort menu, AssetSortMenu.tsx, and §6o of
   // AI-KNOWLEDGE.md) — `items` itself (state, storage, add/edit/delete)
@@ -458,7 +464,7 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
+        <SummaryCard total={total + walletTotal} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'investment' ? 'دارایی‌های من' : activeSectionTab === 'wallet' ? 'کیف پول' : 'چشم بازار'}>
