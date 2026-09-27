@@ -25,7 +25,7 @@ import { HamburgerIcon } from './src/components/icons';
 import { ProfileModal } from './src/components/ProfileModal';
 import { SideDrawer } from './src/components/SideDrawer';
 import { SummaryCard } from './src/components/SummaryCard';
-import { SectionTabs } from './src/components/SectionTabs';
+import { SectionTabs, type SectionTab } from './src/components/SectionTabs';
 import { SectionHeaderCard } from './src/components/SectionHeaderCard';
 import { Toolbar } from './src/components/Toolbar';
 import type { LivePrices } from './src/services/priceService';
@@ -229,7 +229,7 @@ export default function App() {
   const [isSelectAssetForTransactionOpen, setIsSelectAssetForTransactionOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const [activeSectionTab, setActiveSectionTab] = useState<'wallet' | 'market'>('market');
+  const [activeSectionTab, setActiveSectionTab] = useState<SectionTab>('market');
   const [historyVersion, setHistoryVersion] = useState(0);
   const [sortMode, setSortMode] = useState<AssetSortMode>(readStoredSortMode);
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(readStoredBalanceHidden);
@@ -447,18 +447,23 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('wallet')}/>
+        <SummaryCard total={total} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
-      <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'wallet' ? 'دارایی‌های من' : 'چشم بازار'}>
-        {activeSectionTab === 'wallet' ? <>
+      <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'investment' ? 'دارایی‌های من' : activeSectionTab === 'wallet' ? 'کیف پول' : 'چشم بازار'}>
+        {activeSectionTab === 'investment' ? <>
           <SectionHeaderCard>
             <SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>
             <Toolbar onOpenImportModal={() => setIsImportModalOpen(true)} onClearAll={handleClearAllClick} onAddTransaction={handleOpenAddTransaction} sortMode={sortMode} onSortModeChange={handleSortModeChange}/>
           </SectionHeaderCard>
           {sortedItems.length === 0 ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز دارایی‌ای ثبت نشده</p> : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedItems.map(asset => <AssetRow key={asset.id} asset={asset} prices={prices} isBalanceHidden={isBalanceHidden} onDelete={handleDelete} onRecordTransaction={setRecordTransactionAssetId} onHistory={setHistoryAssetId}/>)}</ul>}
-        </> : <>
+        </> : activeSectionTab === 'market' ? <>
           <MarketWatchList tabs={<SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>}/>
+        </> : <>
+          <SectionHeaderCard>
+            <SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>
+          </SectionHeaderCard>
+          <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">به‌زودی — پیگیری حساب‌های نقدی این‌جا اضافه می‌شود</p>
         </>}
       </section>
       {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
