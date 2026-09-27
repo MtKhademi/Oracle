@@ -202,7 +202,11 @@ type Asset = {
 - Page total = `items.reduce((s,a)=> s + a.quantity*getEffectiveUnitPrice(a,
   prices), 0)` over the live `items` state in `App.tsx` (not the raw `assets`
   import) — `getEffectiveUnitPrice` (see §6k) falls through to `a.unitPrice`
-  unchanged for every asset that isn't GOLD18/USDT.
+  unchanged for every asset that isn't GOLD18/USDT. Since §6ae this
+  investment-only `total` is what feeds the portfolio-history snapshots (and
+  `PortfolioTrendChart`), while the "ارزش کل دارایی" shown by `SummaryCard` is
+  `total + walletTotal` — the wallet total being the sum of the "کیف پول"
+  tab's account balances (§6ad/§6ae).
 - Cash `unitPrice = 1`, so its row value equals its quantity.
 - `src/assets.ts` ships 7 sample assets (gold, two gold funds, cash, Tether, BTC,
   ETH) — **illustrative only**, unchanged, used purely as the default when
@@ -346,7 +350,7 @@ type Transaction = {
   structure instead.
 - Layout (top → bottom):
   1. `<header>` → hamburger menu button (opens the side drawer, see §6e) + brand link (`Oracle` + caption `سرمایه‌های من`) and a note span (`یک نگاه، همهٔ دارایی‌ها`).
-  2. Summary `<section>` (`aria-label="ارزش کل دارایی‌ها"`, see §6u) → top row (wallet-icon button on the right, sample badge (only when `isSample`) + hide-balance eye toggle + manual-refresh button on the left), big total (toman), footer with asset count. No visible "ارزش کل دارایی‌ها" heading is rendered any more (see §6u) — the section's accessible name comes from `aria-label` instead.
+   2. Summary `<section>` (`aria-label="ارزش کل دارایی‌ها"`, see §6u) → top row (wallet-icon button on the right, sample badge (only when `isSample`) + hide-balance eye toggle + manual-refresh button on the left), big total (toman — investment total + "کیف پول" wallet-account balances since §6ae), footer with asset count. No visible "ارزش کل دارایی‌ها" heading is rendered any more (see §6u) — the section's accessible name comes from `aria-label` instead.
   2b. `PortfolioTrendChart` (see §6n) — the portfolio-growth-vs-USD/gold trend
       chart card, directly below the summary section in the same column.
   3. Portfolio `<section>` (3 tabs since §6ac — see §6ac; `aria-label` varies
@@ -2716,8 +2720,9 @@ type Transaction = {
   ۱٬۲۰۰٬۰۰۰ / "کارت بانک رسالت" ۱۰۰٬۰۰۰٬۰۰۰ toman. There is no fixed
   sample set and no catalog: the owner adds/renames/edits/deletes any number of
   named accounts at will. These are **spendable cash balances** — deliberately
-  unrelated to the `cash`-icon catalog asset or the "دارایی‌های من" list, and
-  **not** folded into the "ارزش کل دارایی" total (that's part 3 of the sequence).
+   unrelated to the `cash`-icon catalog asset or the "دارایی‌های من" list, and
+   (at the time) not folded into the "ارزش کل دارایی" total — that fold-in is
+   what part 3 of the sequence did (see §6ae).
 - **Data shape / storage**: `WalletAccount = { id: string; name: string;
   balance: number }` (`src/services/walletService.ts`) — `balance` is a plain
   toman amount, displayed with `format()` + "تومان" (no quantity × unit-price).
@@ -2785,15 +2790,57 @@ type Transaction = {
   `walletService.listAccounts()` and sets the result (`null` → `[]`); the
   wallet branch now renders
   `<WalletTab tabs={<SectionTabs .../>} accounts={walletAccounts}
-  onAccountsChanged={setWalletAccounts}/>`. The `investment` branch, the
-  `market` branch, `SummaryCard`, and the "ارزش کل دارایی" `total` are
-  completely unchanged.
+   onAccountsChanged={setWalletAccounts}/>`. The `investment` branch, the
+   `market` branch, `SummaryCard`, and the "ارزش کل دارایی" `total` are
+   completely unchanged (the total fold-in happened next, in §6ae).
 - **Acceptance**: `npm run build` (typecheck + vite build) passes with no new
   errors. Add/edit/delete all work and persist across a reload (same
   `localStorage` key); the empty state shows when no accounts exist; the
   loading line shows only briefly before the mount load resolves; visual
-  consistency with the other two tabs (RTL, card tokens, toasts); no behavior
-  change to the investment/market tabs or the portfolio total.
+   consistency with the other two tabs (RTL, card tokens, toasts); no behavior
+   change to the investment/market tabs or the portfolio total.
+
+## 6ae. "ارزش کل دارایی" grand total now includes the wallet accounts (part 3 of the 3-task sequence from §6ac — closes the sequence)
+
+- **Context / intent**: the §6ad "کیف پول" tab tracks the owner's cash/bank
+  account balances, but at that point they were deliberately kept OUT of the
+  "ارزش کل دارایی" card. Part 3 folds them in: the grand total shown by
+  `SummaryCard` is now **investment total + wallet-account balances**, so the
+  card reflects the owner's whole net worth (invested assets + spendable
+  cash), not just the investment list.
+- **Change (display-only, `App.tsx` only — nothing else touched)**: a new
+  `const walletTotal = (walletAccounts ?? []).reduce((sum, account) => sum +
+  account.balance, 0);` right below the investment `total` (line ~314). The
+  `?? []` guard is REQUIRED — `walletAccounts` is typed `WalletAccount[] |
+  null` and stays `null` until the mount-time `walletService.listAccounts()`
+  resolves, so a bare `.reduce` (the originally suggested snippet) would fail
+  the `tsc` typecheck. `<SummaryCard total={total} .../>` became
+  `<SummaryCard total={total + walletTotal} .../>` (line ~467).
+- **Deliberately NOT changed**:
+  - The `total` const itself is still the investment-only figure
+    (`items.reduce(...)` over `getEffectiveUnitPrice`, §5) and keeps its name —
+    it is still fed, investment-only, to the portfolio-history snapshot effect
+    (`seedMockHistoryIfEmpty`/`recordSnapshotIfNeeded`, deps `[total, prices]`)
+    and to `PortfolioTrendChart`. So the trend chart's history stays an
+    investment-only series (existing snapshots were recorded that way; mixing
+    in cash balances would make old/new points incomparable). Only the
+    `SummaryCard` display gets the combined value.
+  - `SummaryCard.tsx` is untouched — it derives everything (big toman number,
+    the "≈ X دلار" and "≈ X گرم طلا" lines, and the hide-balance masking) from
+    the same `total` prop, so the combined value propagates to all of it
+    automatically. `count` stays `items.length` (the wallet has no "asset
+    count" to add).
+  - `WalletTab.tsx`, `walletService.ts`, `localWalletService.ts`,
+    `walletStorage.ts` are all untouched — account `balance` was already a
+    plain toman amount (§6ad), so no conversion is needed.
+- **Acceptance**: with N wallet accounts, "ارزش کل دارایی" = investment total
+  + Σ balances exactly (before the mount load resolves, `walletTotal` is 0, so
+  the card briefly shows the investment-only total — same one-frame behavior as
+  every other `walletAccounts === null` site). The دلار/طلا footer lines and
+  the balance-hiding toggle all reflect the combined number. The
+  `PortfolioTrendChart` history is unaffected (still investment-only).
+  `npm run build` (typecheck + vite build) passes. This closes the 3-task
+  sequence begun in §6ac (part 1 §6ac, part 2 §6ad, part 3 here).
 
 ## 7. Design system (Tailwind CSS v4)
 
@@ -2933,6 +2980,7 @@ creates a different browser origin; existing assets and profile data in
 | 2026-09-26 | Owner-requested (see §6ab): put the "کیف پول"/"چشم بازار" tab switcher + that tab's own header row (`Toolbar` on wallet, `MarketWatchList`'s own "+"/"بروزرسانی" row on market) inside one white card below the 1050px breakpoint — previously the assets `<section>` only got its card styling (`bg-white`/`border`/`rounded-[22px]`/`p-[22px]`) at `min-[1050px]:`, so on mobile the switcher/header row rendered naked on the gray page background, unlike `SummaryCard`/`PortfolioTrendChart` above them. New `src/components/SectionTabs.tsx` (the tab-switcher markup moved out of `App.tsx` unchanged, now taking `{ activeTab, onChange }` props, bottom margin `mb-[15px]`→`mb-[12px]` on mobile) and new `src/components/SectionHeaderCard.tsx` (a wrapper `<div>` whose card styling — reusing `SummaryCard`/`PortfolioTrendChart`'s exact large-card tokens — applies ONLY via Tailwind v4's `max-[1050px]:` variant, the exact complement of the section's own `min-[1050px]:` classes; renders nothing at all at ≥1050px, where the outer section is already the card). `App.tsx`'s wallet branch now renders `<SectionHeaderCard><SectionTabs/><Toolbar/></SectionHeaderCard>` followed by the existing asset list outside the card; the market branch passes `<SectionTabs/>` as a new `tabs?: ReactNode` prop into `MarketWatchList`, which wraps `{tabs}` + its own header row in `<SectionHeaderCard>` in both its loading and populated returns (the loading state previously showed no tabs at all — also fixed). `Toolbar.tsx`'s and `MarketWatchList`'s own header rows dropped their mobile `mb-[15px]` (kept `min-[1050px]:mb-[19px]`) since `SectionHeaderCard`'s own `max-[1050px]:mb-[15px]` now provides that mobile gap instead, avoiding a doubled margin. The asset/market item lists themselves stay OUTSIDE the card (each row is already its own card). Verified via Playwright/Chrome at 320/340/360/390/480/800/1200px, both tabs: below 1050px the switcher+header row sit inside one visually distinct white rounded card with the item lists below it at a normal gap; no horizontal overflow at any width; the assets `<section>`'s bounding-box top measured identical before/after a tab switch at 390px (no layout jump); 1200px screenshots taken before (via `git stash` to the pre-change code) and after this change are structurally identical (single card, same spacing, no nested/doubled card). `npm run build` (typecheck + vite build) passes. |
 | 2026-09-26 | Owner-requested (see §6ac): split the old single "wallet" tab (which actually rendered the investment/asset list) into a renamed **"investment" (سرمایه‌گذاری)** tab that now holds that exact asset-list content, plus a brand-new **"wallet" (کیف پول)** placeholder tab whose real content (cash/bank-account tracking) is built in a follow-up task. The tab switcher went from 2 buttons (`grid-cols-2`) to 3 (`grid-cols-3`) in the order **سرمایه‌گذاری** (new `InvestmentIcon`, bag/coin glyph) / **چشم بازار** (unchanged `MarketEyeIcon`) / **کیف پول** (`WalletIcon`, moved here from the old first button). `SectionTab` is now `'investment' \| 'market' \| 'wallet'` (`SectionTabs.tsx`); `App.tsx`'s state is now `useState<SectionTab>('market')` (default tab unchanged — still "چشم بازار"), `onOpenWallet` (the top-left icon button on the "ارزش کل دارایی" card) now targets `'investment'` instead of `'wallet'` so it keeps opening the asset list, the section's `aria-label` handles all 3 states, and the section's conditional render became a 3-way branch: `investment` = the exact pre-existing asset-list JSX (unchanged), `market` = the exact pre-existing `MarketWatchList` (unchanged), `wallet` = a temporary `SectionHeaderCard` holding just `<SectionTabs/>` + a centered placeholder paragraph ("به‌زودی — پیگیری حساب‌های نقدی این‌جا اضافه می‌شود") reusing the empty-state muted text style — to be replaced by a real component in the next task. Part 1 of a 3-task sequence. `npm run build` (typecheck + vite build) passes. |
 | 2026-09-27 | Owner-requested (see §6ad, part 2 of the 3-task sequence from §6ac): replaced the "کیف پول" (wallet) tab's placeholder with a real, fully dynamic list of the owner's cash/bank accounts (e.g. "نقد", "کارت بانک ملی" — spendable cash balances, deliberately unrelated to the `cash`-icon catalog asset and NOT folded into the "ارزش کل دارایی" total; that's part 3). New `src/services/walletService.ts` (`WalletAccount = { id, name, balance }` — `balance` a plain toman amount — + `WalletService` interface: `listAccounts(): Promise<WalletAccount[] \| null>`, `addAccount`/`updateAccount`/`deleteAccount` all returning the full updated list) and `src/services/localWalletService.ts` (localStorage-backed, mirrors `localAssetService`; account IDs are a manual UUID v4 from `crypto.getRandomValues()`, NOT `crypto.randomUUID()` — the latter is `[SecureContext]`-only/undefined on the plain-HTTP deployment, the same reason `localAuthService` generates user IDs this way, §6g). New `src/walletStorage.ts` (`loadWalletAccounts`/`saveWalletAccounts`, key `oracle_wallet_accounts_v1`, same try/catch-safe null-on-missing convention as `src/storage.ts`). New `src/components/WalletTab.tsx` (props `{ tabs, accounts: WalletAccount[] \| null, onAccountsChanged }`, mirroring `MarketWatchList`'s `tabs` prop): `SectionHeaderCard` (`{tabs}` + header row with the "افزودن حساب" `PlusIcon` button on the right / "حساب‌های نقدی" label on the left) + a `<ul>` of rows reusing `AssetRow`'s exact card tokens with a cash-tinted `AssetIcon`, `format(balance)` + "تومان", and ghost pencil (`ویرایش`)/danger-trash (`حذف` — immediate, no confirmation, the §6r lighter-weight convention) buttons — or the "هنوز حسابی ثبت نشده" empty state, or a "در حال بارگذاری..." line while `accounts` is still `null`. One shared inner add/edit modal (shelled like `RecordTransactionModal`: backdrop/Escape/"×"/`stopPropagation`, `stripToNumberString`/`formatWithThousands` numeric input) validates name/balance client-side with red error toasts, calls the matching `walletService` method, toasts success (green) / failure (red), and closes only on success. `App.tsx` gained `walletAccounts: WalletAccount[] | null` state + a mount-time `walletService.listAccounts()` effect (`null` → `[]`), and the wallet branch now renders `<WalletTab .../>` instead of the placeholder; the `investment`/`market` branches, `SummaryCard`, and the portfolio total are completely unchanged. `README.md`'s two-tab description updated to the three-tab one incl. the wallet behavior. `npm run build` (typecheck + vite build) passes. |
+| 2026-09-27 | Owner-requested (see §6ae, part 3 of the 3-task sequence from §6ac — **closes the sequence**): the "ارزش کل دارایی" grand total now includes the "کیف پول" wallet accounts — `App.tsx` gained `const walletTotal = (walletAccounts ?? []).reduce((sum, account) => sum + account.balance, 0);` (the `?? []` guard is required because `walletAccounts` is `WalletAccount[] \| null` until the mount-time load resolves — the suggested bare `.reduce` would fail `tsc`) and `<SummaryCard total={total} .../>` became `<SummaryCard total={total + walletTotal} .../>`. Display-only and `App.tsx`-only: the investment `total` const is unchanged in name/value and still feeds the portfolio-history snapshot effect (and `PortfolioTrendChart`) investment-only, so the trend chart's series stays comparable to the snapshots already recorded; `SummaryCard.tsx` is untouched and derives its دلار/طلا footer lines and the hide-balance masking from the same `total` prop, so the combined value propagates automatically; `WalletTab`/`walletService`/`localWalletService`/`walletStorage` are all untouched. `README.md`'s "not counted in the total" sentence updated accordingly. `npm run build` (typecheck + vite build) passes. |
 ## 12. Agent playbook (how to progress this app)
 
 For every change:
