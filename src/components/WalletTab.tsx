@@ -4,9 +4,10 @@ import { walletService, type WalletAccount } from '../services/walletService';
 import { format, formatWithThousands, stripToNumberString } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
-import { CloseIcon, PencilIcon, PlusIcon, TrashIcon } from './icons';
+import { CloseIcon, HistoryIcon, PencilIcon, PlusIcon, TrashIcon } from './icons';
 import { SectionHeaderCard } from './SectionHeaderCard';
 import { RecordWalletTransactionModal } from './RecordWalletTransactionModal';
+import { WalletTransactionHistoryModal } from './WalletTransactionHistoryModal';
 
 const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
@@ -89,6 +90,7 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
 export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactNode; accounts: WalletAccount[] | null; onAccountsChanged: (accounts: WalletAccount[]) => void }) {
   const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
   const [recordFor, setRecordFor] = useState<WalletAccount | null>(null);
+  const [historyFor, setHistoryFor] = useState<WalletAccount | null>(null);
 
   const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
@@ -145,6 +147,7 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
         <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
           <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{format(account.balance)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>
           <div className="flex gap-[8px]">
+            <IconButton icon={<HistoryIcon/>} onClick={() => setHistoryFor(account)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
             <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
             <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>
             <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>
@@ -152,6 +155,7 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
         </div>
       </li>)}</ul>}
     {modal && <WalletAccountModal account={modal.account} onClose={() => setModal(null)} onSubmit={handleAccountSubmit}/>}
+    {historyFor && <WalletTransactionHistoryModal account={historyFor} onClose={() => setHistoryFor(null)}/>}
     {recordFor && <RecordWalletTransactionModal account={recordFor} onClose={() => setRecordFor(null)} onTransactionRecorded={onAccountsChanged}/>}
   </>;
 }
