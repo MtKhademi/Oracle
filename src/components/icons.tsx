@@ -128,6 +128,14 @@ export function MarketEyeIcon() {
   </svg>;
 }
 
+export function InvestmentIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3c-2 2.5-5 4-5 8a5 5 0 0 0 10 0c0-4-3-5.5-5-8Z"/>
+    <path d="M12 10v5"/>
+    <path d="M9.5 12.5h5"/>
+  </svg>;
+}
+
 // Closed/crossed-out eye — pairs with the existing open-eye MarketEyeIcon
 // (reused directly, not duplicated) for the "hide balance" toggle, see
 // SummaryCard.tsx. Same eye outline as MarketEyeIcon with a diagonal slash
