@@ -21,9 +21,10 @@ const statusLine = (label: string, value?: string) => {
 };
 
 // The "مدیریت حساب‌ها" (manage accounts) modal (see AI-KNOWLEDGE.md §6an) — the
-// home of real wallet-account add/edit/delete. Lists EVERY account (no balance
-// filter), each with edit + real-delete actions, except the seeded "نقدی"
-// account (fully locked: no edit, no delete). Adding a new account also
+// home of real wallet-account add/edit/delete. Lists every account except the
+// seeded "نقدی" account, which is never shown here at all (it lives only in the
+// main "کیف پول" list); each listed account has edit + real-delete actions.
+// Adding a new account also
 // happens here, via the exported `WalletAccountModal` (add mode). The "کیف
 // پول" tab's header "+" button opens this. Every mutation pushes the
 // service's returned full list up through `onAccountsChanged` so App.tsx stays
@@ -65,6 +66,11 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     }
   };
 
+  // The seeded "نقدی" account is intentionally never shown in this modal — it
+  // is only ever managed through the main "کیف پول" list (see AI-KNOWLEDGE.md
+  // §6an/§6ao). Everything else renders as before.
+  const visibleAccounts = accounts.filter(account => account.name !== 'نقدی');
+
   return <>
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
     <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="manage-wallet-accounts-title" onClick={e => e.stopPropagation()}>
@@ -75,9 +81,9 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
       <div className="flex mb-4">
         <IconButton icon={<PlusIcon/>} onClick={() => setModal({ account: null })} ariaLabel="افزودن حساب" tone="neutral"/>
       </div>
-      {accounts.length === 0
+      {visibleAccounts.length === 0
         ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز حسابی ثبت نشده</p>
-        : <ul className="list-none m-0 p-0 grid gap-[10px]">{accounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[14px] flex items-center gap-[12px] py-[10px] px-[14px] min-w-0">
+        : <ul className="list-none m-0 p-0 grid gap-[10px]">{visibleAccounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[14px] flex items-center gap-[12px] py-[10px] px-[14px] min-w-0">
           <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
           <div className="flex-1 min-w-0">
             <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
