@@ -272,27 +272,31 @@ export default function App() {
     });
   }, []);
 
-  // Loads the "کیف پول" (cash/bank account) list (see §6ad/§6af) — `null`
-  // stays until this resolves (WalletTab shows its own loading line), after
-  // which every walletService mutation pushes the returned full list back
-  // through setWalletAccounts, keeping App.tsx canonical like `items` ↔
-  // assetService. `listAccounts()` resolving `null` means "never saved
-  // before" (an `[]` means "owner removed every account"), so only on `null`
-  // is the default "نقدی" account seeded — exactly once, and it is never
-  // recreated after the owner deletes it (the seeded write stores `[]`-or-
-  // more, so every later load resolves an array, never `null` again). The ref
-  // dedupes the dev-only StrictMode double effect run (both reads would see
-  // `null` before either seed writes, so without it a fresh browser would
-  // get two "نقدی" accounts).
+  // Loads the "کیف پول" (cash/bank account) list (see §6ad/§6af/§6al) —
+  // `null` stays until this resolves (WalletTab shows its own loading line),
+  // after which every walletService mutation pushes the returned full list
+  // back through setWalletAccounts, keeping App.tsx canonical like `items` ↔
+  // assetService. The default "نقدی" account is SELF-HEALING: it is seeded
+  // whenever the loaded list has no account named "نقدی" at all — whether the
+  // source was `null` (never saved before) or a real, non-null array — not
+  // only on `null`. That covers browsers whose storage predates "نقدی" being
+  // fully locked in the UI (§6aj/§6ak): an owner who deleted it back then left
+  // a stored array without it, which the old `null`-only check would never
+  // repair; it is never re-added while it is present, so no duplicates ever
+  // form. The ref dedupes the dev-only StrictMode double effect run (without
+  // it both runs would seed before either write lands, so a fresh browser
+  // would get two "نقدی" accounts).
   useEffect(() => {
     if (walletSeededRef.current) return;
     walletSeededRef.current = true;
     walletService.listAccounts().then(async stored => {
-      if (stored === null) {
+      const current = stored ?? [];
+      const hasDefaultCashAccount = current.some(account => account.name === 'نقدی');
+      if (!hasDefaultCashAccount) {
         setWalletAccounts(await walletService.addAccount({ name: 'نقدی', balance: 0 }));
         return;
       }
-      setWalletAccounts(stored);
+      setWalletAccounts(current);
     });
   }, []);
 
