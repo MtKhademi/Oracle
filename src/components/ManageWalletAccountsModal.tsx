@@ -108,7 +108,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
               {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-[3px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-[3px]">
             {statusLine('بانک', account.bankName)}
             {statusLine('کارت', account.cardNumber)}
             {statusLine('حساب', account.accountNumber)}
@@ -116,7 +116,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
             {statusLine('رمز اول', account.cardPin1)}
             {statusLine('رمز دوم', account.cardPin2)}
           </div>
-          <div className="flex items-center gap-[10px]">
+          <div className="flex items-center justify-end gap-[10px]">
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
             <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
