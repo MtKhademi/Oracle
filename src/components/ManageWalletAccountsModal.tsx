@@ -100,21 +100,23 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
       </div>
       {listedAccounts.length === 0
         ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز حسابی ثبت نشده</p>
-        : <ul className="list-none m-0 p-0 grid gap-[10px]">{listedAccounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[14px] flex items-center gap-[12px] py-[10px] px-[14px] min-w-0">
-          <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
-            {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-[3px] mt-[5px]">
-              {statusLine('بانک', account.bankName)}
-              {statusLine('کارت', account.cardNumber)}
-              {statusLine('حساب', account.accountNumber)}
-              {statusLine('شبا', account.shebaNumber)}
-              {statusLine('رمز اول', account.cardPin1)}
-              {statusLine('رمز دوم', account.cardPin2)}
+        : <ul className="list-none m-0 p-0 grid gap-[10px]">{listedAccounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[14px] flex flex-col gap-[6px] py-[10px] px-[14px] min-w-0">
+          <div className="flex items-center gap-[12px]">
+            <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
+              {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-[10px] shrink-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-[3px]">
+            {statusLine('بانک', account.bankName)}
+            {statusLine('کارت', account.cardNumber)}
+            {statusLine('حساب', account.accountNumber)}
+            {statusLine('شبا', account.shebaNumber)}
+            {statusLine('رمز اول', account.cardPin1)}
+            {statusLine('رمز دوم', account.cardPin2)}
+          </div>
+          <div className="flex items-center gap-[10px]">
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
             <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
