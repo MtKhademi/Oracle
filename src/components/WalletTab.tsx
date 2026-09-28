@@ -133,15 +133,12 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
     </SectionHeaderCard>
     {accounts.length === 0
       ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز حسابی ثبت نشده</p>
-      : <ul className="list-none m-0 p-0 grid gap-[10px]">{accounts.map(account => <li key={account.id} className={`bg-white border border-[#eef0f7] rounded-[17px] flex ${account.name === 'نقدی' ? 'items-center' : 'items-start'} gap-[15px] py-[12px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:py-[10px] min-[1050px]:px-[14px] [@media(min-width:351px)_and_(max-width:480px)]:gap-[12px] [@media(min-width:351px)_and_(max-width:480px)]:py-[11px] [@media(min-width:351px)_and_(max-width:480px)]:px-[14px] max-[351px]:gap-[9px] max-[351px]:py-[10px] max-[351px]:px-[10px]`}>
+      : <ul className="list-none m-0 p-0 grid gap-[10px]">{accounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center gap-[15px] py-[12px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:py-[10px] min-[1050px]:px-[14px] [@media(min-width:351px)_and_(max-width:480px)]:gap-[12px] [@media(min-width:351px)_and_(max-width:480px)]:py-[11px] [@media(min-width:351px)_and_(max-width:480px)]:px-[14px] max-[351px]:gap-[9px] max-[351px]:py-[10px] max-[351px]:px-[10px]">
         <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
         <div className="flex-1 min-w-0">
           <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
-          {(account.bankName || account.cardNumber || account.accountNumber || account.shebaNumber) && <div className="grid gap-[2px] mt-[3px]">
-            {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
-            {account.cardNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.cardNumber}</p>}
-            {account.accountNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.accountNumber}</p>}
-            {account.shebaNumber && <p className="m-0 text-[11px] text-[#9096aa] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]">{account.shebaNumber}</p>}
+          {account.bankName && <div className="grid gap-[2px] mt-[3px]">
+            <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>
           </div>}
         </div>
         <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
@@ -150,7 +147,7 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
             <IconButton icon={<HistoryIcon/>} onClick={() => setHistoryFor(account)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
             <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
-            <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>
+            {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
           </div>
         </div>
       </li>)}</ul>}
