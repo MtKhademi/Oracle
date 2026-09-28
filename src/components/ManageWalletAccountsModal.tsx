@@ -9,14 +9,14 @@ import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
 
-// One green/red status line per bank-detail field: green "ثبت شده" when the
-// value is set (non-blank after trim), red "ثبت نشده" when empty. Matches the
-// app's green (#1f9d55) / red (#d95050) status colors (see §6aq).
+// One green/red line per bank-detail field: the field's own value in green
+// (#1f9d55) when set (non-blank after trim), or a red (#d95050) "—"
+// placeholder when empty (see §6av, wording change of the §6aq status lines).
 const statusLine = (label: string, value?: string) => {
   const set = Boolean(value && value.trim() !== '');
   return <div className="flex items-center justify-between gap-2">
     <span className="text-[11px] text-[#9096aa]">{label}</span>
-    <span className={`text-[11px] font-medium ${set ? 'text-[#1f9d55]' : 'text-[#d95050]'}`}>{set ? 'ثبت شده' : 'ثبت نشده'}</span>
+    <span className={`text-[11px] font-medium ${set ? 'text-[#1f9d55]' : 'text-[#d95050]'}`}>{set ? value : '—'}</span>
   </div>;
 };
 
