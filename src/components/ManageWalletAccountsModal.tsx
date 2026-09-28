@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { authService } from '../services/authService';
 import { walletService, type WalletAccount } from '../services/walletService';
 import { format } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
-import { CloseIcon, PencilIcon, PlusIcon, TrashIcon } from './icons';
+import { CloseIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from './icons';
 import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
@@ -65,6 +66,25 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     }
   };
 
+  // Copies the account's shareable details (name + bank/card/account/sheba) to
+  // the clipboard as a plain-text block for pasting elsewhere (e.g. Telegram).
+  // The logged-in user's full name comes from authService (the same source
+  // App.tsx uses); empty lines are skipped; the two card-PIN fields are
+  // deliberately excluded (personal reminders, not for sharing).
+  const handleCopyDetails = async (account: WalletAccount) => {
+    const user = await authService.getCurrentUser();
+    const name = (user?.fullName ?? '').trim();
+    const lines = [name, account.bankName, account.cardNumber, account.accountNumber, account.shebaNumber]
+      .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+      .map(value => value.trim());
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast.success('مشخصات کارت کپی شد');
+    } catch {
+      toast.error('کپی مشخصات انجام نشد');
+    }
+  };
+
   // Display-only: the seeded "نقدی" is never listed here — it is always shown
   // in the main "کیف پول" list instead (see AI-KNOWLEDGE.md §6au). It still
   // exists in storage and self-heals on load; it just is not managed from this
@@ -100,6 +120,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
           <div className="flex items-center gap-[10px] shrink-0">
             <span className="text-[12px] text-[#969eb2] whitespace-nowrap [font-variant-numeric:tabular-nums]">{format(account.balance)} <span className="text-[#a2a8b9] text-[10px]">تومان</span></span>
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
+            <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
           </div>
         </li>)}</ul>}

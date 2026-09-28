@@ -168,6 +168,16 @@ export function FixedIncomeIcon() {
   </svg>;
 }
 
+// Paper-plane / send glyph — the "copy account details" (share) action in
+// ManageWalletAccountsModal.tsx. Same 24x24/stroke/strokeWidth style as the
+// rest of this file.
+export function SendIcon() {
+  return <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 3 3 10.5l6 2.5 2.5 6L21 3Z"/>
+    <path d="M9.5 13.5 21 3"/>
+  </svg>;
+}
+
 // Three small stacked filled dots — the "more options" / sort-menu trigger
 // button above the asset list (see AssetSortMenu.tsx). Filled circles (not
 // stroked, unlike most icons in this file) so the dots stay clearly visible
