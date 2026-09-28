@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { authService } from '../services/authService';
 import { walletService, type WalletAccount } from '../services/walletService';
-import { format } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from './icons';
@@ -10,15 +9,13 @@ import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
 
-// One green/red line per bank-detail field: the field's own value in green
-// (#1f9d55) when set (non-blank after trim), or a red (#d95050) "—"
-// placeholder when empty (see §6av, wording change of the §6aq status lines).
+// One line per bank-detail field: the field's own label, colored green
+// (#1f9d55) when the field is set (non-blank after trim) or red (#d95050)
+// when empty — a color-only indicator, no value ever shown (see §6ax,
+// supersedes §6av's value-showing lines).
 const statusLine = (label: string, value?: string) => {
   const set = Boolean(value && value.trim() !== '');
-  return <div className="flex items-center justify-between gap-2">
-    <span className="text-[11px] text-[#9096aa]">{label}</span>
-    <span className={`text-[11px] font-medium ${set ? 'text-[#1f9d55]' : 'text-[#d95050]'}`}>{set ? value : '—'}</span>
-  </div>;
+  return <span className={`text-[11px] font-medium ${set ? 'text-[#1f9d55]' : 'text-[#d95050]'}`}>{label}</span>;
 };
 
 // The "مدیریت حساب‌ها" (manage accounts) modal (see AI-KNOWLEDGE.md §6an) — the
@@ -118,7 +115,6 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
             </div>
           </div>
           <div className="flex items-center gap-[10px] shrink-0">
-            <span className="text-[12px] text-[#969eb2] whitespace-nowrap [font-variant-numeric:tabular-nums]">{format(account.balance)} <span className="text-[#a2a8b9] text-[10px]">تومان</span></span>
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
             <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
