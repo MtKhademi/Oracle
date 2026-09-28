@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { walletService, type WalletAccount } from '../services/walletService';
+import { walletTransactionService } from '../services/walletTransactionService';
 import { format, formatWithThousands, stripToNumberString } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
@@ -81,9 +82,10 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
 
 // The "کیف پول" (wallet) tab content (see AI-KNOWLEDGE.md §6ad) — the
 // owner's cash/bank accounts (e.g. "نقد", "کارت بانک ملی"), fully dynamic:
-// add/edit via one shared small modal, delete immediately per row (no
-// confirmation, the lighter-weight convention §6r chose for the market
-// watchlist), persisted through walletService (localStorage). `accounts` is
+// add/edit via one shared small modal, and each row's trash icon resets
+// (balance → 0 + wipes that account's transaction history, behind a
+// toast-confirm — it never deletes the account itself; see §6am), persisted
+// through walletService (localStorage). `accounts` is
 // `null` until App.tsx's mount-time load resolves; every mutation pushes the
 // service's returned full list back up through `onAccountsChanged` so
 // App.tsx stays canonical (the same items ↔ assetService pattern).
@@ -106,14 +108,21 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      const next = await walletService.deleteAccount(id);
-      toast.success('حساب حذف شد');
-      onAccountsChanged(next);
-    } catch {
-      toast.error('حذف حساب انجام نشد');
-    }
+  const handleResetAccount = (account: WalletAccount) => {
+    const reset = async () => {
+      try {
+        await walletTransactionService.deleteTransactionsForAccount(account.id);
+        const next = await walletService.updateAccount(account.id, { balance: 0 });
+        onAccountsChanged(next);
+        toast.success('موجودی و تاریخچه پاک شد');
+      } catch {
+        toast.error('پاک کردن موجودی و تاریخچه انجام نشد');
+      }
+    };
+    toast('موجودی و کل تاریخچه‌ی این حساب پاک شود؟', {
+      action: { label: 'بله، پاک کن', onClick: reset },
+      cancel: { label: 'انصراف', onClick: () => {} },
+    });
   };
 
   if (accounts === null) {
@@ -153,7 +162,7 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
             <IconButton icon={<HistoryIcon/>} onClick={() => setHistoryFor(account)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
             <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
-            {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
+            <IconButton icon={<TrashIcon/>} onClick={() => handleResetAccount(account)} ariaLabel="صفر کردن موجودی و تاریخچه" tone="danger" variant="ghost"/>
           </div>
         </div>
       </li>)}</ul>}
