@@ -123,6 +123,12 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
     </SectionHeaderCard>;
   }
 
+  // Display-only: the rendered list is sorted by balance, highest first —
+  // the `accounts` prop itself (state, storage, modals, onAccountsChanged)
+  // keeps its stored order untouched (see AI-KNOWLEDGE.md §6al). Re-sorts
+  // automatically whenever any add/edit/transaction changes a balance.
+  const sortedAccounts = [...accounts].sort((a, b) => b.balance - a.balance);
+
   return <>
     <SectionHeaderCard>
       {tabs}
@@ -131,9 +137,9 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
         <span className="text-[11px] text-[#656e87]">حساب‌های نقدی</span>
       </div>
     </SectionHeaderCard>
-    {accounts.length === 0
+    {sortedAccounts.length === 0
       ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز حسابی ثبت نشده</p>
-      : <ul className="list-none m-0 p-0 grid gap-[10px]">{accounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center gap-[15px] py-[12px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:py-[10px] min-[1050px]:px-[14px] [@media(min-width:351px)_and_(max-width:480px)]:gap-[12px] [@media(min-width:351px)_and_(max-width:480px)]:py-[11px] [@media(min-width:351px)_and_(max-width:480px)]:px-[14px] max-[351px]:gap-[9px] max-[351px]:py-[10px] max-[351px]:px-[10px]">
+      : <ul className="list-none m-0 p-0 grid gap-[10px]">{sortedAccounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[17px] flex items-center gap-[15px] py-[12px] px-[22px] min-w-0 shadow-[0_4px_14px_#28377c03] max-[481px]:rounded-[15px] min-[1050px]:gap-[11px] min-[1050px]:py-[10px] min-[1050px]:px-[14px] [@media(min-width:351px)_and_(max-width:480px)]:gap-[12px] [@media(min-width:351px)_and_(max-width:480px)]:py-[11px] [@media(min-width:351px)_and_(max-width:480px)]:px-[14px] max-[351px]:gap-[9px] max-[351px]:py-[10px] max-[351px]:px-[10px]">
         <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
         <div className="flex-1 min-w-0">
           <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
