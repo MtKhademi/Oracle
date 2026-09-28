@@ -11,6 +11,8 @@ export interface WalletAccount {
   cardNumber?: string;
   accountNumber?: string;
   shebaNumber?: string;
+  cardPin1?: string;
+  cardPin2?: string;
 }
 
 export interface WalletService {
