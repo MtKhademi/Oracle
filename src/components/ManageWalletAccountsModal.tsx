@@ -9,6 +9,17 @@ import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
 
+// One green/red status line per bank-detail field: green "ثبت شده" when the
+// value is set (non-blank after trim), red "ثبت نشده" when empty. Matches the
+// app's green (#1f9d55) / red (#d95050) status colors (see §6aq).
+const statusLine = (label: string, value?: string) => {
+  const set = Boolean(value && value.trim() !== '');
+  return <div className="flex items-center justify-between gap-2">
+    <span className="text-[11px] text-[#9096aa]">{label}</span>
+    <span className={`text-[11px] font-medium ${set ? 'text-[#1f9d55]' : 'text-[#d95050]'}`}>{set ? 'ثبت شده' : 'ثبت نشده'}</span>
+  </div>;
+};
+
 // The "مدیریت حساب‌ها" (manage accounts) modal (see AI-KNOWLEDGE.md §6an) — the
 // home of real wallet-account add/edit/delete. Lists EVERY account (no balance
 // filter), each with edit + real-delete actions, except the seeded "نقدی"
@@ -30,10 +41,10 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose, modal]);
 
-  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string): Promise<boolean> => {
+  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
     try {
-      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber };
+      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2 };
       const next = editing ? await walletService.updateAccount(editing.id, changes) : await walletService.addAccount(changes);
       toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
       onAccountsChanged(next);
@@ -69,6 +80,14 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
           <div className="flex-1 min-w-0">
             <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
             {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-[3px] mt-[5px]">
+              {statusLine('بانک', account.bankName)}
+              {statusLine('کارت', account.cardNumber)}
+              {statusLine('حساب', account.accountNumber)}
+              {statusLine('شبا', account.shebaNumber)}
+              {statusLine('رمز اول', account.cardPin1)}
+              {statusLine('رمز دوم', account.cardPin2)}
+            </div>
           </div>
           <div className="flex items-center gap-[10px] shrink-0">
             <span className="text-[12px] text-[#969eb2] whitespace-nowrap [font-variant-numeric:tabular-nums]">{format(account.balance)} <span className="text-[#a2a8b9] text-[10px]">تومان</span></span>
