@@ -69,8 +69,10 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
     <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="manage-wallet-accounts-title" onClick={e => e.stopPropagation()}>
       <button type="button" onClick={onClose} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
-      <div className="flex items-center justify-between gap-3 mb-4 pr-1 pl-10">
+      <div className="mb-4 pr-1 pl-10">
         <h2 id="manage-wallet-accounts-title" className="text-[15px] font-bold">مدیریت حساب‌ها</h2>
+      </div>
+      <div className="flex mb-4">
         <IconButton icon={<PlusIcon/>} onClick={() => setModal({ account: null })} ariaLabel="افزودن حساب" tone="neutral"/>
       </div>
       {accounts.length === 0
