@@ -1,0 +1,83 @@
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { walletService, type WalletAccount } from '../services/walletService';
+import { format } from '../format';
+import { AssetIcon, iconTint } from './AssetIcon';
+import { IconButton } from './IconButton';
+import { CloseIcon, PencilIcon, PlusIcon, TrashIcon } from './icons';
+import { WalletAccountModal } from './WalletTab';
+
+const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
+
+// The "مدیریت حساب‌ها" (manage accounts) modal (see AI-KNOWLEDGE.md §6an) — the
+// home of real wallet-account add/edit/delete. Lists EVERY account (no balance
+// filter), each with edit + real-delete actions, except the seeded "نقدی"
+// account (fully locked: no edit, no delete). Adding a new account also
+// happens here, via the exported `WalletAccountModal` (add mode). The "کیف
+// پول" tab's header "+" button opens this. Every mutation pushes the
+// service's returned full list up through `onAccountsChanged` so App.tsx stays
+// canonical (same items ↔ assetService pattern). Shelled like the other modals
+// (backdrop / Escape / "×" / stopPropagation on the card).
+export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose }: { accounts: WalletAccount[]; onAccountsChanged: (accounts: WalletAccount[]) => void; onClose: () => void }) {
+  const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
+
+  useEffect(() => {
+    // The nested add/edit form (WalletAccountModal) adds its own Escape
+    // listener; while it's open, let only that listener close things so Escape
+    // dismisses the topmost modal first, not this one too.
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && modal === null) onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose, modal]);
+
+  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string): Promise<boolean> => {
+    const editing = modal?.account ?? null;
+    try {
+      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber };
+      const next = editing ? await walletService.updateAccount(editing.id, changes) : await walletService.addAccount(changes);
+      toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
+      onAccountsChanged(next);
+      return true;
+    } catch {
+      toast.error('ذخیره حساب انجام نشد');
+      return false;
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const next = await walletService.deleteAccount(id);
+      onAccountsChanged(next);
+      toast.success('حساب حذف شد');
+    } catch {
+      toast.error('حذف حساب انجام نشد');
+    }
+  };
+
+  return <>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+    <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="manage-wallet-accounts-title" onClick={e => e.stopPropagation()}>
+      <button type="button" onClick={onClose} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
+      <div className="flex items-center justify-between gap-3 mb-4 pr-1 pl-10">
+        <h2 id="manage-wallet-accounts-title" className="text-[15px] font-bold">مدیریت حساب‌ها</h2>
+        <IconButton icon={<PlusIcon/>} onClick={() => setModal({ account: null })} ariaLabel="افزودن حساب" tone="neutral"/>
+      </div>
+      {accounts.length === 0
+        ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-4">هنوز حسابی ثبت نشده</p>
+        : <ul className="list-none m-0 p-0 grid gap-[10px]">{accounts.map(account => <li key={account.id} className="bg-white border border-[#eef0f7] rounded-[14px] flex items-center gap-[12px] py-[10px] px-[14px] min-w-0">
+          <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
+            {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
+          </div>
+          <div className="flex items-center gap-[10px] shrink-0">
+            <span className="text-[12px] text-[#969eb2] whitespace-nowrap [font-variant-numeric:tabular-nums]">{format(account.balance)} <span className="text-[#a2a8b9] text-[10px]">تومان</span></span>
+            {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
+            {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
+          </div>
+        </li>)}</ul>}
+    </section>
+    </div>
+    {modal && <WalletAccountModal account={modal.account} onClose={() => setModal(null)} onSubmit={handleAccountSubmit}/>}
+  </>;
+}
