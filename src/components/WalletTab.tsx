@@ -132,12 +132,12 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
     </SectionHeaderCard>;
   }
 
-  // Display-only: the main list shows only non-"نقدی" accounts with a positive
-  // balance. The seeded "نقدی" is never shown here (at any balance); it remains
-  // visible, locked, and fully present in storage, and stays fully visible in
-  // "مدیریت حساب‌ها", which keeps receiving the full, unfiltered `accounts`
-  // prop (see AI-KNOWLEDGE.md §6ao/§6ap).
-  const visibleAccounts = accounts.filter(account => account.balance > 0 && account.name !== 'نقدی');
+  // Display-only: the main list shows accounts with a positive balance, plus
+  // the seeded "نقدی", which always shows regardless of its balance (including
+  // 0) and is sorted among the rest. Other zero-balance accounts stay hidden;
+  // everything remains fully present in storage, and "نقدی" is excluded from
+  // "مدیریت حساب‌ها" (see AI-KNOWLEDGE.md §6ao/§6ap/§6au).
+  const visibleAccounts = accounts.filter(account => account.balance > 0 || account.name === 'نقدی');
 
   // Display-only: the rendered list is sorted by balance, highest first —
   // the `accounts` prop itself (state, storage, modals, onAccountsChanged)
