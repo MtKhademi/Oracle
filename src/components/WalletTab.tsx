@@ -5,10 +5,11 @@ import { walletTransactionService } from '../services/walletTransactionService';
 import { format, formatWithThousands, stripToNumberString } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
-import { CloseIcon, HistoryIcon, PencilIcon, PlusIcon, TrashIcon } from './icons';
+import { CloseIcon, HistoryIcon, PlusIcon, TrashIcon } from './icons';
 import { SectionHeaderCard } from './SectionHeaderCard';
 import { RecordWalletTransactionModal } from './RecordWalletTransactionModal';
 import { WalletTransactionHistoryModal } from './WalletTransactionHistoryModal';
+import { ManageWalletAccountsModal } from './ManageWalletAccountsModal';
 
 const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
@@ -17,7 +18,9 @@ const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center roun
 // mode; otherwise the form is pre-filled with that account's values (edit
 // mode). `onSubmit` resolves true only when the save succeeded (it owns the
 // walletService call + toasts), so the modal closes itself on success only.
-function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string) => Promise<boolean> }) {
+// Exported since §6an: only `ManageWalletAccountsModal` opens it now (the
+// wallet tab's "+" button routes there).
+export function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string) => Promise<boolean> }) {
   const [formName, setFormName] = useState(account ? account.name : '');
   const [formBalance, setFormBalance] = useState(account ? String(account.balance) : '0');
   const [formBankName, setFormBankName] = useState(account?.bankName ?? '');
@@ -82,31 +85,18 @@ function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAcc
 
 // The "کیف پول" (wallet) tab content (see AI-KNOWLEDGE.md §6ad) — the
 // owner's cash/bank accounts (e.g. "نقد", "کارت بانک ملی"), fully dynamic:
-// add/edit via one shared small modal, and each row's trash icon resets
-// (balance → 0 + wipes that account's transaction history, behind a
-// toast-confirm — it never deletes the account itself; see §6am), persisted
+// each row's trash icon resets (balance → 0 + wipes that account's
+// transaction history, behind a toast-confirm — it never deletes the account
+// itself; see §6am), and real add/edit/delete now happens through the
+// "مدیریت حساب‌ها" modal opened by the header "+" button (see §6an), persisted
 // through walletService (localStorage). `accounts` is
 // `null` until App.tsx's mount-time load resolves; every mutation pushes the
 // service's returned full list back up through `onAccountsChanged` so
 // App.tsx stays canonical (the same items ↔ assetService pattern).
 export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactNode; accounts: WalletAccount[] | null; onAccountsChanged: (accounts: WalletAccount[]) => void }) {
-  const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
+  const [isManageOpen, setIsManageOpen] = useState(false);
   const [recordFor, setRecordFor] = useState<WalletAccount | null>(null);
   const [historyFor, setHistoryFor] = useState<WalletAccount | null>(null);
-
-  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string): Promise<boolean> => {
-    const editing = modal?.account ?? null;
-    try {
-      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber };
-      const next = editing ? await walletService.updateAccount(editing.id, changes) : await walletService.addAccount(changes);
-      toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
-      onAccountsChanged(next);
-      return true;
-    } catch {
-      toast.error('ذخیره حساب انجام نشد');
-      return false;
-    }
-  };
 
   const handleResetAccount = (account: WalletAccount) => {
     const reset = async () => {
@@ -142,7 +132,7 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
     <SectionHeaderCard>
       {tabs}
       <div className="flex justify-between items-center px-1 min-[1050px]:mb-[19px]">
-        <IconButton icon={<PlusIcon/>} onClick={() => setModal({ account: null })} ariaLabel="افزودن حساب" tone="neutral"/>
+        <IconButton icon={<PlusIcon/>} onClick={() => setIsManageOpen(true)} ariaLabel="مدیریت حساب‌ها" tone="neutral"/>
         <span className="text-[11px] text-[#656e87]">حساب‌های نقدی</span>
       </div>
     </SectionHeaderCard>
@@ -161,12 +151,11 @@ export function WalletTab({ tabs, accounts, onAccountsChanged }: { tabs?: ReactN
           <div className="flex gap-[8px]">
             <IconButton icon={<HistoryIcon/>} onClick={() => setHistoryFor(account)} ariaLabel="تاریخچه" tone="neutral" variant="ghost"/>
             <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
-            {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
             <IconButton icon={<TrashIcon/>} onClick={() => handleResetAccount(account)} ariaLabel="صفر کردن موجودی و تاریخچه" tone="danger" variant="ghost"/>
           </div>
         </div>
       </li>)}</ul>}
-    {modal && <WalletAccountModal account={modal.account} onClose={() => setModal(null)} onSubmit={handleAccountSubmit}/>}
+    {isManageOpen && <ManageWalletAccountsModal accounts={accounts} onAccountsChanged={onAccountsChanged} onClose={() => setIsManageOpen(false)}/>}
     {historyFor && <WalletTransactionHistoryModal account={historyFor} onClose={() => setHistoryFor(null)}/>}
     {recordFor && <RecordWalletTransactionModal account={recordFor} onClose={() => setRecordFor(null)} onTransactionRecorded={onAccountsChanged}/>}
   </>;
