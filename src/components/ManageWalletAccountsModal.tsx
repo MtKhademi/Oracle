@@ -5,6 +5,7 @@ import { walletService, type WalletAccount } from '../services/walletService';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from './icons';
+import { RecordWalletTransactionModal } from './RecordWalletTransactionModal';
 import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
@@ -21,23 +22,26 @@ const statusLine = (label: string, value?: string) => {
 // The "مدیریت حساب‌ها" (manage accounts) modal (see AI-KNOWLEDGE.md §6an) — the
 // home of real wallet-account add/edit/delete. Lists every account except the
 // seeded "نقدی" (which is always shown in the main "کیف پول" list instead —
-// see §6au), each with edit + real-delete actions. Adding a new account also
-// happens here, via the exported `WalletAccountModal` (add mode). The "کیف
-// پول" tab's header "+" button opens this. Every mutation pushes the
-// service's returned full list up through `onAccountsChanged` so App.tsx stays
-// canonical (same items ↔ assetService pattern). Shelled like the other modals
-// (backdrop / Escape / "×" / stopPropagation on the card).
+// see §6au), each with edit + record-transaction + real-delete actions (the
+// "ثبت تراکنش" button opens RecordWalletTransactionModal for that account, §6b3).
+// Adding a new account also happens here, via the exported `WalletAccountModal`
+// (add mode). The "کیف پول" tab's header "+" button opens this. Every mutation
+// pushes the service's returned full list up through `onAccountsChanged` so
+// App.tsx stays canonical (same items ↔ assetService pattern). Shelled like the
+// other modals (backdrop / Escape / "×" / stopPropagation on the card).
 export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose }: { accounts: WalletAccount[]; onAccountsChanged: (accounts: WalletAccount[]) => void; onClose: () => void }) {
   const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
+  const [recordFor, setRecordFor] = useState<WalletAccount | null>(null);
 
   useEffect(() => {
-    // The nested add/edit form (WalletAccountModal) adds its own Escape
-    // listener; while it's open, let only that listener close things so Escape
+    // The nested add/edit form (WalletAccountModal) and the record-transaction
+    // modal (RecordWalletTransactionModal) each add their own Escape listener;
+    // while either is open, let only that listener close things so Escape
     // dismisses the topmost modal first, not this one too.
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && modal === null) onClose(); };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && modal === null && recordFor === null) onClose(); };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose, modal]);
+  }, [onClose, modal, recordFor]);
 
   const handleAccountSubmit = async (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
@@ -118,6 +122,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
           </div>
           <div className="flex items-center justify-end gap-[10px]">
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
+            {account.name !== 'نقدی' && <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>}
             <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
           </div>
@@ -125,5 +130,6 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     </section>
     </div>
     {modal && <WalletAccountModal account={modal.account} onClose={() => setModal(null)} onSubmit={handleAccountSubmit}/>}
+    {recordFor && <RecordWalletTransactionModal account={recordFor} onClose={() => setRecordFor(null)} onTransactionRecorded={onAccountsChanged}/>}
   </>;
 }
