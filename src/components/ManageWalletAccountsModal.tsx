@@ -39,11 +39,13 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose, modal]);
 
-  const handleAccountSubmit = async (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
+  const handleAccountSubmit = async (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
     try {
-      const changes = { name, balance, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2 };
-      const next = editing ? await walletService.updateAccount(editing.id, changes) : await walletService.addAccount(changes);
+      const details = { name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2 };
+      const next = editing
+        ? await walletService.updateAccount(editing.id, details)
+        : await walletService.addAccount({ ...details, balance: 0 });
       toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
       onAccountsChanged(next);
       return true;
