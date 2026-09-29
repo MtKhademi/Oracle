@@ -104,12 +104,10 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
           <div className="flex items-center gap-[12px]">
             <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
             <div className="min-w-0">
-              <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}</h3>
-              {account.bankName && <p className="m-0 text-[11px] text-[#9096aa]">{account.bankName}</p>}
+              <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}{account.bankName && <> — <span className="text-[#9096aa] font-normal">{account.bankName}</span></>}</h3>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-[3px]">
-            {statusLine('بانک', account.bankName)}
             {statusLine('کارت', account.cardNumber)}
             {statusLine('حساب', account.accountNumber)}
             {statusLine('شبا', account.shebaNumber)}
