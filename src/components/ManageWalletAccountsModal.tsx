@@ -105,14 +105,14 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
             <span className={`${accountIconBase} ${iconTint.cash}`} aria-hidden="true"><AssetIcon type="cash"/></span>
             <div className="min-w-0">
               <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{account.name}{account.bankName && <> — <span className="text-[#9096aa] font-normal">{account.bankName}</span></>}</h3>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-[3px] mt-[3px]">
+                {statusLine('کارت', account.cardNumber)}
+                {statusLine('حساب', account.accountNumber)}
+                {statusLine('شبا', account.shebaNumber)}
+                {statusLine('رمز اول', account.cardPin1)}
+                {statusLine('رمز دوم', account.cardPin2)}
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-[3px]">
-            {statusLine('کارت', account.cardNumber)}
-            {statusLine('حساب', account.accountNumber)}
-            {statusLine('شبا', account.shebaNumber)}
-            {statusLine('رمز اول', account.cardPin1)}
-            {statusLine('رمز دوم', account.cardPin2)}
           </div>
           <div className="flex items-center justify-end gap-[10px]">
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
