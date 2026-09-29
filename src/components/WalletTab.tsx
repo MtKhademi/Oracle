@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { walletService, type WalletAccount } from '../services/walletService';
 import { walletTransactionService } from '../services/walletTransactionService';
-import { format, formatWithThousands, stripToNumberString } from '../format';
+import { format } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, HistoryIcon, PlusIcon, TrashIcon } from './icons';
@@ -20,9 +20,8 @@ const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center roun
 // walletService call + toasts), so the modal closes itself on success only.
 // Exported since §6an: only `ManageWalletAccountsModal` opens it now (the
 // wallet tab's "+" button routes there).
-export function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, balance: number, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string) => Promise<boolean> }) {
+export function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string) => Promise<boolean> }) {
   const [formName, setFormName] = useState(account ? account.name : '');
-  const [formBalance, setFormBalance] = useState(account ? String(account.balance) : '0');
   const [formBankName, setFormBankName] = useState(account?.bankName ?? '');
   const [formCardNumber, setFormCardNumber] = useState(account?.cardNumber ?? '');
   const [formAccountNumber, setFormAccountNumber] = useState(account?.accountNumber ?? '');
@@ -39,13 +38,8 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const name = formName.trim();
-    const balance = formBalance === '' ? 0 : Number(formBalance);
     if (!name) {
       toast.error('نام حساب را وارد کنید.');
-      return;
-    }
-    if (!Number.isFinite(balance) || balance < 0) {
-      toast.error('موجودی را به‌درستی وارد کنید.');
       return;
     }
     const bankName = formBankName.trim() || undefined;
@@ -54,7 +48,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
     const shebaNumber = formShebaNumber.trim() || undefined;
     const cardPin1 = formCardPin1.trim() || undefined;
     const cardPin2 = formCardPin2.trim() || undefined;
-    const saved = await onSubmit(name, balance, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2);
+    const saved = await onSubmit(name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2);
     if (saved) onClose();
   };
 
@@ -83,9 +77,6 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">رمز دوم
           <input type="text" inputMode="numeric" value={formCardPin2} onChange={e => setFormCardPin2(e.target.value)} placeholder="مثلا: 5678" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-        </label>
-        <label className="text-[11px] text-[#7a8097] grid gap-1">موجودی به تومان
-          <input type="text" inputMode="numeric" value={formatWithThousands(formBalance)} onChange={e => setFormBalance(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <button type="submit" className="text-white text-[12px] font-medium rounded-[12px] px-4 py-2 bg-[#5264e8] cursor-pointer transition-colors">{account ? 'ذخیره تغییرات' : 'افزودن حساب'}</button>
       </form>
