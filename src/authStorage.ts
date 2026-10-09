@@ -49,7 +49,69 @@ export function saveSessionUserId(id: string): void {
 export function clearSession(): void {
   try {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SERVER_SESSION_KEY);
+    localStorage.removeItem(SERVER_TOKEN_KEY);
+    localStorage.removeItem(SERVER_EXPIRES_KEY);
   } catch {
     // storage blocked — nothing to clear
   }
+}
+
+// Server session helpers
+const SERVER_SESSION_KEY = 'oracle_server_session_v1';
+const SERVER_TOKEN_KEY = 'oracle_server_token_v1';
+const SERVER_EXPIRES_KEY = 'oracle_server_expires_v1';
+
+export function loadServerSessionId(): string | null {
+  try {
+    return localStorage.getItem(SERVER_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveServerSessionId(id: string): void {
+  try {
+    localStorage.setItem(SERVER_SESSION_KEY, id);
+  } catch {
+    // storage blocked
+  }
+}
+
+export function loadServerToken(): string | null {
+  try {
+    return localStorage.getItem(SERVER_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveServerToken(token: string): void {
+  try {
+    localStorage.setItem(SERVER_TOKEN_KEY, token);
+  } catch {
+    // storage blocked
+  }
+}
+
+export function loadServerExpiresAt(): string | null {
+  try {
+    return localStorage.getItem(SERVER_EXPIRES_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveServerExpiresAt(expiresAt: string): void {
+  try {
+    localStorage.setItem(SERVER_EXPIRES_KEY, expiresAt);
+  } catch {
+    // storage blocked
+  }
+}
+
+export function isServerSessionExpired(): boolean {
+  const expiresAt = loadServerExpiresAt();
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() <= Date.now();
 }

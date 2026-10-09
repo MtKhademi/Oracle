@@ -16,7 +16,13 @@ async function hashPassword(password: string): Promise<string> {
 
 function toPublicUser(stored: StoredUser): User {
   const { resetCode, resetCodeExpiresAt, ...user } = stored;
-  return user;
+  return {
+    ...user,
+    token: null,
+    expiresAtUtc: null,
+    displayName: stored.fullName,
+    isPlatformAdmin: false,
+  };
 }
 
 // Defensive check for a bugged/half-created record (e.g. left over from a
@@ -64,6 +70,10 @@ export const localAuthService: AuthService = {
       email: email.trim(),
       phone: normalizedPhone,
       passwordHash,
+      token: null,
+      expiresAtUtc: null,
+      displayName: null,
+      isPlatformAdmin: false,
     };
     saveUsers([...users, newUser]);
     saveSessionUserId(newUser.id);

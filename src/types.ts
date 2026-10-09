@@ -17,5 +17,9 @@ export type User = {
   fullName: string;
   email: string;
   phone: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  token: string | null;
+  expiresAtUtc: string | null;
+  displayName: string | null;
+  isPlatformAdmin: boolean;
 };

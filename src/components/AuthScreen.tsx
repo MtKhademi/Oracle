@@ -14,8 +14,6 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  const [signupFullName, setSignupFullName] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPasswordRepeat, setSignupPasswordRepeat] = useState('');
@@ -37,8 +35,8 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
       return;
     }
     const result = await authService.signUp({
-      fullName: signupFullName,
-      email: signupEmail,
+      fullName: '',
+      email: '',
       phone: signupPhone,
       password: signupPassword,
     });
@@ -70,12 +68,6 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ورود</button>
         <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[11px] text-[#5264e8] justify-self-center cursor-pointer hover:underline">رمز عبور را فراموش کرده‌اید؟</button>
       </form> : <form onSubmit={handleSignupSubmit} className="grid gap-[10px]">
-        <label className={labelClass}>نام و نام خانوادگی
-          <input type="text" name="fullName" id="signup-fullname" autoComplete="name" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} className={inputClass} required />
-        </label>
-        <label className={labelClass}>ایمیل
-          <input type="email" name="email" id="signup-email" autoComplete="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} className={inputClass} required />
-        </label>
         <label className={labelClass}>شماره موبایل
           <input type="tel" name="phone" id="signup-phone" autoComplete="tel" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} className={inputClass} required />
         </label>

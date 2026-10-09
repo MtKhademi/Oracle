@@ -1,5 +1,5 @@
 import type { User } from '../types';
-import { localAuthService } from './localAuthService';
+import { serverAuthService } from './serverAuthService';
 
 export interface AuthService {
   signUp(input: { fullName: string; email: string; phone: string; password: string }): Promise<{ ok: true; user: User } | { ok: false; error: string }>;
@@ -10,5 +10,5 @@ export interface AuthService {
   resetPassword(identifier: string, code: string, newPassword: string): Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
-// The only place that needs to change to point at a server-backed implementation later.
-export const authService: AuthService = localAuthService;
+// Server-backed auth — points at the real API endpoints.
+export const authService: AuthService = serverAuthService;
