@@ -1,4 +1,6 @@
 export type Profile = {
+  firstName: string;
+  lastName: string;
   fullName: string;
   phone: string;
   email: string;
@@ -6,6 +8,8 @@ export type Profile = {
 };
 
 export const emptyProfile: Profile = {
+  firstName: '',
+  lastName: '',
   fullName: '',
   phone: '',
   email: '',

@@ -5,19 +5,23 @@ import type { Profile } from '../types';
 import { CloseIcon, UserAvatarPlaceholderIcon } from './icons';
 
 export function ProfileModal({ onClose }: { onClose: () => void }) {
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     profileService.getProfile().then((profile: Profile) => {
-      setFullName(profile.fullName);
+      setFirstName(profile.firstName);
+      setLastName(profile.lastName);
       setPhone(profile.phone);
       setEmail(profile.email);
       setAvatarDataUrl(profile.avatarDataUrl);
-    });
+    }).catch(error => toast.error(error instanceof Error ? error.message : 'دریافت مشخصات انجام نشد')).finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -38,10 +42,21 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleSave = async () => {
-    const profile: Profile = { fullName, phone, email, avatarDataUrl };
-    await profileService.saveProfile(profile);
-    toast.success('مشخصات ذخیره شد');
-    onClose();
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error('نام و نام خانوادگی را وارد کنید');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const profile: Profile = { firstName, lastName, fullName: `${firstName.trim()} ${lastName.trim()}`, phone, email, avatarDataUrl };
+      await profileService.saveProfile(profile);
+      toast.success('مشخصات ذخیره شد');
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ذخیره مشخصات انجام نشد');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
@@ -55,17 +70,20 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" aria-hidden="true" tabIndex={-1} />
         <button type="button" onClick={() => avatarInputRef.current?.click()} className="text-[11px] font-medium text-[#5264e8] bg-[#eef0ff] rounded-[10px] px-3 py-1.5 cursor-pointer hover:bg-[#e2e5ff] transition-colors">تغییر عکس</button>
       </div>
-      <div className="grid gap-[10px]">
-        <label className="text-[11px] text-[#7a8097] grid gap-1">نام و نام خانوادگی
-          <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+      <div className={`grid gap-[10px] ${isLoading ? 'opacity-60 pointer-events-none' : ''}`}>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">نام
+          <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" required />
+        </label>
+        <label className="text-[11px] text-[#7a8097] grid gap-1">نام خانوادگی
+          <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" required />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">شماره تماس
-          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <input type="tel" value={phone} readOnly className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#7a8097] bg-[#f8f9fc]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">ایمیل
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <input type="email" value={email} readOnly className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#7a8097] bg-[#f8f9fc]" />
         </label>
-        <button type="button" onClick={handleSave} className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer">ذخیره</button>
+        <button type="button" onClick={handleSave} disabled={isLoading || isSaving} className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">{isSaving ? 'در حال ذخیره...' : 'ذخیره'}</button>
       </div>
     </section>
   </div>;
