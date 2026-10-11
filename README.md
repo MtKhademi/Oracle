@@ -19,6 +19,8 @@ Open the address Vite displays in your browser. To view it on a phone on the sam
 
 Before the main page is shown, you must log in or sign up. In Vite development mode, registration (first name, last name, mobile number, password and password confirmation) and login call the local Oracle backend through Vite's `/api` proxy to `http://localhost:5000`; the returned access token and session user are stored in that browser's `localStorage` until expiry or logout. Production builds intentionally keep the previous browser-local authentication for now. Password recovery is unavailable against the development backend because it does not expose that endpoint yet.
 
+The profile window also uses the backend in development: it loads the signed-in user from `GET /api/me` and saves first/last-name changes with `PATCH /api/me`. Mobile number and email are displayed read-only because the update endpoint does not accept them. The avatar remains browser-local because the backend contract has no avatar field. Production keeps the existing browser-local profile behavior.
+
 ```sh
 npm run build
 npm run preview

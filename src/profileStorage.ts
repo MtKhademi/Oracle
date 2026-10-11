@@ -9,6 +9,8 @@ export function loadProfile(): Profile {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return emptyProfile;
     return {
+      firstName: typeof parsed.firstName === 'string' ? parsed.firstName : '',
+      lastName: typeof parsed.lastName === 'string' ? parsed.lastName : '',
       fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
       phone: typeof parsed.phone === 'string' ? parsed.phone : '',
       email: typeof parsed.email === 'string' ? parsed.email : '',
