@@ -51,7 +51,7 @@ function findByIdentifier(users: StoredUser[], identifier: string): StoredUser |
 }
 
 export const localAuthService: AuthService = {
-  async signUp({ fullName, email, phone, password }) {
+  async signUp({ firstName, lastName, email, phone, password }) {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
     // Drop any leftover record with the same email/phone that has no valid
@@ -66,7 +66,7 @@ export const localAuthService: AuthService = {
     const passwordHash = await hashPassword(password);
     const newUser: StoredUser = {
       id: generateUserId(),
-      fullName: fullName.trim(),
+      fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
       email: email.trim(),
       phone: normalizedPhone,
       passwordHash,

@@ -14,6 +14,8 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  const [signupFirstName, setSignupFirstName] = useState('');
+  const [signupLastName, setSignupLastName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPasswordRepeat, setSignupPasswordRepeat] = useState('');
@@ -35,10 +37,12 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
       return;
     }
     const result = await authService.signUp({
-      fullName: '',
+      firstName: signupFirstName,
+      lastName: signupLastName,
       email: '',
       phone: signupPhone,
       password: signupPassword,
+      confirmPassword: signupPasswordRepeat,
     });
     if (result.ok) {
       toast.success('ثبت‌نام با موفقیت انجام شد');
@@ -68,6 +72,12 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ورود</button>
         <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[11px] text-[#5264e8] justify-self-center cursor-pointer hover:underline">رمز عبور را فراموش کرده‌اید؟</button>
       </form> : <form onSubmit={handleSignupSubmit} className="grid gap-[10px]">
+        <label className={labelClass}>نام
+          <input type="text" name="firstName" id="signup-first-name" autoComplete="given-name" value={signupFirstName} onChange={e => setSignupFirstName(e.target.value)} className={inputClass} required />
+        </label>
+        <label className={labelClass}>نام خانوادگی
+          <input type="text" name="lastName" id="signup-last-name" autoComplete="family-name" value={signupLastName} onChange={e => setSignupLastName(e.target.value)} className={inputClass} required />
+        </label>
         <label className={labelClass}>شماره موبایل
           <input type="tel" name="phone" id="signup-phone" autoComplete="tel" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} className={inputClass} required />
         </label>

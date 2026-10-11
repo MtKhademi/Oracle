@@ -17,7 +17,7 @@ npm run dev
 
 Open the address Vite displays in your browser. To view it on a phone on the same network, use the computer's IP and the displayed port; firewall access must be allowed.
 
-Before the main page is shown, you must log in or sign up (email/mobile phone number + password). The user information and the hashed password are stored only in that browser's `localStorage`; a real server or email/SMS service is not connected yet. The password-recovery code on the page ("forgot password") is only shown **for display** on screen, not actually sent via email or SMS.
+Before the main page is shown, you must log in or sign up. In Vite development mode, registration (first name, last name, mobile number, password and password confirmation) and login call the local Oracle backend through Vite's `/api` proxy to `http://localhost:5000`; the returned access token and session user are stored in that browser's `localStorage` until expiry or logout. Production builds intentionally keep the previous browser-local authentication for now. Password recovery is unavailable against the development backend because it does not expose that endpoint yet.
 
 ```sh
 npm run build

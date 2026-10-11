@@ -2,21 +2,19 @@ import type { User } from '../types';
 import type { AuthService } from './authService';
 import {
   clearSession,
-  loadServerSessionId,
+  loadServerUser,
   loadServerToken,
   saveServerExpiresAt,
-  saveServerSessionId,
+  saveServerUser,
   saveServerToken,
   isServerSessionExpired,
 } from '../authStorage';
 
-// Relative URL — relies on the host to proxy `/api` to the backend.
-// Dev: Vite proxy (vite.config.ts) → http://localhost:5000
-// Prod: nginx reverse proxy (docker/nginx.conf) → backend host
+// Relative URL — Vite proxies `/api` to http://localhost:5000 in development.
 const API_BASE = '';
 
 function serverUserToAppUser(
-  serverUser: { id: string; email: string | null; displayName: string; isPlatformAdmin: boolean },
+  serverUser: { id: string; email: string | null; displayName: string },
   token: string | null,
   expiresAtUtc: string | null,
 ): User {
@@ -29,7 +27,7 @@ function serverUserToAppUser(
     token,
     expiresAtUtc,
     displayName: serverUser.displayName,
-    isPlatformAdmin: serverUser.isPlatformAdmin,
+    isPlatformAdmin: false,
   };
 }
 
@@ -50,13 +48,16 @@ function parseApiError(body: unknown): string {
 }
 
 export const serverAuthService: AuthService = {
-  async signUp(input: { fullName: string; email: string; phone: string; password: string }) {
-    const res = await fetch(`${API_BASE}/api/oracle/auth/register`, {
+  async signUp(input) {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
         mobileNumber: input.phone,
         password: input.password,
+        confirmPassword: input.confirmPassword,
       }),
     });
 
@@ -74,16 +75,16 @@ export const serverAuthService: AuthService = {
     const data = await res.json();
     const { accessToken, expiresAtUtc, user } = data;
 
-    saveServerSessionId(user.id);
+    const appUser = serverUserToAppUser(user, accessToken, expiresAtUtc);
+    saveServerUser(appUser);
     saveServerToken(accessToken);
     saveServerExpiresAt(expiresAtUtc);
 
-    const appUser = serverUserToAppUser(user, accessToken, expiresAtUtc);
     return { ok: true, user: appUser };
   },
 
   async logIn(input: { identifier: string; password: string }) {
-    const res = await fetch(`${API_BASE}/api/oracle/auth/login`, {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -93,19 +94,17 @@ export const serverAuthService: AuthService = {
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      const error = parseApiError(body);
       return { ok: false, error: 'ایمیل/شماره یا رمز عبور اشتباه است' };
     }
 
     const data = await res.json();
     const { accessToken, expiresAtUtc, user } = data;
 
-    saveServerSessionId(user.id);
+    const appUser = serverUserToAppUser(user, accessToken, expiresAtUtc);
+    saveServerUser(appUser);
     saveServerToken(accessToken);
     saveServerExpiresAt(expiresAtUtc);
 
-    const appUser = serverUserToAppUser(user, accessToken, expiresAtUtc);
     return { ok: true, user: appUser };
   },
 
@@ -114,8 +113,8 @@ export const serverAuthService: AuthService = {
   },
 
   async getCurrentUser() {
-    const sessionId = loadServerSessionId();
-    if (!sessionId) return null;
+    const user = loadServerUser();
+    if (!user) return null;
 
     if (isServerSessionExpired()) {
       clearSession();
@@ -128,27 +127,7 @@ export const serverAuthService: AuthService = {
       return null;
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/oracle/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          clearSession();
-          return null;
-        }
-        return null;
-      }
-
-      const data = await res.json();
-      const appUser = serverUserToAppUser(data, token, null);
-      return appUser;
-    } catch {
-      return null;
-    }
+    return { ...user, token };
   },
 
   async requestPasswordReset(_identifier: string) {

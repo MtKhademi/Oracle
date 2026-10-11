@@ -62,17 +62,19 @@ const SERVER_SESSION_KEY = 'oracle_server_session_v1';
 const SERVER_TOKEN_KEY = 'oracle_server_token_v1';
 const SERVER_EXPIRES_KEY = 'oracle_server_expires_v1';
 
-export function loadServerSessionId(): string | null {
+export function loadServerUser(): User | null {
   try {
-    return localStorage.getItem(SERVER_SESSION_KEY);
+    const raw = localStorage.getItem(SERVER_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as User;
   } catch {
     return null;
   }
 }
 
-export function saveServerSessionId(id: string): void {
+export function saveServerUser(user: User): void {
   try {
-    localStorage.setItem(SERVER_SESSION_KEY, id);
+    localStorage.setItem(SERVER_SESSION_KEY, JSON.stringify(user));
   } catch {
     // storage blocked
   }
