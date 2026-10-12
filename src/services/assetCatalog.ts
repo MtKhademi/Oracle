@@ -7,6 +7,7 @@ import { loadServerToken } from '../authStorage';
 // category/unit ids, not localized labels.
 
 export interface CatalogAsset {
+  id: string;
   symbol: string;
   name: string;
   category: string;
@@ -56,8 +57,8 @@ export function loadCatalog(): Promise<CatalogAsset[]> {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) throw new Error('دریافت فهرست دارایی‌ها انجام نشد');
-      const data = (await response.json()) as { symbol: string; name: string; category: string; unit: string }[];
-      cachedAssets = data.map(asset => ({ symbol: asset.symbol, name: asset.name, category: asset.category, unit: asset.unit }));
+      const data = (await response.json()) as { id: string; symbol: string; name: string; category: string; unit: string }[];
+      cachedAssets = data.map(asset => ({ id: asset.id, symbol: asset.symbol, name: asset.name, category: asset.category, unit: asset.unit }));
       return cachedAssets;
     })().catch(error => {
       pendingLoad = null;

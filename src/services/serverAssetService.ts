@@ -39,7 +39,7 @@ function toAsset(apiAsset: MarketAssetResponse): Asset {
     quantity: 0, // Server provides the catalog; holdings are recorded locally via transactions
     unit: getUnitLabel(apiAsset.unit),
     unitPrice: 0, // Live prices come from livePriceMapping/priceService, not the catalog
-    icon: getAssetIconForCatalogEntry({ symbol: apiAsset.symbol, name: apiAsset.name, category: apiAsset.category, unit: apiAsset.unit }),
+    icon: getAssetIconForCatalogEntry({ id: apiAsset.id, symbol: apiAsset.symbol, name: apiAsset.name, category: apiAsset.category, unit: apiAsset.unit }),
     code: apiAsset.symbol,
   };
 }
@@ -51,7 +51,7 @@ function toUserAsset(apiAsset: UserAssetResponse): Asset {
     quantity: apiAsset.quantity,
     unit: getUnitLabel(apiAsset.unit),
     unitPrice: apiAsset.averageUnitCost ?? 0,
-    icon: getAssetIconForCatalogEntry({ symbol: apiAsset.symbol, name: apiAsset.name, category: apiAsset.category, unit: apiAsset.unit }),
+    icon: getAssetIconForCatalogEntry({ id: apiAsset.marketAssetId, symbol: apiAsset.symbol, name: apiAsset.name, category: apiAsset.category, unit: apiAsset.unit }),
     code: apiAsset.symbol,
   };
 }

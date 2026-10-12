@@ -195,7 +195,7 @@ async function parseImportRows(rows: unknown[][]): Promise<{ rows: ParsedImportR
     // human-reference column only, the catalog entry is the source of truth.
     parsed.push({
       asset: {
-        id: crypto.randomUUID(),
+        id: catalogAsset.id,
         name: catalogAsset.name,
         quantity,
         unit: getUnitLabel(catalogAsset.unit),
@@ -417,27 +417,28 @@ export default function App() {
       effectiveType: resolveEffectiveType(row.rowType, defaultMode),
       effectiveDate: row.rowDate ?? today,
     }));
-    const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(importRows);
-    setItems(next);
-    if (changes.length > 0) {
+    try {
+      const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(importRows);
+      setItems(next);
+      if (changes.length > 0) {
       try {
         await Promise.all(changes.map(change => transactionService.addTransaction({ assetId: change.assetId, type: change.type, quantity: change.quantity, unitPrice: change.unitPrice, date: change.date })));
       } catch {
         toast.error('ثبت تراکنش‌های واردشده انجام نشد');
       }
+      }
+      const parts = [];
+      if (added > 0) parts.push(`${format(added)} دارایی اضافه شد`);
+      if (updated > 0) parts.push(`${format(updated)} دارایی به‌روزرسانی شد`);
+      let message = parts.join('، ');
+      if (skippedNoMatch > 0) message += `، ${format(skippedNoMatch)} ردیف بابت نبود دارایی مشابه نادیده گرفته شد`;
+      if (result.skipped > 0) message += `، ${format(result.skipped)} ردیف نامعتبر رد شد`;
+      if (skippedNoMatch > 0 || result.skipped > 0) toast.warning(message);
+      else toast.success(message);
+      setIsImportModalOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ایمپورت دارایی انجام نشد');
     }
-    const parts = [];
-    if (added > 0) parts.push(`${format(added)} دارایی اضافه شد`);
-    if (updated > 0) parts.push(`${format(updated)} دارایی به‌روزرسانی شد`);
-    let message = parts.join('، ');
-    if (skippedNoMatch > 0) message += `، ${format(skippedNoMatch)} ردیف بابت نبود دارایی مشابه نادیده گرفته شد`;
-    if (result.skipped > 0) message += `، ${format(result.skipped)} ردیف نامعتبر رد شد`;
-    if (skippedNoMatch > 0 || result.skipped > 0) {
-      toast.warning(message);
-    } else {
-      toast.success(message);
-    }
-    setIsImportModalOpen(false);
   };
 
   if (!isAuthChecked) {
