@@ -4,7 +4,7 @@ See TASK-WORKFLOW.md for the required step-by-step process to follow for every t
 
 A simple single-page React app for displaying assets, suitable for both mobile and desktop browsers. Light color scheme — blue and white — based on the reference images.
 
-Only a total in toman and one row per asset are shown. The asset catalog is loaded from the Oracle backend (`GET /oracle/api/market/assets`); asset names, categories and units are not stored locally anymore.
+Only a total in toman and one row per asset are shown. The market catalog is loaded from the Oracle backend (`GET /oracle/api/market/assets`), while the signed-in user's holdings are loaded and changed through `GET/POST/PUT/DELETE /oracle/api/me/assets`. Asset names, categories and units are not stored locally anymore.
 
 ## Run
 
