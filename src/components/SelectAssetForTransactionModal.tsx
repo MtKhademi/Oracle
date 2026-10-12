@@ -24,12 +24,12 @@ import { CloseIcon } from './icons';
 // `onSelect(assetId)`; App.tsx closes this modal and opens the exact same
 // RecordTransactionModal already wired to `recordTransactionAssetId` — no
 // duplicate modal logic here.
-export function SelectAssetForTransactionModal({ items, prices, onClose, onSelect, onAddAsset }: {
+export function SelectAssetForTransactionModal({ items, prices, onClose, onSelect, onSelectNewAsset }: {
   items: Asset[];
   prices: LivePrices | null;
   onClose: () => void;
   onSelect: (assetId: string) => void;
-  onAddAsset: (asset: Asset) => Promise<void>;
+  onSelectNewAsset: (asset: Asset) => void;
 }) {
   const [query, setQuery] = useState('');
   // Server-driven catalog (see assetCatalog.ts's loadCatalog cache) — loaded
@@ -96,8 +96,7 @@ export function SelectAssetForTransactionModal({ items, prices, onClose, onSelec
     newAsset.unitPrice = getEffectiveUnitPrice(newAsset, prices);
     setPendingSymbol(catalogAsset.symbol);
     try {
-      await onAddAsset(newAsset);
-      onSelect(newAsset.id);
+      onSelectNewAsset(newAsset);
     } finally {
       setPendingSymbol(null);
     }
