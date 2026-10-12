@@ -6,10 +6,6 @@ import type { LivePrices } from '../services/priceService';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { CloseIcon } from './icons';
 
-// Static catalog (committed reference data, never changes at runtime) —
-// module-level, same convention as AssetPicker.tsx/AddAssetModal used.
-const catalogAssets = getCatalogAssets();
-
 // The "ثبت تراکنش برای کدام دارایی؟" picker modal, opened from the wallet
 // toolbar's "ثبت تراکنش جدید" button (see AI-KNOWLEDGE.md §6z, extended in
 // §6aa) — lets the owner record a transaction for any existing asset without
@@ -36,11 +32,20 @@ export function SelectAssetForTransactionModal({ items, prices, onClose, onSelec
   onAddAsset: (asset: Asset) => Promise<void>;
 }) {
   const [query, setQuery] = useState('');
+  // Server-driven catalog (see assetCatalog.ts's loadCatalog cache) — loaded
+  // on open; null until it resolves.
+  const [catalogAssets, setCatalogAssets] = useState<CatalogAsset[] | null>(null);
   // One-click-at-a-time guard: while a not-yet-owned catalog asset is being
   // created via onAddAsset, further clicks are ignored so a double-click
   // (or a second, different pick in the same instant) can't race two
   // creations.
   const [pendingSymbol, setPendingSymbol] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCatalogAssets().then(assets => { if (!cancelled) setCatalogAssets(assets); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -65,9 +70,9 @@ export function SelectAssetForTransactionModal({ items, prices, onClose, onSelec
   // search is active (no query = the plain owned-asset list, as before).
   const newCatalogMatches = useMemo(
     () => (q
-      ? catalogAssets.filter(asset => (asset.name.toLowerCase().includes(q) || asset.symbol.toLowerCase().includes(q)) && !items.some(owned => owned.code === asset.symbol || owned.name.trim().toLowerCase() === asset.name.toLowerCase()))
+      ? (catalogAssets ?? []).filter(asset => (asset.name.toLowerCase().includes(q) || asset.symbol.toLowerCase().includes(q)) && !items.some(owned => owned.code === asset.symbol || owned.name.trim().toLowerCase() === asset.name.toLowerCase()))
       : []),
-    [items, q],
+    [catalogAssets, items, q],
   );
 
   const nothingFound = q !== '' && filteredOwned.length === 0 && newCatalogMatches.length === 0;

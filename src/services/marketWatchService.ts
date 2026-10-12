@@ -1,12 +1,12 @@
 import { mockMarketWatchService } from './mockMarketWatchService';
 
-// A separate, independent mock feed for the "چشم بازار" (market watch) list
-// only — deliberately NOT the same shape as priceService.ts's LivePrices,
-// and does not affect it. priceService/mockPriceService remain the single
-// source of truth for the portfolio total's USD/gold-gram conversions and
-// AssetRow's GOLD18/USDT live pricing (see AI-KNOWLEDGE.md §6j/§6k); this
-// feed only drives the read-only MarketWatchList component.
-export type MarketCategory = 'currency' | 'gold' | 'stock' | 'fixed-income';
+// The "چشم بازار" (market watch) feed. Item identity (symbol/name/category)
+// comes from the server catalog (see assetCatalog.ts); prices are still
+// mocked — the backend exposes no price endpoint yet. Does not affect
+// priceService/mockPriceService, which remain the source of truth for the
+// portfolio total's USD/gold-gram conversions and AssetRow's GOLD18/USDT
+// live pricing.
+export type MarketCategory = 'gold' | 'silver' | 'currency' | 'crypto' | 'fund' | 'stock' | 'index' | 'cash';
 
 export type MarketItem = {
   id: string;

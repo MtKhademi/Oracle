@@ -45,13 +45,13 @@ async function parseError(response: Response): Promise<Error> {
 
 export const serverProfileService: ProfileService = {
   async getProfile() {
-    const response = await fetch('/api/me', { headers: authorizationHeaders() });
+    const response = await fetch('/iam/api/me', { headers: authorizationHeaders() });
     if (!response.ok) throw await parseError(response);
     return toProfile(await response.json() as MeResponse);
   },
 
   async saveProfile(profile) {
-    const response = await fetch('/api/me', {
+    const response = await fetch('/iam/api/me', {
       method: 'PATCH',
       headers: { ...authorizationHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ firstName: profile.firstName.trim(), lastName: profile.lastName.trim() }),

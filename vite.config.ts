@@ -5,7 +5,11 @@ export default defineConfig({
   plugins: [tailwindcss()],
   server: {
     proxy: {
-      '/api': {
+      '/iam': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/oracle': {
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
