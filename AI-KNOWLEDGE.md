@@ -4409,6 +4409,7 @@ creates a different browser origin; existing assets and profile data in
 - `src/services/serverAssetService.ts` now uses the authenticated Oracle user-assets API (`GET/POST/PUT/DELETE /oracle/api/me/assets`) for the investment list and mutations. The server response's `averageUnitCost` maps to the UI's `unitPrice`; the server-provided holding id is used for update/delete while the catalog symbol remains the asset `code`.
 - The market catalog continues to come from `GET /oracle/api/market/assets`. The backend currently provides no quotes or transaction-history endpoints, so the existing display-only price feed and local transaction history remain separate until those contracts are delivered.
 - The backend requires a positive quantity when creating or updating a holding. Zero-quantity placeholders cannot be persisted through this API.
+- `SelectAssetForTransactionModal` therefore keeps a newly selected catalog asset as a pending in-memory asset and opens `RecordTransactionModal` immediately. The first buy/replace submits the real positive quantity to the server; it no longer attempts to create a zero-quantity holding before the transaction form opens.
 
 ## 12. Agent playbook (how to progress this app)
 

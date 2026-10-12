@@ -226,6 +226,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [recordTransactionAssetId, setRecordTransactionAssetId] = useState<string | null>(null);
+  const [pendingNewAsset, setPendingNewAsset] = useState<Asset | null>(null);
   const [isSelectAssetForTransactionOpen, setIsSelectAssetForTransactionOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
@@ -340,17 +341,17 @@ export default function App() {
     })();
   }, [total, prices]);
 
-  // Adds a freshly created asset to the wallet (no transaction recorded here)
-  // — used by SelectAssetForTransactionModal when a catalog asset not yet in
-  // the wallet is picked: it arrives with quantity 0, and the very next step
-  // (the RecordTransactionModal that opens immediately after) is the first
-  // real خرید that sets its actual amount/price.
-  const handleAddNewAsset = async (newAsset: Asset) => {
-    const next = await assetService.addAsset(newAsset);
-    setItems(next);
-  };
-
   const handleTransactionRecorded = async (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => {
+    if (pendingNewAsset?.id === assetId) {
+      if (type === 'sell') {
+        toast.error('برای دارایی جدید ابتدا خرید را ثبت کنید');
+        return;
+      }
+      const next = await assetService.addAsset({ ...pendingNewAsset, quantity, unitPrice });
+      setItems(next);
+      setPendingNewAsset(null);
+      return;
+    }
     const currentAsset = items.find(asset => asset.id === assetId);
     if (!currentAsset) return;
     if (type === 'replace') {
@@ -448,7 +449,9 @@ export default function App() {
   }
 
   const historyAsset = historyAssetId ? items.find(asset => asset.id === historyAssetId) : undefined;
-  const recordTransactionAsset = recordTransactionAssetId ? items.find(asset => asset.id === recordTransactionAssetId) : undefined;
+  const recordTransactionAsset = recordTransactionAssetId
+    ? items.find(asset => asset.id === recordTransactionAssetId) ?? (pendingNewAsset?.id === recordTransactionAssetId ? pendingNewAsset : undefined)
+    : undefined;
 
   return <div>
     <header className="bg-[#5264e8] text-white h-[224px] min-[1050px]:h-[220px] max-[481px]:h-[198px]"><div className="max-w-[900px] mx-auto pt-[35px] pb-[35px] px-8 flex items-center justify-between min-[1050px]:px-6 max-[481px]:pt-[25px] max-[481px]:pb-[25px] max-[481px]:px-[22px]">
@@ -477,7 +480,7 @@ export default function App() {
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
     {historyAsset && <TransactionHistoryModal asset={historyAsset} onClose={() => setHistoryAssetId(null)}/>}
-    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
-    {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} prices={prices} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }} onAddAsset={handleAddNewAsset}/>}
+    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} prices={prices} onClose={() => { setRecordTransactionAssetId(null); setPendingNewAsset(null); }} onTransactionRecorded={handleTransactionRecorded}/>}
+    {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} prices={prices} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }} onSelectNewAsset={asset => { setPendingNewAsset(asset); setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(asset.id); }}/>}
   </div>;
 }
