@@ -4,7 +4,7 @@ See TASK-WORKFLOW.md for the required step-by-step process to follow for every t
 
 A simple single-page React app for displaying assets, suitable for both mobile and desktop browsers. Light color scheme — blue and white — based on the reference images.
 
-Only a total in toman and one row per asset are shown. The numbers are sample data for now; they are not the day's prices or the user's real assets.
+Only a total in toman and one row per asset are shown. The asset catalog is loaded from the Oracle backend (`GET /oracle/api/market/assets`); asset names, categories and units are not stored locally anymore.
 
 ## Run
 
@@ -17,9 +17,9 @@ npm run dev
 
 Open the address Vite displays in your browser. To view it on a phone on the same network, use the computer's IP and the displayed port; firewall access must be allowed.
 
-Before the main page is shown, you must log in or sign up. In Vite development mode, registration (first name, last name, mobile number, password and password confirmation) and login call the local Oracle backend through Vite's `/api` proxy to `http://localhost:5000`; the returned access token and session user are stored in that browser's `localStorage` until expiry or logout. Production builds intentionally keep the previous browser-local authentication for now. Password recovery is unavailable against the development backend because it does not expose that endpoint yet.
+Before the main page is shown, you must log in or sign up. In Vite development mode, registration (first name, last name, mobile number, password and password confirmation) and login call the local Oracle backend through Vite's `/iam` and `/oracle` proxies to `http://localhost:5000` (`POST /iam/api/auth/register`, `POST /iam/api/auth/login`); the returned access token and session user are stored in that browser's `localStorage` until expiry or logout. Password recovery is unavailable against the development backend because it does not expose that endpoint yet.
 
-The profile window also uses the backend in development: it loads the signed-in user from `GET /api/me` and saves first/last-name changes with `PATCH /api/me`. Mobile number and email are displayed read-only because the update endpoint does not accept them. The avatar remains browser-local because the backend contract has no avatar field. Production keeps the existing browser-local profile behavior.
+The profile window also uses the backend in development: it loads the signed-in user from `GET /iam/api/me` and saves first/last-name changes with `PATCH /iam/api/me`. Mobile number and email are displayed read-only because the update endpoint does not accept them. The avatar remains browser-local because the backend contract has no avatar field.
 
 ```sh
 npm run build

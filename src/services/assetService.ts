@@ -1,13 +1,13 @@
 import type { Asset } from '../assets';
-import { localAssetService } from './localAssetService';
-
+import { serverAssetService } from './serverAssetService';
+ 
 // The modal's default-mode choice, applied to rows that leave نوع empty.
 export type ImportMode = 'replace' | 'add' | 'subtract';
-
+ 
 // A row's *effective* type, after falling back to the default mode when its
 // own نوع cell was empty (see resolveEffectiveType in App.tsx).
 export type ImportEffectiveType = 'buy' | 'sell' | 'replace';
-
+ 
 // One row ready to be applied: the built `Asset` (catalog-driven, see
 // App.tsx's parseImportRows) paired with its resolved effective type/date.
 export interface ImportRow {
@@ -15,7 +15,7 @@ export interface ImportRow {
   effectiveType: ImportEffectiveType;
   effectiveDate: string; // ISO YYYY-MM-DD
 }
-
+ 
 export interface ImportAssetChange {
   assetId: string;
   type: 'buy' | 'sell';
@@ -23,7 +23,7 @@ export interface ImportAssetChange {
   unitPrice: number;
   date: string; // ISO YYYY-MM-DD, the row's own effective date (not always today)
 }
-
+ 
 export interface ImportResult {
   assets: Asset[];
   added: number;
@@ -31,7 +31,7 @@ export interface ImportResult {
   skippedNoMatch: number; // 'sell' rows with no existing matching asset
   changes: ImportAssetChange[]; // per-row transaction records for 'buy'/'sell' rows
 }
-
+ 
 export interface AssetService {
   listAssets(): Promise<Asset[] | null>; // null = nothing stored yet (use default sample data)
   addAsset(asset: Asset): Promise<Asset[]>;
@@ -48,6 +48,6 @@ export interface AssetService {
   importAssets(rows: ImportRow[]): Promise<ImportResult>;
   clearAssets(): Promise<Asset[]>; // returns []
 }
-
+ 
 // The only place that needs to change to point at a server-backed implementation later.
-export const assetService: AssetService = localAssetService;
+export const assetService: AssetService = serverAssetService;

@@ -1,66 +1,130 @@
+import { loadCatalog } from './assetCatalog';
 import type { MarketItem, MarketSnapshot, MarketWatchService } from './marketWatchService';
 
-// Entirely MOCK data — no real market feed. Independent from
-// priceService.ts/mockPriceService.ts (see marketWatchService.ts) — only
-// drives the read-only "چشم بازار" list, never the portfolio total or
-// AssetRow's live-priced assets.
+// Server-driven market watch feed: item identity (symbol/name/category) comes
+// from `GET /oracle/api/market/assets` (via assetCatalog.ts); prices are
+// seeded deterministically per item and jitted in place every 60s — the
+// backend exposes no price endpoint yet, so the numbers themselves remain
+// mocks. Independent from priceService.ts/mockPriceService.ts, which only
+// drive the portfolio total's USD/gold-gram conversions and AssetRow's
+// GOLD18/USDT live pricing.
 const REFRESH_INTERVAL_MS = 60000;
 
-// Each item's jitterToman is a fixed absolute toman range applied each tick
-// (same fixed-amount pattern as mockPriceService.ts), sized to roughly
-// 0.1%-1% of the item's starting price — proportional to its typical
-// volatility. Fixed-income fund units get a much smaller ±0.05% range since
-// they barely move tick to tick in real life.
-type SeedItem = MarketItem & { jitterToman: number };
+// Small deterministic pseudo-random in [0, 1) from a string seed — used for
+// the starting price so the same item always starts at the same value.
+function seededFraction(seed: string): number {
+  let hash = 0;
+  for (const char of seed) {
+    hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  }
+  const sin = Math.sin(hash) * 10000;
+  return sin - Math.floor(sin);
+}
 
-const seedItems: SeedItem[] = [
-  // currency
-  { id: 'usdt', name: 'تتر', category: 'currency', priceToman: 230000, jitterToman: 230 }, // ≈0.1%
-  { id: 'usd', name: 'دلار', category: 'currency', priceToman: 230000, jitterToman: 230 }, // ≈0.1%
-  { id: 'btc', name: 'بیت‌کوین', category: 'currency', priceToman: 10500000000, jitterToman: 52500000 }, // ≈0.5%
-  { id: 'eth', name: 'اتریوم', category: 'currency', priceToman: 360000000, jitterToman: 1800000 }, // ≈0.5%
-  // gold
-  { id: 'gold-18', name: 'طلای ۱۸ عیار', category: 'gold', priceToman: 20800000, jitterToman: 104000 }, // ≈0.5%
-  { id: 'gold-24', name: 'طلای ۲۴ عیار', category: 'gold', priceToman: 27700000, jitterToman: 138500 }, // ≈0.5%
-  { id: 'coin-emami', name: 'سکه امامی', category: 'gold', priceToman: 320000000, jitterToman: 1600000 }, // ≈0.5%
-  { id: 'coin-half', name: 'نیم سکه', category: 'gold', priceToman: 160000000, jitterToman: 800000 }, // ≈0.5%
-  { id: 'coin-quarter', name: 'ربع سکه', category: 'gold', priceToman: 85000000, jitterToman: 425000 }, // ≈0.5%
-  { id: 'silver', name: 'نقره آبشده', category: 'gold', priceToman: 900000, jitterToman: 9000 }, // ≈1%
-  // stock
-  { id: 'fund-mofid-gold', name: 'صندوق طلای عیار (مفید)', category: 'stock', priceToman: 28500, jitterToman: 285 }, // ≈1%
-  { id: 'fameli', name: 'فملی', category: 'stock', priceToman: 8500, jitterToman: 85 }, // ≈1%
-  // fixed-income — much smaller jitter, fund units barely move tick to tick
-  { id: 'pishtaz', name: 'صندوق پیشتاز', category: 'fixed-income', priceToman: 57000, jitterToman: 28.5 }, // ≈0.05%
-  { id: 'pishro-mofid', name: 'صندوق پیشرو مفید', category: 'fixed-income', priceToman: 34000, jitterToman: 17 }, // ≈0.05%
-];
+// Rough starting toman value per unit, keyed by symbol or category.
+function seededPriceToman(item: { symbol: string; category: string }): number {
+  switch (item.symbol) {
+    case 'USD':
+      return 42000;
+    case 'EUR':
+    case 'AUD':
+    case 'CAD':
+      return 45000;
+    case 'USDT':
+    case 'USDC':
+      return 42000;
+    case 'BTC':
+      return 350000000000;
+    case 'ETH':
+      return 11500000000;
+    case 'BNB':
+      return 1200000000;
+    case 'GOLD18':
+      return 48000000;
+    case 'GOLD24':
+      return 64000000;
+    case 'GOLD-MESGHAL':
+      return 185000000;
+    case 'SILVER-GRAM':
+      return 1200000;
+    case 'COIN-EMAMI':
+      return 650000000;
+    case 'COIN-BAHAR':
+      return 780000000;
+    case 'COIN-HALF':
+      return 330000000;
+    case 'COIN-QUARTER':
+      return 170000000;
+    case 'COIN-GRAM':
+      return 9000000;
+    case 'CASH-TOMAN':
+      return 1;
+    default:
+      break;
+  }
+  if (item.category === 'gold') return 50000000;
+  if (item.category === 'silver') return 1000000;
+  if (item.category === 'fund') return 30000;
+  if (item.category === 'stock') return 12000;
+  if (item.category === 'index') return 2000000;
+  if (item.category === 'crypto') return 1000000000;
+  if (item.category === 'currency') return 42000;
+  if (item.category === 'cash') return 1;
+  return 100000;
+}
 
-let current: MarketSnapshot = {
-  items: seedItems.map(({ jitterToman: _jitterToman, ...item }) => item),
-  updatedAt: Date.now(),
-};
+// Fixed absolute toman jitter range per ~60s tick (±0.5% of the start value,
+// minimum 1 toman) — sized proportionally so index values and 1-toman cash
+// don't get the same absolute nudge.
+function jitterTomanFor(item: { symbol: string; category: string }): number {
+  return Math.max(1, Math.round(seededPriceToman(item) * 0.005));
+}
 
+type LiveItem = { id: string; name: string; category: MarketItem['category']; priceToman: number; jitterToman: number };
+
+let liveItems: LiveItem[] = [];
+let current: MarketSnapshot = { items: [], updatedAt: Date.now() };
 const subscribers = new Set<(snapshot: MarketSnapshot) => void>();
 let intervalId: ReturnType<typeof setInterval> | null = null;
+let catalogLoadFailed = false;
 
-// Fixed absolute-amount jitter per item (not percentage-based at tick time —
-// each item's fixed jitterToman range was itself derived proportionally from
-// its starting price, see seedItems above). Shared by the 60s interval tick
-// and the manual refreshNow() so both apply the exact same jitter step.
-function jitterStep(): MarketSnapshot {
-  current = {
-    items: seedItems.map(seed => {
-      const previous = current.items.find(item => item.id === seed.id);
-      const price = previous ? previous.priceToman : seed.priceToman;
-      return {
-        id: seed.id,
-        name: seed.name,
-        category: seed.category,
-        priceToman: price + (Math.random() * seed.jitterToman * 2 - seed.jitterToman),
-      };
-    }),
-    updatedAt: Date.now(),
-  };
-  return current;
+function toMarketItem(item: LiveItem): MarketItem {
+  return { id: item.id, name: item.name, category: item.category, priceToman: item.priceToman };
+}
+
+// Loads the server catalog once and (re)seeds the live items. Existing live
+// items keep their (jittered) price when their catalog entry is still
+// present; new entries are seeded at their starting value; entries removed
+// from the catalog are dropped.
+function seedFromCatalog() {
+  return loadCatalog().then(catalogAssets => {
+    catalogLoadFailed = false;
+    const bySymbol = new Map(liveItems.map(item => [item.id, item]));
+    liveItems = catalogAssets
+      .filter(asset => asset.symbol !== 'CASH-TOMAN' || asset.category === 'cash')
+      .map(asset => {
+        const previous = bySymbol.get(asset.symbol);
+        return {
+          id: asset.symbol,
+          name: asset.name,
+          category: asset.category as MarketItem['category'],
+          priceToman: previous ? previous.priceToman : seededPriceToman(asset),
+          jitterToman: jitterTomanFor(asset),
+        };
+      });
+    current = { items: liveItems.map(toMarketItem), updatedAt: Date.now() };
+  }).catch(error => {
+    catalogLoadFailed = true;
+    console.error('Failed to load market catalog:', error);
+  });
+}
+
+function jitterStep() {
+  liveItems = liveItems.map(item => ({
+    ...item,
+    priceToman: item.priceToman + (Math.random() * item.jitterToman * 2 - item.jitterToman),
+  }));
+  current = { items: liveItems.map(toMarketItem), updatedAt: Date.now() };
 }
 
 function notifySubscribers() {
@@ -87,31 +151,39 @@ function stopIntervalIfIdle() {
 
 export const mockMarketWatchService: MarketWatchService = {
   async getSnapshot() {
+    if (liveItems.length === 0) await seedFromCatalog();
     return current;
   },
 
   subscribe(callback) {
     subscribers.add(callback);
     ensureInterval();
-    callback(current); // call back immediately with the current values
+    void seedFromCatalog().then(() => {
+      if (subscribers.has(callback)) {
+        callback(current);
+        notifySubscribers();
+      }
+    });
     return () => {
       subscribers.delete(callback);
-      stopIntervalIfIdle(); // avoid leaking the timer when no UI is mounted
+      stopIntervalIfIdle();
     };
   },
 
   async refreshNow() {
-    // Same jitter step as a normal tick, run immediately, without touching
-    // the 60-second interval timer.
-    jitterStep();
-    notifySubscribers();
+    // Re-sync items with the server catalog, then apply one jitter step.
+    await seedFromCatalog();
+    if (!catalogLoadFailed) {
+      jitterStep();
+      notifySubscribers();
+    }
     return current;
   },
 
   async getAllItems() {
-    // The full static catalog (all 14 seeded items, no jitter) — independent
-    // of the live-jittered `current` state above, so picking a new item to
-    // watch never depends on the live tick timing.
-    return seedItems.map(({ jitterToman: _jitterToman, ...item }) => item);
+    // The full catalog (no jitter) — used for picking an item to watch,
+    // independent of the live snapshot timing.
+    if (liveItems.length === 0) await seedFromCatalog();
+    return liveItems.map(toMarketItem);
   },
 };

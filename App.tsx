@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { assets, type Asset } from './src/assets';
+import { type Asset } from './src/assets';
 import { assetService, type ImportEffectiveType, type ImportMode, type ImportRow } from './src/services/assetService';
-import { getOrCreateCode } from './src/services/assetCodeRegistry';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { transactionService } from './src/services/transactionService';
@@ -164,7 +163,7 @@ function resolveRowType(cell: unknown): { type: RowType | null; invalid: boolean
 // نام دارایی (فقط نمایشی). Only the first 3 headers are required to match —
 // columns 4-6 are optional (may be entirely absent from the header row, or
 // present but left empty per row).
-function parseImportRows(rows: unknown[][]): { rows: ParsedImportRow[]; skipped: number } | null {
+async function parseImportRows(rows: unknown[][]): Promise<{ rows: ParsedImportRow[]; skipped: number } | null> {
   const header = (rows[0] ?? []).map(cell => String(cell ?? '').trim());
   const headerMatches = header.length >= EXPECTED_IMPORT_HEADERS.length && EXPECTED_IMPORT_HEADERS.every((h, i) => header[i] === h);
   if (!headerMatches) return null;
@@ -177,7 +176,7 @@ function parseImportRows(rows: unknown[][]): { rows: ParsedImportRow[]; skipped:
     if (isEmpty) break;
 
     const symbol = String(row[0] ?? '').trim();
-    const catalogAsset = getCatalogAssetBySymbol(symbol);
+    const catalogAsset = await getCatalogAssetBySymbol(symbol);
     if (!catalogAsset) { skipped++; continue; }
 
     const quantity = Number(row[1]);
@@ -221,8 +220,7 @@ function resolveEffectiveType(rowType: RowType | null, defaultMode: ImportMode):
 }
 
 export default function App() {
-  const [items, setItems] = useState<Asset[]>(assets);
-  const [isSample, setIsSample] = useState(true);
+  const [items, setItems] = useState<Asset[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -301,28 +299,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    assetService.listAssets().then(async stored => {
-      if (stored === null) {
-        // Nothing saved yet — still showing the static `assets` sample. Run
-        // the same code-assignment path over it (registers each sample's
-        // identity in the code registry, same as real data — see
-        // assetCodeRegistry.ts) without ever persisting the sample list
-        // itself through assetService: doing so would turn
-        // `oracle_assets_v1` non-null and permanently flip `isSample` to
-        // false, even though the owner hasn't actually entered anything.
-        setItems(assets.map(asset => ({ ...asset, code: asset.code ?? getOrCreateCode(asset.icon, asset.name) })));
-        return;
-      }
-      // One-time migration: assign a permanent code to any asset saved
-      // before this field existed, then persist it so this only runs once.
-      let next = stored;
-      for (const asset of stored) {
-        if (asset.code) continue;
-        const code = getOrCreateCode(asset.icon, asset.name);
-        next = await assetService.updateAsset(asset.id, { code });
-      }
-      setItems(next);
-      setIsSample(false);
+    assetService.listAssets().then(stored => {
+      setItems(stored ?? []);
     });
   }, []);
 
@@ -370,7 +348,6 @@ export default function App() {
   const handleAddNewAsset = async (newAsset: Asset) => {
     const next = await assetService.addAsset(newAsset);
     setItems(next);
-    setIsSample(false);
   };
 
   const handleTransactionRecorded = async (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => {
@@ -379,20 +356,17 @@ export default function App() {
     if (type === 'replace') {
       const next = await assetService.updateAsset(assetId, { quantity, unitPrice });
       setItems(next);
-      setIsSample(false);
       return;
     }
     const newQuantity = type === 'buy' ? currentAsset.quantity + quantity : Math.max(0, currentAsset.quantity - quantity);
     const next = await assetService.updateAsset(assetId, { quantity: newQuantity });
     setItems(next);
-    setIsSample(false);
   };
 
   const handleDelete = async (id: string) => {
     const next = await assetService.deleteAsset(id);
     await transactionService.deleteTransactionsForAsset(id);
     setItems(next);
-    setIsSample(false);
   };
 
   const clearAllAssets = async () => {
@@ -400,7 +374,6 @@ export default function App() {
     const next = await assetService.clearAssets();
     await Promise.all(idsToDelete.map(id => transactionService.deleteTransactionsForAsset(id)));
     setItems(next);
-    setIsSample(false);
     toast.success('همه دارایی‌ها پاک شد');
   };
 
@@ -428,7 +401,7 @@ export default function App() {
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
-    const result = parseImportRows(rows);
+    const result = await parseImportRows(rows);
     if (!result) {
       toast.error('فرمت فایل با قالب مورد انتظار مطابقت ندارد');
       return;
@@ -445,7 +418,6 @@ export default function App() {
     }));
     const { assets: next, added, updated, skippedNoMatch, changes } = await assetService.importAssets(importRows);
     setItems(next);
-    setIsSample(false);
     if (changes.length > 0) {
       try {
         await Promise.all(changes.map(change => transactionService.addTransaction({ assetId: change.assetId, type: change.type, quantity: change.quantity, unitPrice: change.unitPrice, date: change.date })));
@@ -485,7 +457,7 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total + walletTotal} count={items.length} isSample={isSample} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
+        <SummaryCard total={total + walletTotal} count={items.length} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'investment' ? 'دارایی‌های من' : activeSectionTab === 'wallet' ? 'کیف پول' : 'چشم بازار'}>
@@ -499,13 +471,13 @@ export default function App() {
           <MarketWatchList tabs={<SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>}/>
         </> : <WalletTab tabs={<SectionTabs activeTab={activeSectionTab} onChange={setActiveSectionTab}/>} accounts={walletAccounts} onAccountsChanged={setWalletAccounts}/>}
       </section>
-      {isSample && <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] mt-[25px] min-[1050px]:col-span-full min-[1050px]:mt-0">مقادیر فعلاً نمونه‌اند و دارایی واقعی شما نیستند.</p>}
+      {/* Removed sample footer */}
     </main>
     {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onSubmit={handleImportFile}/>}
     {isMenuOpen && <SideDrawer onClose={() => setIsMenuOpen(false)} onOpenProfile={() => { setIsMenuOpen(false); setIsProfileOpen(true); }} onLogout={handleLogout}/>}
     {isProfileOpen && <ProfileModal onClose={() => setIsProfileOpen(false)}/>}
-    {historyAsset && <TransactionHistoryModal asset={historyAsset} isSample={isSample} onClose={() => setHistoryAssetId(null)}/>}
-    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} isSample={isSample} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
+    {historyAsset && <TransactionHistoryModal asset={historyAsset} onClose={() => setHistoryAssetId(null)}/>}
+    {recordTransactionAsset && <RecordTransactionModal asset={recordTransactionAsset} prices={prices} onClose={() => setRecordTransactionAssetId(null)} onTransactionRecorded={handleTransactionRecorded}/>}
     {isSelectAssetForTransactionOpen && <SelectAssetForTransactionModal items={items} prices={prices} onClose={() => setIsSelectAssetForTransactionOpen(false)} onSelect={assetId => { setIsSelectAssetForTransactionOpen(false); setRecordTransactionAssetId(assetId); }} onAddAsset={handleAddNewAsset}/>}
   </div>;
 }

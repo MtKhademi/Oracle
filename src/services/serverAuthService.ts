@@ -49,7 +49,7 @@ function parseApiError(body: unknown): string {
 
 export const serverAuthService: AuthService = {
   async signUp(input) {
-    const res = await fetch(`${API_BASE}/api/auth/register`, {
+    const res = await fetch(`${API_BASE}/iam/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -84,7 +84,7 @@ export const serverAuthService: AuthService = {
   },
 
   async logIn(input: { identifier: string; password: string }) {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
+    const res = await fetch(`${API_BASE}/iam/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

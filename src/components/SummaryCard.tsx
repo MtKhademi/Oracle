@@ -7,7 +7,7 @@ import { DollarIcon, EyeClosedIcon, GoldBarIcon, MarketEyeIcon, RefreshIcon } fr
 
 const SPIN_DURATION_MS = 700;
 
-export function SummaryCard({ total, count, isSample, prices, isBalanceHidden, onToggleBalanceHidden, onOpenWallet }: { total: number; count: number; isSample: boolean; prices: LivePrices | null; isBalanceHidden: boolean; onToggleBalanceHidden: () => void; onOpenWallet: () => void }) {
+export function SummaryCard({ total, count, prices, isBalanceHidden, onToggleBalanceHidden, onOpenWallet }: { total: number; count: number; prices: LivePrices | null; isBalanceHidden: boolean; onToggleBalanceHidden: () => void; onOpenWallet: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const isFirstPrices = useRef(true);
 
@@ -27,7 +27,6 @@ export function SummaryCard({ total, count, isSample, prices, isBalanceHidden, o
     <div className="flex justify-between items-center">
       <button type="button" onClick={onOpenWallet} aria-label="نمایش کیف پول" className="w-[42px] h-[42px] rounded-[13px] grid place-items-center bg-[#eef0ff] text-[#5264e8] cursor-pointer hover:bg-[#e0e3fd] transition-colors"><AssetIcon type="cash"/></button>
       <span className="flex items-center gap-2">
-        {isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}
         <span className="flex items-center gap-1">
           <button type="button" onClick={onToggleBalanceHidden} aria-label={isBalanceHidden ? 'نمایش ارزش دارایی‌ها' : 'مخفی کردن ارزش دارایی‌ها'} className={`w-6 h-6 rounded-full grid place-items-center hover:bg-[#f0f1f7] transition-colors ${isBalanceHidden ? 'text-[#9096aa] hover:text-[#5264e8]' : 'text-[#1f9d55]'}`}>
             {isBalanceHidden ? <EyeClosedIcon/> : <MarketEyeIcon/>}

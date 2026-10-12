@@ -8,7 +8,7 @@ import { CloseIcon } from './icons';
 
 const TRANSACTIONS_PER_PAGE = 6;
 
-export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: Asset; isSample: boolean; onClose: () => void }) {
+export function TransactionHistoryModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
   const [page, setPage] = useState(1);
   // StrictMode (dev) double-invokes this effect; without this guard both passes
@@ -50,7 +50,7 @@ export function TransactionHistoryModal({ asset, isSample, onClose }: { asset: A
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
     <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="transaction-history-title" onClick={e => e.stopPropagation()}>
       <button type="button" onClick={onClose} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
-      <div className="flex items-center gap-2 mb-1 pr-6"><h2 id="transaction-history-title" className="text-[15px] font-bold">{asset.name}</h2>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
+      <div className="flex items-center gap-2 mb-1 pr-6"><h2 id="transaction-history-title" className="text-[15px] font-bold">{asset.name}</h2></div>
       <p className="text-[11px] text-[#969eb2] mb-4">تاریخچهٔ تراکنش‌ها</p>
       {transactions === null ? <p className="text-center text-[11px] leading-[1.9] text-[#969eb2] py-6">در حال بارگذاری...</p> : newestFirst.length === 0 ? <div className="text-center py-6">
         <p className="text-[12px] text-[#656e87] leading-[1.9]">هنوز تراکنشی برای این دارایی ثبت نشده است.</p>

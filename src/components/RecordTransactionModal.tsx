@@ -9,7 +9,7 @@ import { formatWithThousands, stripToNumberString, todayLocalIso } from '../form
 import { CloseIcon, DollarIcon } from './icons';
 import { IconButton } from './IconButton';
 
-export function RecordTransactionModal({ asset, isSample, prices, onClose, onTransactionRecorded }: { asset: Asset; isSample: boolean; prices: LivePrices | null; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
+export function RecordTransactionModal({ asset, prices, onClose, onTransactionRecorded }: { asset: Asset; prices: LivePrices | null; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
   const lastPrice = getEffectiveUnitPrice(asset, prices);
   const [formType, setFormType] = useState<TransactionType>('buy');
   const [formQuantity, setFormQuantity] = useState('');
@@ -46,7 +46,7 @@ export function RecordTransactionModal({ asset, isSample, prices, onClose, onTra
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
     <section className="bg-white rounded-[20px] p-5 w-full max-w-[440px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="record-transaction-title" onClick={e => e.stopPropagation()}>
       <button type="button" onClick={onClose} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
-      <div className="flex items-center gap-2 mb-1 pr-6"><h2 id="record-transaction-title" className="text-[15px] font-bold">ثبت تراکنش جدید</h2>{isSample && <span className="text-[11px] text-[#77809c] bg-[#f6f7fb] border border-[#eef0f7] rounded-[20px] py-1 px-3">نمایش نمونه</span>}</div>
+      <div className="flex items-center gap-2 mb-1 pr-6"><h2 id="record-transaction-title" className="text-[15px] font-bold">ثبت تراکنش جدید</h2></div>
       <p className="text-[11px] text-[#969eb2] mb-4">{asset.name}</p>
       <form onSubmit={handleAddSubmit} className="grid gap-[10px] min-[560px]:grid-cols-2">
         <div className="grid grid-cols-3 border border-[#eef0f7] rounded-[10px] p-1 min-[560px]:col-span-2">
