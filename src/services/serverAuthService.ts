@@ -2,6 +2,7 @@ import type { User } from '../types';
 import type { AuthService } from './authService';
 import {
   clearSession,
+  expireServerSession,
   loadServerUser,
   loadServerToken,
   saveServerExpiresAt,
@@ -117,13 +118,13 @@ export const serverAuthService: AuthService = {
     if (!user) return null;
 
     if (isServerSessionExpired()) {
-      clearSession();
+      expireServerSession();
       return null;
     }
 
     const token = loadServerToken();
     if (!token) {
-      clearSession();
+      expireServerSession();
       return null;
     }
 

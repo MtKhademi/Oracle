@@ -2,6 +2,8 @@ import type { User } from './types';
 
 const USERS_KEY = 'oracle_users_v1';
 const SESSION_KEY = 'oracle_session_v1';
+export const SERVER_SESSION_EXPIRED_EVENT = 'oracle:server-session-expired';
+let hasNotifiedServerSessionExpiry = false;
 
 // Internal storage shape only — carries the simulated password-reset code
 // alongside each user record. Never exposed as-is outside this file; callers
@@ -57,6 +59,16 @@ export function clearSession(): void {
   }
 }
 
+// Centralized response to an unauthorized server API call. The event lets the
+// React root immediately leave the authenticated UI, while the guard avoids
+// duplicate notifications when concurrent API calls all receive the same 401.
+export function expireServerSession(): void {
+  clearSession();
+  if (hasNotifiedServerSessionExpiry) return;
+  hasNotifiedServerSessionExpiry = true;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SERVER_SESSION_EXPIRED_EVENT));
+}
+
 // Server session helpers
 const SERVER_SESSION_KEY = 'oracle_server_session_v1';
 const SERVER_TOKEN_KEY = 'oracle_server_token_v1';
@@ -91,6 +103,7 @@ export function loadServerToken(): string | null {
 export function saveServerToken(token: string): void {
   try {
     localStorage.setItem(SERVER_TOKEN_KEY, token);
+    hasNotifiedServerSessionExpiry = false;
   } catch {
     // storage blocked
   }

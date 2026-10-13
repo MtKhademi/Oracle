@@ -4435,6 +4435,11 @@ creates a different browser origin; existing assets and profile data in
 - `ManageWalletAccountsModal` renders the existing `RecordWalletTransactionModal` from a plus-icon action placed beside each account's edit action. This makes a newly created zero-balance account fundable before it qualifies for the main wallet list, without duplicating transaction logic.
 - While the transaction modal is open, the manage modal's Escape listener is suspended so only the topmost transaction modal handles Escape. On a successful transaction, its existing `onTransactionRecorded` callback updates the parent account list immediately.
 
+## 6bj. Unauthorized API session handling
+
+- `authStorage.expireServerSession()` is the single path for a missing/expired server token and for HTTP 401 from authenticated API calls. It clears the persisted server session and dispatches one browser event, deduplicated until the next successful login stores a token.
+- The server asset, wallet, profile and market-catalog services all call that path for 401. `App.tsx` listens for the event, closes authenticated overlays, clears the in-memory signed-in user and shows `نشست شما منقضی یا نامعتبر شده است. دوباره وارد شوید.`; the normal auth gate then renders the login screen.
+
 ## 6bf. WSL-aware development API proxy
 
 - `scripts/dev.mjs` is the `npm run dev` entrypoint: it probes the office Oracle API at `10.1.111.8:5000/health` with an 800ms timeout and sets `VITE_API_PROXY_TARGET` only if that origin responds successfully. This means the same command uses the office API at work and does not retain that IP at home. `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied; an explicit ignored `.env.local` remains available for exceptional routes (the committed `.env.example` documents it). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.

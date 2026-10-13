@@ -1,4 +1,4 @@
-import { loadServerToken } from '../authStorage';
+import { expireServerSession, loadServerToken } from '../authStorage';
 import type { Asset } from '../assets';
 import { getAssetIconForCatalogEntry, getUnitLabel } from './assetCatalog';
 import type { AssetService, ImportResult } from './assetService';
@@ -64,7 +64,10 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: string; title?: string; errors?: Record<string, string[]> } | null;
     if (response.status === 409) throw new Error('این دارایی قبلاً ثبت شده است');
-    if (response.status === 401) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+    if (response.status === 401) {
+      expireServerSession();
+      throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+    }
     const validationMessages = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
     throw new Error(validationMessages || body?.detail || body?.title || `عملیات دارایی انجام نشد (${response.status})`);
   }

@@ -5,6 +5,7 @@ import { type Asset } from './src/assets';
 import { assetService, type ImportEffectiveType, type ImportMode, type ImportRow } from './src/services/assetService';
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
+import { SERVER_SESSION_EXPIRED_EVENT } from './src/authStorage';
 import { transactionService } from './src/services/transactionService';
 import { walletService, type WalletAccount } from './src/services/walletService';
 import type { TransactionType } from './src/types/transaction';
@@ -238,6 +239,22 @@ export default function App() {
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
   const walletSeededRef = useRef(false);
+
+  useEffect(() => {
+    const handleServerSessionExpiry = () => {
+      setCurrentUser(null);
+      setIsMenuOpen(false);
+      setIsProfileOpen(false);
+      setIsImportModalOpen(false);
+      setHistoryAssetId(null);
+      setRecordTransactionAssetId(null);
+      setPendingNewAsset(null);
+      setIsSelectAssetForTransactionOpen(false);
+      toast.error('نشست شما منقضی یا نامعتبر شده است. دوباره وارد شوید.');
+    };
+    window.addEventListener(SERVER_SESSION_EXPIRED_EVENT, handleServerSessionExpiry);
+    return () => window.removeEventListener(SERVER_SESSION_EXPIRED_EVENT, handleServerSessionExpiry);
+  }, []);
 
   const handleSortModeChange = (mode: AssetSortMode) => {
     setSortMode(mode);
