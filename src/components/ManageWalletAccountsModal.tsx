@@ -49,8 +49,8 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
       toast.success(editing ? 'تغییرات ذخیره شد' : 'حساب اضافه شد');
       onAccountsChanged(next);
       return true;
-    } catch {
-      toast.error('ذخیره حساب انجام نشد');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ذخیره حساب انجام نشد');
       return false;
     }
   };
@@ -60,8 +60,8 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
       const next = await walletService.deleteAccount(id);
       onAccountsChanged(next);
       toast.success('حساب حذف شد');
-    } catch {
-      toast.error('حذف حساب انجام نشد');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'حذف حساب انجام نشد');
     }
   };
 

@@ -1,4 +1,5 @@
 import { localWalletService } from './localWalletService';
+import { serverWalletService } from './serverWalletService';
 
 // One cash/bank account tracked on the "کیف پول" tab — e.g. "نقد", "کارت
 // بانک ملی". `balance` is a plain toman amount (displayed via format() +
@@ -22,5 +23,7 @@ export interface WalletService {
   deleteAccount(id: string): Promise<WalletAccount[]>;
 }
 
-// The only place that needs to change to point at a server-backed implementation later.
-export const walletService: WalletService = localWalletService;
+// Bank-account identity/details use the Oracle API during local development.
+// Balances, PIN reminders, and transaction history have no server contract yet
+// and remain browser-local through the same WalletAccount cache.
+export const walletService: WalletService = import.meta.env.DEV ? serverWalletService : localWalletService;

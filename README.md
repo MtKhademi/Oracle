@@ -21,6 +21,8 @@ Before the main page is shown, you must log in or sign up. In Vite development m
 
 The profile window also uses the backend in development: it loads the signed-in user from `GET /iam/api/me` and saves first/last-name changes with `PATCH /iam/api/me`. Mobile number and email are displayed read-only because the update endpoint does not accept them. The avatar remains browser-local because the backend contract has no avatar field.
 
+In development, bank-account identity and shareable details use `GET/POST/PUT/DELETE /oracle/api/me/bank-accounts`. The API deliberately returns card, account and IBAN values masked; the app retains only the local wallet-only fields that the API does not model (balance, transaction history and optional PIN reminders). Those local fields are never sent to the API. If an account was created on another device and its masked values need changing, enter its full account details again before saving.
+
 ```sh
 npm run build
 npm run preview
