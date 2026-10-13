@@ -115,7 +115,11 @@ export const localAuthService: AuthService = {
     // email/SMS API instead of being returned here for the UI to display
     // on-screen. The caller (UI) is responsible for showing `simulatedCode`
     // to the user until that integration exists.
-    return { ok: true, simulatedCode };
+    return {
+      ok: true,
+      message: 'کد بازیابی برای شما آماده شد',
+      simulatedCode,
+    };
   },
 
   async resetPassword(identifier, code, newPassword) {

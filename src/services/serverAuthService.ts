@@ -130,11 +130,49 @@ export const serverAuthService: AuthService = {
     return { ...user, token };
   },
 
-  async requestPasswordReset(_identifier: string) {
-    return { ok: false, error: 'در حال حاضر این قابلیت فعال نیست' };
+  async requestPasswordReset(identifier: string) {
+    try {
+      const res = await fetch(`${API_BASE}/iam/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailOrPhone: identifier.trim() }),
+      });
+
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        return { ok: false, error: parseApiError(body) };
+      }
+
+      const message = typeof body === 'object' && body !== null && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
+        ? (body as { message: string }).message
+        : 'کد بازیابی ارسال شد';
+      return { ok: true, message };
+    } catch {
+      return { ok: false, error: 'ارتباط با سرویس بازیابی رمز برقرار نشد' };
+    }
   },
 
-  async resetPassword(_identifier: string, _code: string, _newPassword: string) {
-    return { ok: false, error: 'در حال حاضر این قابلیت فعال نیست' };
+  async resetPassword(identifier: string, code: string, newPassword: string) {
+    try {
+      const res = await fetch(`${API_BASE}/iam/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailOrPhone: identifier.trim(),
+          code: code.trim(),
+          password: newPassword,
+          confirmPassword: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        return { ok: false, error: parseApiError(body) };
+      }
+
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'ارتباط با سرویس بازیابی رمز برقرار نشد' };
+    }
   },
 };
