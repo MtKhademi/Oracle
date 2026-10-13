@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { authService } from '../services/authService';
+import { profileService } from '../services/profileService';
 import { walletService, type WalletAccount } from '../services/walletService';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
@@ -65,20 +66,30 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     }
   };
 
-  // Copies the account's shareable details (name + bank/card/account/sheba) to
-  // the clipboard as a plain-text block for pasting elsewhere (e.g. Telegram).
-  // The logged-in user's full name comes from authService (the same source
-  // App.tsx uses); empty lines are skipped; the two card-PIN fields are
-  // deliberately excluded (personal reminders, not for sharing).
+  // Copies a Telegram-friendly, plain-text account-details block. Account
+  // numbers get their own unadorned lines so they can be selected and copied
+  // independently; PIN reminders are deliberately never included.
   const handleCopyDetails = async (account: WalletAccount) => {
+    const profile = await profileService.getProfile().catch(() => null);
     const user = await authService.getCurrentUser();
-    const name = (user?.fullName ?? '').trim();
-    const lines = [name, account.bankName, account.cardNumber, account.accountNumber, account.shebaNumber]
-      .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
-      .map(value => value.trim());
+    const name = (profile?.fullName ?? user?.fullName ?? '').trim();
+    const phone = profile?.phone.trim() ?? user?.phone.trim() ?? '';
+    const owner = [name, phone].filter(Boolean).join(' : ');
+    const fields: Array<[string, string | undefined]> = [
+      ['نام بانک', account.bankName],
+      ['شماره کارت', account.cardNumber],
+      ['شماره حساب', account.accountNumber],
+      ['شماره شبا', account.shebaNumber],
+    ];
+    const lines = [
+      '╭─ اطلاعات حساب بانکی ─────',
+      ...(owner ? [owner] : []),
+      ...fields.flatMap(([label, value]) => value?.trim() ? [`${label}:`, value.trim()] : []),
+      '╰────────────────────',
+    ];
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
-      toast.success('مشخصات کارت کپی شد');
+      toast.success('مشخصات حساب کپی شد');
     } catch {
       toast.error('کپی مشخصات انجام نشد');
     }
