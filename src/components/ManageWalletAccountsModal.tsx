@@ -66,9 +66,8 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     }
   };
 
-  // Copies a Telegram-friendly, plain-text account-details block. Account
-  // numbers get their own unadorned lines so they can be selected and copied
-  // independently; PIN reminders are deliberately never included.
+  // Copies a compact Telegram-friendly, plain-text account-details block.
+  // PIN reminders are deliberately never included.
   const handleCopyDetails = async (account: WalletAccount) => {
     const profile = await profileService.getProfile().catch(() => null);
     const user = await authService.getCurrentUser();
@@ -82,10 +81,9 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
       ['شماره شبا', account.shebaNumber],
     ];
     const lines = [
-      '╭─ اطلاعات حساب بانکی ─────',
-      ...(owner ? [owner] : []),
-      ...fields.flatMap(([label, value]) => value?.trim() ? [`${label}:`, value.trim()] : []),
-      '╰────────────────────',
+      'اطلاعات حساب بانکی',
+      ...(owner ? [`صاحب حساب: ${owner}`] : []),
+      ...fields.flatMap(([label, value]) => value?.trim() ? [`${label}: ${value.trim()}`] : []),
     ];
     try {
       await navigator.clipboard.writeText(lines.join('\n'));

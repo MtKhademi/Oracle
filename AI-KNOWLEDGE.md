@@ -4427,8 +4427,8 @@ creates a different browser origin; existing assets and profile data in
 
 ## 6bh. Shareable bank-account details
 
-- `ManageWalletAccountsModal`'s send-details action copies a boxed, plain-text block intended for Telegram. It loads the current `Profile` through `profileService` so the owner line can contain the backend-provided full name and mobile number, with the cached auth user as a safe fallback.
-- Bank, card, account and IBAN values are labelled in Persian. Card/account/IBAN values each appear on their own unadorned line for easy independent selection and copying. Blank values and both local-only PIN reminders remain excluded.
+- `ManageWalletAccountsModal`'s send-details action copies a compact, plain-text Telegram message. It loads the current `Profile` through `profileService` so the owner line can contain the backend-provided full name and mobile number, with the cached auth user as a safe fallback.
+- Bank, card, account and IBAN values are labelled in Persian and each value stays on the same line as its label for a clean, easily selectable message. Blank values and both local-only PIN reminders remain excluded.
 
 ## 6bf. WSL-aware development API proxy
 
