@@ -61,7 +61,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
           <input type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="مثلا: کارت بانک ملی" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">نام بانک
-          <input type="text" value={formBankName} onChange={e => setFormBankName(e.target.value)} placeholder="مثلا: بانک ملی" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <input type="text" value={formBankName} onChange={e => setFormBankName(e.target.value)} placeholder="مثلا: Melli" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">شماره کارت
           <input type="text" value={formCardNumber} onChange={e => setFormCardNumber(e.target.value)} placeholder="مثلا: 6104 3399 0000 0000" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
