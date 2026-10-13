@@ -4430,6 +4430,11 @@ creates a different browser origin; existing assets and profile data in
 - `ManageWalletAccountsModal`'s send-details action copies a compact, plain-text Telegram message. It loads the current `Profile` through `profileService` so the owner line can contain the backend-provided full name and mobile number, with the cached auth user as a safe fallback.
 - Bank, card, account and IBAN values are labelled in Persian and each value stays on the same line as its label for a clean, easily selectable message. Blank values and both local-only PIN reminders remain excluded.
 
+## 6bi. Record a transaction from Manage Accounts
+
+- `ManageWalletAccountsModal` renders the existing `RecordWalletTransactionModal` from a plus-icon action placed beside each account's edit action. This makes a newly created zero-balance account fundable before it qualifies for the main wallet list, without duplicating transaction logic.
+- While the transaction modal is open, the manage modal's Escape listener is suspended so only the topmost transaction modal handles Escape. On a successful transaction, its existing `onTransactionRecorded` callback updates the parent account list immediately.
+
 ## 6bf. WSL-aware development API proxy
 
 - `scripts/dev.mjs` is the `npm run dev` entrypoint: it probes the office Oracle API at `10.1.111.8:5000/health` with an 800ms timeout and sets `VITE_API_PROXY_TARGET` only if that origin responds successfully. This means the same command uses the office API at work and does not retain that IP at home. `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied; an explicit ignored `.env.local` remains available for exceptional routes (the committed `.env.example` documents it). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.

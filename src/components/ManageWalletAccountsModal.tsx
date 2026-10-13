@@ -6,6 +6,7 @@ import { walletService, type WalletAccount } from '../services/walletService';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from './icons';
+import { RecordWalletTransactionModal } from './RecordWalletTransactionModal';
 import { WalletAccountModal } from './WalletTab';
 
 const accountIconBase = 'w-[40px] h-[40px] shrink-0 grid place-items-center rounded-[13px]';
@@ -30,15 +31,16 @@ const statusLine = (label: string, value?: string) => {
 // (backdrop / Escape / "×" / stopPropagation on the card).
 export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose }: { accounts: WalletAccount[]; onAccountsChanged: (accounts: WalletAccount[]) => void; onClose: () => void }) {
   const [modal, setModal] = useState<{ account: WalletAccount | null } | null>(null);
+  const [recordFor, setRecordFor] = useState<WalletAccount | null>(null);
 
   useEffect(() => {
     // The nested add/edit form (WalletAccountModal) adds its own Escape
     // listener; while it's open, let only that listener close things so Escape
     // dismisses the topmost modal first, not this one too.
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && modal === null) onClose(); };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && modal === null && recordFor === null) onClose(); };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose, modal]);
+  }, [onClose, modal, recordFor]);
 
   const handleAccountSubmit = async (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
@@ -127,6 +129,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
           </div>
           <div className="flex items-center justify-end gap-[10px]">
             {account.name !== 'نقدی' && <IconButton icon={<PencilIcon/>} onClick={() => setModal({ account })} ariaLabel="ویرایش" tone="neutral" variant="ghost"/>}
+            <IconButton icon={<PlusIcon/>} onClick={() => setRecordFor(account)} ariaLabel="ثبت تراکنش" tone="neutral" variant="ghost"/>
             <IconButton icon={<SendIcon/>} onClick={() => handleCopyDetails(account)} ariaLabel="ارسال مشخصات" tone="neutral" variant="ghost"/>
             {account.name !== 'نقدی' && <IconButton icon={<TrashIcon/>} onClick={() => handleDelete(account.id)} ariaLabel="حذف" tone="danger" variant="ghost"/>}
           </div>
@@ -134,5 +137,6 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     </section>
     </div>
     {modal && <WalletAccountModal account={modal.account} onClose={() => setModal(null)} onSubmit={handleAccountSubmit}/>}
+    {recordFor && <RecordWalletTransactionModal account={recordFor} onClose={() => setRecordFor(null)} onTransactionRecorded={onAccountsChanged}/>}
   </>;
 }
