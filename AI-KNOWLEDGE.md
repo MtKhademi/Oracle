@@ -4422,6 +4422,7 @@ creates a different browser origin; existing assets and profile data in
 - In Vite development, `serverAuthService` calls `POST /iam/api/auth/forgot-password` with `{ emailOrPhone }`, then shows the API's required `message` response and advances `ForgotPasswordModal` to its reset step. The client does not generate or reveal a recovery code when the backend is active; delivery remains wholly controlled by the backend.
 - Reset submits `POST /iam/api/auth/reset-password` with `{ emailOrPhone, code, password, confirmPassword }`. The modal keeps its local password-repeat check, disables its submit button while either request is pending, and displays the API's ProblemDetails/validation error on failure.
 - `localAuthService` retains its simulation only for non-development builds without the backend; its returned simulated code is explicitly marked as temporary in the UI.
+- The request and reset steps deliberately ignore clicks on their dark backdrop and Escape so an issued code and entered reset data are not accidentally discarded. The sole close path is the modal's existing upper-left × button.
 
 ## 6bf. WSL-aware development API proxy
 

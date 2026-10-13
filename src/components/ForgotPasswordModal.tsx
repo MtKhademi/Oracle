@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { authService } from '../services/authService';
 import { CloseIcon } from './icons';
@@ -13,12 +13,6 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
 
   const handleRequestSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,7 +54,7 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
     <section className="bg-white rounded-[20px] p-5 w-full max-w-[400px] max-h-[90vh] overflow-y-auto shadow-[0_12px_36px_#2734790b] border border-[#eceef8] relative max-[481px]:rounded-[16px] max-[481px]:p-4" aria-labelledby="forgot-password-title" onClick={e => e.stopPropagation()}>
       <button type="button" onClick={onClose} aria-label="بستن" className="absolute top-4 left-4 text-[#9096aa] cursor-pointer p-1 rounded-md hover:bg-[#f6f7fb] transition-colors"><CloseIcon/></button>
       <h2 id="forgot-password-title" className="text-[15px] font-bold mb-4">بازیابی رمز عبور</h2>
