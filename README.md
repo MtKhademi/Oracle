@@ -23,7 +23,7 @@ The profile window also uses the backend in development: it loads the signed-in 
 
 In development, bank-account identity and shareable details use `GET/POST/PUT/DELETE /oracle/api/me/bank-accounts`. The API deliberately returns card, account and IBAN values masked; the app retains only the local wallet-only fields that the API does not model (balance, transaction history and optional PIN reminders). Those local fields are never sent to the API. If an account was created on another device and its masked values need changing, enter its full account details again before saving.
 
-When Vite runs inside WSL while the Oracle backend runs on Windows, the backend must listen on an externally reachable interface (for example, `ASPNETCORE_URLS=http://0.0.0.0:5000`), not only `localhost`. Vite then automatically uses WSL's current Windows-host gateway from `/etc/resolv.conf`. For a non-standard route such as the office network, copy `.env.example` to the ignored `.env.local` and set `VITE_API_PROXY_TARGET` there; `npm run dev` loads it automatically. Do not add that local file or any credentials to Git.
+When Vite runs inside WSL while the Oracle backend runs on Windows, the backend must listen on an externally reachable interface (for example, `ASPNETCORE_URLS=http://0.0.0.0:5000`), not only `localhost`. `npm run dev` checks the office Oracle API at `10.1.111.8:5000` with a short timeout and uses it only when it is reachable; elsewhere it falls back to WSL's current Windows-host gateway from `/etc/resolv.conf`. For another exceptional route, copy `.env.example` to the ignored `.env.local` and set `VITE_API_PROXY_TARGET`; do not add that local file or any credentials to Git.
 
 ```sh
 npm run build
