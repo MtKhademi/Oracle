@@ -4417,6 +4417,12 @@ creates a different browser origin; existing assets and profile data in
 - The server owns bank-account title, bank code, card number, account number and IBAN. It returns the three numbers masked, so the browser-local wallet cache preserves only UI fields absent from that contract: balance, wallet transaction history and optional first/second PIN reminders. These local-only fields are never transmitted to the API and are not represented as server balances.
 - A remotely created account whose full values are unavailable locally can still be displayed from the masked response. To edit it, the user must enter its full card/account/IBAN values again; this prevents accidentally PUT-ing a masked value back to the server.
 
+## 6bg. Server-backed password recovery
+
+- In Vite development, `serverAuthService` calls `POST /iam/api/auth/forgot-password` with `{ emailOrPhone }`, then shows the API's required `message` response and advances `ForgotPasswordModal` to its reset step. The client does not generate or reveal a recovery code when the backend is active; delivery remains wholly controlled by the backend.
+- Reset submits `POST /iam/api/auth/reset-password` with `{ emailOrPhone, code, password, confirmPassword }`. The modal keeps its local password-repeat check, disables its submit button while either request is pending, and displays the API's ProblemDetails/validation error on failure.
+- `localAuthService` retains its simulation only for non-development builds without the backend; its returned simulated code is explicitly marked as temporary in the UI.
+
 ## 6bf. WSL-aware development API proxy
 
 - `scripts/dev.mjs` is the `npm run dev` entrypoint: it probes the office Oracle API at `10.1.111.8:5000/health` with an 800ms timeout and sets `VITE_API_PROXY_TARGET` only if that origin responds successfully. This means the same command uses the office API at work and does not retain that IP at home. `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied; an explicit ignored `.env.local` remains available for exceptional routes (the committed `.env.example` documents it). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.

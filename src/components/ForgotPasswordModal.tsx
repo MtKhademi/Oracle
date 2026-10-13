@@ -12,6 +12,7 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -21,12 +22,21 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
 
   const handleRequestSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const result = await authService.requestPasswordReset(identifier);
-    if (result.ok) {
-      toast(`کد بازیابی (نمایش موقت تا سرویس پیامک/ایمیل وصل شود): ${result.simulatedCode}`, { duration: 15000 });
-      setStep('reset');
-    } else {
-      toast.error(result.error);
+    setIsSubmitting(true);
+    try {
+      const result = await authService.requestPasswordReset(identifier);
+      if (result.ok) {
+        if (result.simulatedCode) {
+          toast(`کد بازیابی (نمایش موقت): ${result.simulatedCode}`, { duration: 15000 });
+        } else {
+          toast.success(result.message);
+        }
+        setStep('reset');
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -36,12 +46,17 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
       toast.error('رمز عبور و تکرارش یکسان نیستند');
       return;
     }
-    const result = await authService.resetPassword(identifier, code, newPassword);
-    if (result.ok) {
-      toast.success('رمز عبور تغییر کرد');
-      onClose();
-    } else {
-      toast.error(result.error);
+    setIsSubmitting(true);
+    try {
+      const result = await authService.resetPassword(identifier, code, newPassword);
+      if (result.ok) {
+        toast.success('رمز عبور تغییر کرد');
+        onClose();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -54,7 +69,7 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
         <label className={labelClass}>ایمیل یا شماره موبایل
           <input type="text" name="identifier" id="forgot-identifier" autoComplete="username" value={identifier} onChange={e => setIdentifier(e.target.value)} className={inputClass} required />
         </label>
-        <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer">ارسال کد بازیابی</button>
+        <button type="submit" disabled={isSubmitting} className="justify-self-start bg-[#5264e8] disabled:bg-[#aeb5f2] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer disabled:cursor-wait">{isSubmitting ? 'در حال ارسال...' : 'ارسال کد بازیابی'}</button>
       </form> : <form onSubmit={handleResetSubmit} className="grid gap-[10px]">
         <label className={labelClass}>کد بازیابی
           <input type="text" inputMode="numeric" name="code" id="forgot-code" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} className={inputClass} required />
@@ -65,7 +80,7 @@ export function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
         <label className={labelClass}>تکرار رمز عبور جدید
           <input type="password" name="newPasswordRepeat" id="forgot-new-password-repeat" autoComplete="new-password" value={newPasswordRepeat} onChange={e => setNewPasswordRepeat(e.target.value)} className={inputClass} required />
         </label>
-        <button type="submit" className="justify-self-start bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer">تغییر رمز عبور</button>
+        <button type="submit" disabled={isSubmitting} className="justify-self-start bg-[#5264e8] disabled:bg-[#aeb5f2] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 cursor-pointer disabled:cursor-wait">{isSubmitting ? 'در حال تغییر...' : 'تغییر رمز عبور'}</button>
       </form>}
     </section>
   </div>;
