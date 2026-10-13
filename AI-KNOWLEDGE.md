@@ -4425,6 +4425,11 @@ creates a different browser origin; existing assets and profile data in
 - `localAuthService` retains its simulation only for non-development builds without the backend; its returned simulated code is explicitly marked as temporary in the UI.
 - The request and reset steps deliberately ignore clicks on their dark backdrop and Escape so an issued code and entered reset data are not accidentally discarded. The sole close path is the modal's existing upper-left × button.
 
+## 6bh. Shareable bank-account details
+
+- `ManageWalletAccountsModal`'s send-details action copies a boxed, plain-text block intended for Telegram. It loads the current `Profile` through `profileService` so the owner line can contain the backend-provided full name and mobile number, with the cached auth user as a safe fallback.
+- Bank, card, account and IBAN values are labelled in Persian. Card/account/IBAN values each appear on their own unadorned line for easy independent selection and copying. Blank values and both local-only PIN reminders remain excluded.
+
 ## 6bf. WSL-aware development API proxy
 
 - `scripts/dev.mjs` is the `npm run dev` entrypoint: it probes the office Oracle API at `10.1.111.8:5000/health` with an 800ms timeout and sets `VITE_API_PROXY_TARGET` only if that origin responds successfully. This means the same command uses the office API at work and does not retain that IP at home. `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied; an explicit ignored `.env.local` remains available for exceptional routes (the committed `.env.example` documents it). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.
