@@ -21,6 +21,56 @@ type BankAccountRequest = {
   isDefault: boolean;
 };
 
+const bankCodeAliases: Record<string, string> = {
+  'بانک رسالت': 'resalat',
+  'رسالت': 'resalat',
+  'بانک ملی': 'melli',
+  'ملی': 'melli',
+  'بانک ملت': 'mellat',
+  'ملت': 'mellat',
+  'بانک صادرات': 'saderat',
+  'صادرات': 'saderat',
+  'بانک تجارت': 'tejarat',
+  'تجارت': 'tejarat',
+  'بانک پاسارگاد': 'pasargad',
+  'پاسارگاد': 'pasargad',
+  'بانک سامان': 'saman',
+  'سامان': 'saman',
+  'بانک پارسیان': 'parsian',
+  'پارسیان': 'parsian',
+  'بانک آینده': 'ayandeh',
+  'آینده': 'ayandeh',
+  'بانک شهر': 'shahr',
+  'شهر': 'shahr',
+};
+
+const bankNameByCode: Record<string, string> = Object.fromEntries(
+  Object.entries(bankCodeAliases).filter(([name]) => name.startsWith('بانک ')).map(([name, code]) => [code, name]),
+);
+
+const persianToAscii: Record<string, string> = {
+  ا: 'a', آ: 'a', ب: 'b', پ: 'p', ت: 't', ث: 's', ج: 'j', چ: 'ch', ح: 'h', خ: 'kh', د: 'd', ذ: 'z', ر: 'r', ز: 'z', ژ: 'zh', س: 's', ش: 'sh', ص: 's', ض: 'z', ط: 't', ظ: 'z', ع: 'a', غ: 'gh', ف: 'f', ق: 'gh', ک: 'k', گ: 'g', ل: 'l', م: 'm', ن: 'n', و: 'v', ه: 'h', ی: 'y', ئ: 'y', ء: 'a', ؤ: 'v', ة: 'h',
+};
+
+function normalizeBankName(value: string): string {
+  return value.trim().replace(/[\u200c\u200f]/g, '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ');
+}
+
+function toBankCode(bankName?: string): string | null {
+  if (!bankName) return null;
+  const normalized = normalizeBankName(bankName);
+  if (!normalized) return null;
+  if (bankCodeAliases[normalized]) return bankCodeAliases[normalized];
+
+  const asciiInput = normalized.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (/^[a-z0-9-]{2,32}$/.test(asciiInput)) return asciiInput;
+
+  const transliterated = Array.from(normalized.replace(/^بانک\s+/, '')).map(character => persianToAscii[character] ?? (/[a-z0-9]/i.test(character) ? character.toLowerCase() : '')).join('');
+  const code = transliterated.replace(/[^a-z0-9-]/g, '').slice(0, 32);
+  if (/^[a-z0-9-]{2,32}$/.test(code)) return code;
+  throw new Error('نام بانک را وارد کنید؛ کد فنی آن باید دست‌کم دو حرف یا عدد انگلیسی داشته باشد.');
+}
+
 function authorizationHeaders(): HeadersInit {
   const token = loadServerToken();
   if (!token) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
@@ -44,7 +94,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 
 function toRequest(account: Omit<WalletAccount, 'id'>): BankAccountRequest {
   return {
-    bankCode: account.bankName ?? null,
+    bankCode: toBankCode(account.bankName),
     accountNumber: account.accountNumber ?? null,
     iban: account.shebaNumber ?? null,
     cardNumber: account.cardNumber ?? null,
@@ -58,7 +108,7 @@ function toWalletAccount(apiAccount: BankAccountResponse, cached?: WalletAccount
     id: apiAccount.id,
     name: apiAccount.title ?? 'حساب بانکی',
     balance: cached?.balance ?? 0,
-    bankName: apiAccount.bankCode || undefined,
+    bankName: cached?.bankName ?? bankNameByCode[apiAccount.bankCode.toLowerCase()] ?? apiAccount.bankCode,
     cardNumber: cached?.cardNumber ?? apiAccount.cardNumberMasked ?? undefined,
     accountNumber: cached?.accountNumber ?? apiAccount.accountNumberMasked ?? undefined,
     shebaNumber: cached?.shebaNumber ?? apiAccount.ibanMasked ?? undefined,

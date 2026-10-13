@@ -4416,6 +4416,7 @@ creates a different browser origin; existing assets and profile data in
 - `src/services/serverWalletService.ts` uses the authenticated `GET/POST/PUT/DELETE /oracle/api/me/bank-accounts` contract in Vite development; `walletService.ts` selects it in development and retains `localWalletService` for production builds without a configured API.
 - The server owns bank-account title, bank code, card number, account number and IBAN. It returns the three numbers masked, so the browser-local wallet cache preserves only UI fields absent from that contract: balance, wallet transaction history and optional first/second PIN reminders. These local-only fields are never transmitted to the API and are not represented as server balances.
 - A remotely created account whose full values are unavailable locally can still be displayed from the masked response. To edit it, the user must enter its full card/account/IBAN values again; this prevents accidentally PUT-ing a masked value back to the server.
+- `bankCode` is a backend technical identifier restricted to ASCII letters, digits and hyphens, while the wallet form accepts a Persian display name. `serverWalletService` maps common Iranian bank names (including `بانک رسالت` → `resalat`) and transliterates other Persian names before POST/PUT. A cached original name is preferred for display; common returned codes are also mapped back to their Persian names on a fresh device.
 
 ## 6bg. Server-backed password recovery
 
