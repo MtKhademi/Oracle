@@ -4417,6 +4417,11 @@ creates a different browser origin; existing assets and profile data in
 - The server owns bank-account title, bank code, card number, account number and IBAN. It returns the three numbers masked, so the browser-local wallet cache preserves only UI fields absent from that contract: balance, wallet transaction history and optional first/second PIN reminders. These local-only fields are never transmitted to the API and are not represented as server balances.
 - A remotely created account whose full values are unavailable locally can still be displayed from the masked response. To edit it, the user must enter its full card/account/IBAN values again; this prevents accidentally PUT-ing a masked value back to the server.
 
+## 6bf. WSL-aware development API proxy
+
+- `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied. Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.
+- For the WSL route to work, the Windows-host backend must bind an externally reachable address such as `0.0.0.0:5000`; a Kestrel listener limited to `localhost:5000` rejects connections arriving at the WSL gateway.
+
 ## 12. Agent playbook (how to progress this app)
 
 For every change:
