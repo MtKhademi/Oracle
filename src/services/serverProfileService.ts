@@ -1,4 +1,4 @@
-import { clearSession, loadServerToken } from '../authStorage';
+import { expireServerSession, loadServerToken } from '../authStorage';
 import { loadProfile, saveProfile } from '../profileStorage';
 import type { Profile } from '../types';
 import type { ProfileService } from './profileService';
@@ -32,7 +32,7 @@ function toProfile(me: MeResponse): Profile {
 
 async function parseError(response: Response): Promise<Error> {
   if (response.status === 401) {
-    clearSession();
+    expireServerSession();
     return new Error('نشست شما منقضی شده است. دوباره وارد شوید.');
   }
 

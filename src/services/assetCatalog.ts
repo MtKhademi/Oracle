@@ -1,5 +1,5 @@
 import type { Asset } from '../assets';
-import { loadServerToken } from '../authStorage';
+import { expireServerSession, loadServerToken } from '../authStorage';
 
 // Server-driven reference catalog — `GET /oracle/api/market/assets` is the
 // single source of truth for asset identity (symbol/name/category/unit).
@@ -56,7 +56,10 @@ export function loadCatalog(): Promise<CatalogAsset[]> {
       const response = await fetch('/oracle/api/market/assets', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!response.ok) throw new Error('دریافت فهرست دارایی‌ها انجام نشد');
+      if (!response.ok) {
+        if (response.status === 401) expireServerSession();
+        throw new Error(response.status === 401 ? 'نشست شما معتبر نیست. دوباره وارد شوید.' : 'دریافت فهرست دارایی‌ها انجام نشد');
+      }
       const data = (await response.json()) as { id: string; symbol: string; name: string; category: string; unit: string }[];
       cachedAssets = data.map(asset => ({ id: asset.id, symbol: asset.symbol, name: asset.name, category: asset.category, unit: asset.unit }));
       return cachedAssets;

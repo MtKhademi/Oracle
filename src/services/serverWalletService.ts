@@ -1,4 +1,4 @@
-import { loadServerToken } from '../authStorage';
+import { expireServerSession, loadServerToken } from '../authStorage';
 import { loadWalletAccounts, saveWalletAccounts } from '../walletStorage';
 import type { WalletAccount, WalletService } from './walletService';
 
@@ -84,7 +84,10 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: string; title?: string; errors?: Record<string, string[]> } | null;
-    if (response.status === 401) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+    if (response.status === 401) {
+      expireServerSession();
+      throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+    }
     if (response.status === 409) throw new Error('این حساب بانکی قبلاً ثبت شده است');
     const validationMessages = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
     throw new Error(validationMessages || body?.detail || body?.title || `عملیات حساب بانکی انجام نشد (${response.status})`);
