@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { existsSync, readFileSync } from 'node:fs';
 
-function getApiProxyTarget(): string {
-  if (process.env.VITE_API_PROXY_TARGET) return process.env.VITE_API_PROXY_TARGET;
+function getApiProxyTarget(explicitTarget?: string): string {
+  if (explicitTarget) return explicitTarget;
 
   try {
     const release = readFileSync('/proc/sys/kernel/osrelease', 'utf8');
@@ -17,20 +17,22 @@ function getApiProxyTarget(): string {
   return 'http://127.0.0.1:5000';
 }
 
-const apiProxyTarget = getApiProxyTarget();
+export default defineConfig(({ mode }) => {
+  const apiProxyTarget = getApiProxyTarget(loadEnv(mode, process.cwd(), 'VITE_').VITE_API_PROXY_TARGET);
 
-export default defineConfig({
-  plugins: [tailwindcss()],
-  server: {
-    proxy: {
-      '/iam': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-      },
-      '/oracle': {
-        target: apiProxyTarget,
-        changeOrigin: true,
+  return {
+    plugins: [tailwindcss()],
+    server: {
+      proxy: {
+        '/iam': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
+        '/oracle': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });

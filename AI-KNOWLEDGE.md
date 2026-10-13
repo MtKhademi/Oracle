@@ -4419,7 +4419,7 @@ creates a different browser origin; existing assets and profile data in
 
 ## 6bf. WSL-aware development API proxy
 
-- `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied. Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.
+- `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied. It loads this from the ignored `.env.local` automatically during `npm run dev` (the committed `.env.example` is documentation only). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.
 - For the WSL route to work, the Windows-host backend must bind an externally reachable address such as `0.0.0.0:5000`; a Kestrel listener limited to `localhost:5000` rejects connections arriving at the WSL gateway.
 
 ## 12. Agent playbook (how to progress this app)
