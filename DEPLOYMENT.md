@@ -5,7 +5,7 @@
 آدرس فرانت:
 
 ```text
-http://45.82.137.126:8581/
+http://45.82.137.126:8580/
 ```
 
 ## Secretهای GitHub
@@ -26,14 +26,14 @@ git tag release-1.0.0
 git push origin release-1.0.0
 ```
 
-Workflow ابتدا `npm ci` و `npm run build` را اجرا می‌کند، سپس image با نام `atlas-frontend:<tag>` ساخته و روی سرور منتقل می‌شود. کانتینر با نام `atlas-frontend` و پورت `8581:80` اجرا می‌شود.
+Workflow ابتدا `npm ci` و `npm run build` را اجرا می‌کند، سپس image با نام `atlas-frontend:<tag>` ساخته و روی سرور منتقل می‌شود. کانتینر با نام `atlas-frontend` و پورت `8580:80` اجرا می‌شود و کانتینر قدیمی `oracle` را که این پورت را گرفته حذف می‌کند.
 
 ## بررسی روی سرور
 
 ```bash
 sudo docker ps --filter name=atlas-frontend
 sudo docker logs atlas-frontend
-curl -i http://127.0.0.1:8581/health
+curl -i http://127.0.0.1:8580/health
 ```
 
 برای بازگشت دستی به image قبلی:
@@ -41,7 +41,7 @@ curl -i http://127.0.0.1:8581/health
 ```bash
 sudo docker rm -f atlas-frontend
 sudo docker run -d --name atlas-frontend --restart unless-stopped \
-  --network atlas_default -p 8581:80 atlas-frontend:previous
+  --network atlas_default -p 8580:80 atlas-frontend:previous
 ```
 
 Backend باید قبل از فرانت روی شبکه‌ی `atlas_default` و سرویس `api` فعال باشد.
