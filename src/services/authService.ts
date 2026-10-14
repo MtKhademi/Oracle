@@ -1,5 +1,4 @@
 import type { User } from '../types';
-import { localAuthService } from './localAuthService';
 import { serverAuthService } from './serverAuthService';
 
 export interface AuthService {
@@ -11,5 +10,6 @@ export interface AuthService {
   resetPassword(identifier: string, code: string, newPassword: string): Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
-// The backend connection is intentionally development-only for local testing.
-export const authService: AuthService = import.meta.env.DEV ? serverAuthService : localAuthService;
+// Authentication must use the backend in every environment. The production
+// Nginx config proxies these relative paths to the Atlas API container.
+export const authService: AuthService = serverAuthService;
