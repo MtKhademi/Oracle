@@ -10,7 +10,6 @@ export type PortfolioSnapshot = {
 export interface PortfolioHistoryService {
   listHistory(): Promise<PortfolioSnapshot[]>; // oldest first
   recordSnapshotIfNeeded(totalToman: number, usdToman: number, goldGramToman: number): Promise<void>;
-  seedMockHistoryIfEmpty(totalToman: number, usdToman: number, goldGramToman: number): Promise<void>;
 }
 
 export const portfolioHistoryService: PortfolioHistoryService = localPortfolioHistoryService;

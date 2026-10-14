@@ -20,15 +20,13 @@ function groupByCategory(items: MarketItem[]): Partial<Record<MarketCategory, Ma
 
 // Categorized "چشم بازار" view (see AI-KNOWLEDGE.md §6l/§6m/§6r) — groups
 // the owner's personal watchlist subset of the fixed market catalog by
-// category, each with their live (mock) toman price, plus an add button
+// category, each with its server-backed toman price when the backend has one,
+// plus an add button
 // (opens AddMarketWatchItemModal) and a per-item remove button. Calls
 // useMarketWatch() and useMarketWatchlist() itself (unlike AssetRow, which
 // takes prices as a prop): this list is only ever mounted while the "چشم
-// بازار" tab is active, so there's no benefit to threading either
-// subscription through App.tsx. Uses the independent marketWatchService/
-// marketWatchlistService — NOT useLivePrices()/priceService/assetService,
-// which remain untouched for the portfolio total, AssetRow's GOLD18/USDT
-// live pricing, and the wallet's own asset list.
+// بازار" tab is active. marketWatchService combines the catalog with the
+// same shared priceService snapshot used by the portfolio UI.
 export function MarketWatchList({ tabs }: { tabs?: ReactNode } = {}) {
   const snapshot = useMarketWatch();
   const { watchedIds, add, remove } = useMarketWatchlist();
@@ -43,7 +41,7 @@ export function MarketWatchList({ tabs }: { tabs?: ReactNode } = {}) {
     </>;
   }
 
-  const updatedAtLabel = timeFormatter.format(new Date(snapshot.updatedAt));
+  const updatedAtLabel = snapshot.updatedAt === null ? 'نامشخص' : timeFormatter.format(new Date(snapshot.updatedAt));
   const watchedItems = snapshot.items.filter(item => watchedIds.includes(item.id));
   const groups = groupByCategory(watchedItems);
 
@@ -72,8 +70,9 @@ export function MarketWatchList({ tabs }: { tabs?: ReactNode } = {}) {
               <h4 className="text-[13px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{item.name}</h4>
               <div className="flex items-center gap-[10px] shrink-0">
                 <div className="text-left flex items-baseline gap-[6px]">
-                  <strong className="text-[14px] font-bold [font-variant-numeric:tabular-nums] max-[351px]:text-[12px]">{format(item.priceToman)}</strong>
-                  <span className="text-[#a2a8b9] text-[10px]">تومان</span>
+                  {item.priceToman === null
+                    ? <span className="text-[#a2a8b9] text-[10px]">قیمت موجود نیست</span>
+                    : <><strong className="text-[14px] font-bold [font-variant-numeric:tabular-nums] max-[351px]:text-[12px]">{format(item.priceToman)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></>}
                 </div>
                 <IconButton icon={<TrashIcon/>} onClick={() => remove(item.id)} ariaLabel={`حذف ${item.name} از چشم بازار`} tone="danger" variant="ghost"/>
               </div>

@@ -1,24 +1,24 @@
-import { mockPriceService } from './mockPriceService';
+import { serverPriceService } from './serverPriceService';
+
+export type LivePriceQuote = {
+  assetSymbol: string;
+  providerSymbol: string;
+  priceToman: number;
+  unit: string;
+  source: string;
+  priceChangedAt: number;
+  observedAt: number;
+};
 
 export type LivePrices = {
-  usdToman: number;      // current price of 1 US dollar, in toman
-  goldGramToman: number; // current price of 1 gram of 18-karat gold, in toman
-  btcToman: number;      // current price of 1 bitcoin, in toman
-  ethToman: number;      // current price of 1 ether, in toman
-  updatedAt: number;     // Date.now() when these values were last computed
+  quotes: Readonly<Record<string, LivePriceQuote>>;
+  updatedAt: number | null;
 };
 
 export interface PriceService {
   getPrices(): Promise<LivePrices>;
-  // Calls back immediately with the current prices, then again on every
-  // refresh (see mockPriceService's ~60s jitter tick). Returns an unsubscribe
-  // function.
-  subscribe(callback: (prices: LivePrices) => void): () => void;
-  // Immediately re-computes prices (applying the same jitter step as a
-  // normal tick) and notifies all current subscribers, without resetting the
-  // 60-second timer.
+  subscribe(callback: (prices: LivePrices) => void, onError?: (error: Error) => void): () => void;
   refreshNow(): Promise<LivePrices>;
 }
 
-// The only place that needs to change to point at a real server-backed price feed later.
-export const priceService: PriceService = mockPriceService;
+export const priceService: PriceService = serverPriceService;
