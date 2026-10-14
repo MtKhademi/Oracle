@@ -1,4 +1,4 @@
-name: Deploy Oracle
+name: Deploy Atlas frontend
 
 on:
   push:
@@ -9,37 +9,51 @@ permissions:
   contents: read
 
 concurrency:
-  group: oracle-production
+  group: atlas-frontend-production
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Validate image tag
-        run: |
-          [[ "$GITHUB_REF_NAME" =~ ^release-[A-Za-z0-9][A-Za-z0-9_.-]{0,118}$ ]] || {
-            echo 'Release tag must be a Docker-compatible release-* tag'; exit 1;
-          }
-      - name: Build versioned Docker image
-        run: docker build -t "oracle:${GITHUB_REF_NAME}" .
-      - name: Transfer image and restart container
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t "atlas-frontend:${IMAGE_TAG}" .
+      - name: Install SSH material
+        shell: bash
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
-          SSH_HOST_KEY: ${{ secrets.ORACLE_SSH_HOST_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.ATLAS_DEPLOY_SSH_PRIVATE_KEY }}
+          SSH_HOST_KEY: ${{ secrets.ATLAS_DEPLOY_SSH_HOST_KEY }}
         run: |
           set -euo pipefail
-          test -n "$SSH_PRIVATE_KEY" || { echo 'Missing ORACLE_SSH_PRIVATE_KEY'; exit 1; }
-          test -n "$SSH_HOST_KEY" || { echo 'Missing ORACLE_SSH_HOST_KEY'; exit 1; }
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$SSH_HOST_KEY"
           install -m 700 -d "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
           printf '%s\n' "$SSH_HOST_KEY" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
-          SSH_OPTIONS=(-i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$HOME/.ssh/known_hosts")
-          docker save "oracle:${GITHUB_REF_NAME}" | gzip -1 | \
-            ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 'gzip -dc | docker load'
-          ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
-            "docker rm -f oracle >/dev/null 2>&1 || true; docker run -d --name oracle --restart unless-stopped -p 8580:80 oracle:${GITHUB_REF_NAME}"
-          ssh "${SSH_OPTIONS[@]}" oracle-deploy@45.82.137.126 \
-            'for attempt in 1 2 3 4 5; do docker exec oracle wget -q -O /dev/null http://127.0.0.1/ && exit 0; sleep 2; done; docker logs oracle; exit 1'
+      - name: Transfer and start frontend on Atlas network
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts")
+          TARGET=ubuntu@45.82.137.126
+          "${SSH[@]}" "$TARGET" 'sudo docker info >/dev/null'
+          docker image inspect "atlas-frontend:${IMAGE_TAG}" >/dev/null
+          docker save "atlas-frontend:${IMAGE_TAG}" | gzip -1 | "${SSH[@]}" "$TARGET" 'sudo gzip -dc | sudo docker load'
+          "${SSH[@]}" "$TARGET" "sudo docker network inspect atlas_default >/dev/null 2>&1 || sudo docker network create atlas_default; current=\$(sudo docker ps -a --filter name=atlas-frontend --format '{{.Image}}' | head -n 1 || true); if [ -n \"\$current\" ] && sudo docker image inspect \"\$current\" >/dev/null 2>&1; then sudo docker tag \"\$current\" atlas-frontend:previous; fi; sudo docker rm -f atlas-frontend >/dev/null 2>&1 || true; sudo docker run -d --name atlas-frontend --restart unless-stopped --network atlas_default -p 8581:80 atlas-frontend:${IMAGE_TAG}; sudo docker exec atlas-frontend nginx -t; for attempt in 1 2 3 4 5 6 7 8 9 10; do if curl -fsS http://127.0.0.1:8581/health >/dev/null; then for image in \$(sudo docker images atlas-frontend --format '{{.Repository}}:{{.Tag}}' | grep -v -E ':(previous|${IMAGE_TAG})$' || true); do sudo docker rmi \"\$image\" || true; done; exit 0; fi; sleep 2; done; sudo docker logs atlas-frontend; exit 1"
