@@ -1,75 +1,47 @@
-# انتشار Oracle با Docker
+# انتشار فرانت Atlas با Docker
 
-با هر تگ `release-*`، GitHub Actions کد همان تگ را داخل یک Docker image با نام `oracle:<tag>` می‌سازد، image را با SSH به سرور `45.82.137.126` منتقل می‌کند و کانتینر `oracle` را با پورت بیرونی ۸۵۸۰ و پورت داخلی ۸۰ بالا می‌آورد. imageها با تگ نسخه روی خود سرور نگه داشته می‌شوند؛ برای این مسیر به registry یا حساب GHCR نیاز نیست.
+این فرانت با هر تگ `release-*` به‌صورت image نسخه‌دار ساخته و روی همان سروری اجرا می‌شود که Backend Atlas روی آن است. کانتینر فرانت به شبکه‌ی Docker `atlas_default` وصل می‌شود و Nginx مسیرهای `/iam`، `/oracle` و `/health` را به سرویس Backend با نام `api:8080` پروکسی می‌کند.
 
-## ۱. آماده‌سازی یک‌بارهٔ Ubuntu 24.04
+آدرس فرانت:
 
-Docker Engine را مطابق [راهنمای رسمی نصب روی Ubuntu](https://docs.docker.com/engine/install/ubuntu/) نصب کنید و با `sudo docker version` بررسی کنید. سپس با حساب مدیریتی خودتان از طریق SSH روی سرور اجرا کنید:
-
-```sh
-id oracle-deploy >/dev/null 2>&1 || sudo adduser --disabled-password --gecos '' oracle-deploy
-sudo usermod -aG docker oracle-deploy
-sudo install -d -o oracle-deploy -g oracle-deploy -m 700 /home/oracle-deploy/.ssh
+```text
+http://45.82.137.126:8581/
 ```
 
-عضویت در گروه `docker` به این حساب دسترسی هم‌سطح root می‌دهد؛ کلید این حساب را فقط برای انتشار نگه دارید. کانتینر روی پورت بیرونی ۸۵۸۰ اجرا می‌شود؛ Nginx خود سرور اگر روی پورت ۸۰ است، می‌تواند روشن بماند. پیش از انتشار بررسی کنید پورت ۸۵۸۰ آزاد باشد:
+## Secretهای GitHub
 
-```sh
-sudo ss -ltnp '( sport = :8580 )'
+در Repository فرانت این دو Secret را بساز؛ مقدارشان همان کلیدهای Deploy بک‌اند است:
+
+```text
+ATLAS_DEPLOY_SSH_PRIVATE_KEY
+ATLAS_DEPLOY_SSH_HOST_KEY
 ```
 
-روی رایانهٔ خودتان یک کلید مخصوص انتشار بسازید (بدون passphrase تا Action بدون ورودی اجرا شود):
+## انتشار
 
-```sh
-ssh-keygen -t ed25519 -C oracle-github-actions -f ~/.ssh/oracle_deploy -N ''
-```
-
-محتوای `~/.ssh/oracle_deploy.pub` را در فایل `/home/oracle-deploy/.ssh/authorized_keys` روی سرور بگذارید. برای مثال، روی سرور کلید عمومی واقعی خود را جایگزین متن نمونه کنید:
-
-```sh
-printf '%s\n' 'ssh-ed25519 AAAA... oracle-github-actions' | sudo tee /home/oracle-deploy/.ssh/authorized_keys >/dev/null
-sudo chown oracle-deploy:oracle-deploy /home/oracle-deploy/.ssh/authorized_keys
-sudo chmod 600 /home/oracle-deploy/.ssh/authorized_keys
-```
-
-کلید خصوصی (`~/.ssh/oracle_deploy`) را فقط در secret مخزن GitHub با نام `ORACLE_SSH_PRIVATE_KEY` قرار دهید. مسیر: **Settings → Secrets and variables → Actions → New repository secret**. اگر از قبل کلید انتشار را برای PR قبلی تنظیم کرده‌اید، همان را نگه دارید.
-
-برای ثبت کلید واقعی *خود سرور* در secret دوم، روی همان سرور اجرا کنید:
-
-```sh
-awk '{print "45.82.137.126 " $1 " " $2}' /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-خروجی یک‌خطی را در secret مخزن به نام `ORACLE_SSH_HOST_KEY` بگذارید. در فایروال سرور و پنل ابرآروان، ورودی TCP پورت‌های `8580` و `22` را مجاز کنید. اتصال و دسترسی به Docker را از رایانهٔ خودتان امتحان کنید:
-
-```sh
-ssh -i ~/.ssh/oracle_deploy oracle-deploy@45.82.137.126 'docker info >/dev/null && echo ready'
-```
-
-## ۲. انتشار هر نسخه
-
-پس از ادغام PR در `main`، روی آخرین commit یک تگ یکتا بسازید و پوش کنید:
-
-```sh
+```powershell
 git checkout main
 git pull origin main
-git tag release-2026092301
-git push origin release-2026092301
+git tag release-1.0.0
+git push origin release-1.0.0
 ```
 
-اجرای workflow را در **Actions → Deploy Oracle** ببینید. پس از موفقیت، برنامه در `http://45.82.137.126:8580/` باز می‌شود. برای نسخهٔ بعدی تگ تازه بسازید. بررسی نسخه و لاگ روی سرور:
+Workflow ابتدا `npm ci` و `npm run build` را اجرا می‌کند، سپس image با نام `atlas-frontend:<tag>` ساخته و روی سرور منتقل می‌شود. کانتینر با نام `atlas-frontend` و پورت `8581:80` اجرا می‌شود.
 
-```sh
-docker ps --filter name=oracle
-docker images oracle
-docker logs oracle
+## بررسی روی سرور
+
+```bash
+sudo docker ps --filter name=atlas-frontend
+sudo docker logs atlas-frontend
+curl -i http://127.0.0.1:8581/health
 ```
 
-برای بازگشت به یک image موجود روی سرور، به جای `release-2026092301` تگ نسخهٔ قبلی را وارد کنید:
+برای بازگشت دستی به image قبلی:
 
-```sh
-docker rm -f oracle
-docker run -d --name oracle --restart unless-stopped -p 8580:80 oracle:release-2026092301
+```bash
+sudo docker rm -f atlas-frontend
+sudo docker run -d --name atlas-frontend --restart unless-stopped \
+  --network atlas_default -p 8581:80 atlas-frontend:previous
 ```
 
-دارایی‌ها و پروفایل ثبت‌شده فقط در `localStorage` مرورگر هستند؛ تعویض image یا کانتینر در همان آدرس داده‌ها را حذف نمی‌کند. اگر قبلاً از `http://45.82.137.126/` استفاده کرده‌اید، داده‌های آن آدرس خودکار به `http://45.82.137.126:8580/` منتقل نمی‌شوند، چون پورت بخشی از مبدأ مرورگر است. سرور فعلاً دامنه و TLS ندارد و آدرس IP با HTTP سرو می‌شود؛ برای ثبت اطلاعات مالی واقعی در مرورگر، ابتدا دامنه و HTTPS راه‌اندازی کنید.
+Backend باید قبل از فرانت روی شبکه‌ی `atlas_default` و سرویس `api` فعال باشد.

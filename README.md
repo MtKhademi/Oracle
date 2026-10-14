@@ -38,7 +38,7 @@ The web output is built in `dist/`. Android Studio, Java, Expo, or building an A
 
 ## Deploy on server
 
-After installing Docker on the server and configuring the two SSH-related secrets, pushing a `release-*` tag builds a versioned Docker image and runs its container at `http://45.82.137.126:8580/`. Setup and release steps are in [DEPLOYMENT.md](DEPLOYMENT.md).
+After installing Docker on the server and configuring the `ATLAS_DEPLOY_SSH_PRIVATE_KEY` and `ATLAS_DEPLOY_SSH_HOST_KEY` secrets in this repository, pushing a `release-*` tag builds a versioned frontend image and runs it on the shared `atlas_default` Docker network at `http://45.82.137.126:8581/`. API requests are proxied to the Atlas backend at `api:8080`. Setup and release steps are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Data
 
