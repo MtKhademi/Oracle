@@ -9,6 +9,8 @@ export interface WalletAccount {
   name: string;
   balance: number;
   bankName?: string;
+  bankCode?: string;
+  isDefault?: boolean;
   cardNumber?: string;
   accountNumber?: string;
   shebaNumber?: string;

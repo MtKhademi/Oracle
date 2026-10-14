@@ -28,6 +28,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
   const [formShebaNumber, setFormShebaNumber] = useState(account?.shebaNumber ?? '');
   const [formCardPin1, setFormCardPin1] = useState(account?.cardPin1 ?? '');
   const [formCardPin2, setFormCardPin2] = useState(account?.cardPin2 ?? '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -42,14 +43,23 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
       toast.error('نام حساب را وارد کنید.');
       return;
     }
+    if (name === 'نقدی') {
+      toast.error('نام «نقدی» برای حساب پیش‌فرض رزرو شده است.');
+      return;
+    }
     const bankName = formBankName.trim() || undefined;
     const cardNumber = formCardNumber.trim() || undefined;
     const accountNumber = formAccountNumber.trim() || undefined;
     const shebaNumber = formShebaNumber.trim() || undefined;
     const cardPin1 = formCardPin1.trim() || undefined;
     const cardPin2 = formCardPin2.trim() || undefined;
-    const saved = await onSubmit(name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2);
-    if (saved) onClose();
+    setIsSubmitting(true);
+    try {
+      const saved = await onSubmit(name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2);
+      if (saved) onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
@@ -78,7 +88,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
         <label className="text-[11px] text-[#7a8097] grid gap-1">رمز دوم
           <input type="text" inputMode="numeric" value={formCardPin2} onChange={e => setFormCardPin2(e.target.value)} placeholder="مثلا: 5678" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
-        <button type="submit" className="text-white text-[12px] font-medium rounded-[12px] px-4 py-2 bg-[#5264e8] cursor-pointer transition-colors">{account ? 'ذخیره تغییرات' : 'افزودن حساب'}</button>
+        <button type="submit" disabled={isSubmitting} className="text-white text-[12px] font-medium rounded-[12px] px-4 py-2 bg-[#5264e8] disabled:bg-[#aeb5f2] cursor-pointer disabled:cursor-wait transition-colors">{isSubmitting ? 'در حال ذخیره...' : account ? 'ذخیره تغییرات' : 'افزودن حساب'}</button>
       </form>
     </section>
   </div>;

@@ -1,5 +1,6 @@
 import { expireServerSession, loadServerToken } from '../authStorage';
 import { loadWalletAccounts, saveWalletAccounts } from '../walletStorage';
+import { getActiveStorageUserId } from '../userScopedStorage';
 import type { WalletAccount, WalletService } from './walletService';
 
 type BankAccountResponse = {
@@ -73,7 +74,10 @@ function toBankCode(bankName?: string): string | null {
 
 function authorizationHeaders(): HeadersInit {
   const token = loadServerToken();
-  if (!token) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  if (!token) {
+    expireServerSession();
+    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  }
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -97,70 +101,96 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 
 function toRequest(account: Omit<WalletAccount, 'id'>): BankAccountRequest {
   return {
-    bankCode: toBankCode(account.bankName),
+    bankCode: toBankCode(account.bankName) ?? account.bankCode ?? null,
     accountNumber: account.accountNumber ?? null,
     iban: account.shebaNumber ?? null,
     cardNumber: account.cardNumber ?? null,
     title: account.name || null,
-    isDefault: false,
+    isDefault: account.isDefault ?? false,
   };
 }
 
+function normalizeBankValue(value: string): string {
+  return value.toUpperCase().replace(/[X•]/g, '*').replace(/[^A-Z0-9*]/g, '');
+}
+
+function cachedValueMatchesMask(cachedValue: string, maskedValue: string): boolean {
+  const cached = normalizeBankValue(cachedValue);
+  const masked = normalizeBankValue(maskedValue);
+  if (!masked.includes('*')) return cached === masked;
+  if (masked.replace(/\*/g, '') === '') return false;
+  const pattern = masked.split(/\*+/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+  return new RegExp(`^${pattern}$`).test(cached);
+}
+
+function resolveBankValue(cachedValue: string | undefined, maskedValue: string | null): string | undefined {
+  if (!maskedValue) return undefined;
+  if (cachedValue && cachedValueMatchesMask(cachedValue, maskedValue)) return cachedValue;
+  return maskedValue;
+}
+
 function toWalletAccount(apiAccount: BankAccountResponse, cached?: WalletAccount): WalletAccount {
+  const bankCode = apiAccount.bankCode.toLowerCase();
+  let cachedBankNameMatches = false;
+  try {
+    cachedBankNameMatches = Boolean(cached?.bankName && toBankCode(cached.bankName) === bankCode);
+  } catch {
+    cachedBankNameMatches = false;
+  }
   return {
     id: apiAccount.id,
     name: apiAccount.title ?? 'حساب بانکی',
     balance: cached?.balance ?? 0,
-    bankName: cached?.bankName ?? bankNameByCode[apiAccount.bankCode.toLowerCase()] ?? apiAccount.bankCode,
-    cardNumber: cached?.cardNumber ?? apiAccount.cardNumberMasked ?? undefined,
-    accountNumber: cached?.accountNumber ?? apiAccount.accountNumberMasked ?? undefined,
-    shebaNumber: cached?.shebaNumber ?? apiAccount.ibanMasked ?? undefined,
+    bankName: cachedBankNameMatches ? cached?.bankName : bankNameByCode[bankCode] ?? apiAccount.bankCode,
+    bankCode,
+    isDefault: apiAccount.isDefault,
+    cardNumber: resolveBankValue(cached?.cardNumber, apiAccount.cardNumberMasked),
+    accountNumber: resolveBankValue(cached?.accountNumber, apiAccount.accountNumberMasked),
+    shebaNumber: resolveBankValue(cached?.shebaNumber, apiAccount.ibanMasked),
     cardPin1: cached?.cardPin1,
     cardPin2: cached?.cardPin2,
   };
 }
 
-async function listRemoteAccounts(): Promise<WalletAccount[]> {
-  const cached = loadWalletAccounts() ?? [];
+async function listRemoteAccounts(ownerId = getActiveStorageUserId()): Promise<WalletAccount[]> {
+  const cached = loadWalletAccounts(ownerId) ?? [];
   const localCash = cached.filter(account => account.name === 'نقدی');
   const remote = await request<BankAccountResponse[]>('/oracle/api/me/bank-accounts');
   const accounts = remote.map(account => toWalletAccount(account, cached.find(cachedAccount => cachedAccount.id === account.id)));
-  saveWalletAccounts([...localCash, ...accounts]);
+  saveWalletAccounts([...localCash, ...accounts], ownerId);
   return [...localCash, ...accounts];
 }
 
 function requireCachedDetails(account: WalletAccount): WalletAccount {
-  const hasMaskedValue = [account.cardNumber, account.accountNumber, account.shebaNumber].some(value => value?.includes('*'));
+  const hasMaskedValue = [account.cardNumber, account.accountNumber, account.shebaNumber].some(value => value && normalizeBankValue(value).includes('*'));
   if (hasMaskedValue) throw new Error('برای ویرایش این حساب، شماره‌های کامل را دوباره وارد کنید.');
   return account;
 }
 
 export const serverWalletService: WalletService = {
   async listAccounts() {
-    try {
-      return await listRemoteAccounts();
-    } catch (error) {
-      console.error('Failed to fetch bank accounts:', error);
-      return loadWalletAccounts();
-    }
+    const ownerId = getActiveStorageUserId();
+    return listRemoteAccounts(ownerId);
   },
 
   async addAccount(account) {
+    const ownerId = getActiveStorageUserId();
     if (account.name === 'نقدی') {
-      const current = loadWalletAccounts() ?? [];
+      const current = loadWalletAccounts(ownerId) ?? [];
       const next = [...current, { ...account, id: crypto.randomUUID() }];
-      saveWalletAccounts(next);
+      saveWalletAccounts(next, ownerId);
       return next;
     }
     const created = await request<BankAccountResponse>('/oracle/api/me/bank-accounts', { method: 'POST', body: JSON.stringify(toRequest(account)) });
-    const current = loadWalletAccounts() ?? [];
+    const current = loadWalletAccounts(ownerId) ?? [];
     const next = [...current.filter(item => item.id !== created.id), { ...account, id: created.id }];
-    saveWalletAccounts(next);
-    return listRemoteAccounts();
+    saveWalletAccounts(next, ownerId);
+    return listRemoteAccounts(ownerId);
   },
 
   async updateAccount(id, changes) {
-    const current = loadWalletAccounts() ?? [];
+    const ownerId = getActiveStorageUserId();
+    const current = loadWalletAccounts(ownerId) ?? [];
     const existing = current.find(account => account.id === id);
     if (!existing) throw new Error('حساب پیدا نشد');
     const updated = { ...existing, ...changes };
@@ -168,17 +198,18 @@ export const serverWalletService: WalletService = {
       await request<BankAccountResponse>(`/oracle/api/me/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(toRequest(requireCachedDetails(updated))) });
     }
     const next = current.map(account => account.id === id ? updated : account);
-    saveWalletAccounts(next);
-    return updated.name === 'نقدی' ? next : listRemoteAccounts();
+    saveWalletAccounts(next, ownerId);
+    return updated.name === 'نقدی' ? next : listRemoteAccounts(ownerId);
   },
 
   async deleteAccount(id) {
-    const current = loadWalletAccounts() ?? [];
+    const ownerId = getActiveStorageUserId();
+    const current = loadWalletAccounts(ownerId) ?? [];
     const existing = current.find(account => account.id === id);
     if (!existing) return current;
     if (existing.name !== 'نقدی') await request<void>(`/oracle/api/me/bank-accounts/${id}`, { method: 'DELETE' });
     const next = current.filter(account => account.id !== id);
-    saveWalletAccounts(next);
-    return existing.name === 'نقدی' ? next : listRemoteAccounts();
+    saveWalletAccounts(next, ownerId);
+    return existing.name === 'نقدی' ? next : listRemoteAccounts(ownerId);
   },
 };

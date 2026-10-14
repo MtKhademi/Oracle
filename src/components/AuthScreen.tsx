@@ -10,6 +10,7 @@ const labelClass = 'text-[11px] text-[#7a8097] grid gap-1';
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -22,11 +23,18 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
 
   const handleLoginSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const result = await authService.logIn({ identifier: loginIdentifier, password: loginPassword });
-    if (result.ok) {
-      onAuthenticated(result.user);
-    } else {
-      toast.error(result.error);
+    setIsSubmitting(true);
+    try {
+      const result = await authService.logIn({ identifier: loginIdentifier, password: loginPassword });
+      if (result.ok) {
+        onAuthenticated(result.user);
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error('ارتباط با سرویس ورود برقرار نشد');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -36,19 +44,26 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
       toast.error('رمز عبور و تکرارش یکسان نیستند');
       return;
     }
-    const result = await authService.signUp({
-      firstName: signupFirstName,
-      lastName: signupLastName,
-      email: '',
-      phone: signupPhone,
-      password: signupPassword,
-      confirmPassword: signupPasswordRepeat,
-    });
-    if (result.ok) {
-      toast.success('ثبت‌نام با موفقیت انجام شد');
-      onAuthenticated(result.user);
-    } else {
-      toast.error(result.error);
+    setIsSubmitting(true);
+    try {
+      const result = await authService.signUp({
+        firstName: signupFirstName,
+        lastName: signupLastName,
+        email: '',
+        phone: signupPhone,
+        password: signupPassword,
+        confirmPassword: signupPasswordRepeat,
+      });
+      if (result.ok) {
+        toast.success('ثبت‌نام با موفقیت انجام شد');
+        onAuthenticated(result.user);
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error('ارتباط با سرویس ثبت‌نام برقرار نشد');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -69,7 +84,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         <label className={labelClass}>رمز عبور
           <input type="password" name="password" id="login-password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className={inputClass} required />
         </label>
-        <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ورود</button>
+        <button type="submit" disabled={isSubmitting} className="bg-[#5264e8] disabled:bg-[#aeb5f2] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer disabled:cursor-wait">{isSubmitting ? 'در حال ورود...' : 'ورود'}</button>
         <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[11px] text-[#5264e8] justify-self-center cursor-pointer hover:underline">رمز عبور را فراموش کرده‌اید؟</button>
       </form> : <form onSubmit={handleSignupSubmit} className="grid gap-[10px]">
         <label className={labelClass}>نام
@@ -87,7 +102,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         <label className={labelClass}>تکرار رمز عبور
           <input type="password" name="passwordRepeat" id="signup-password-repeat" autoComplete="new-password" value={signupPasswordRepeat} onChange={e => setSignupPasswordRepeat(e.target.value)} className={inputClass} required />
         </label>
-        <button type="submit" className="bg-[#5264e8] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer">ثبت‌نام</button>
+        <button type="submit" disabled={isSubmitting} className="bg-[#5264e8] disabled:bg-[#aeb5f2] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer disabled:cursor-wait">{isSubmitting ? 'در حال ثبت‌نام...' : 'ثبت‌نام'}</button>
       </form>}
     </section>
     {isForgotOpen && <ForgotPasswordModal onClose={() => setIsForgotOpen(false)}/>}

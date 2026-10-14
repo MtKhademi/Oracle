@@ -56,7 +56,7 @@ export const serverAuthService: AuthService = {
       body: JSON.stringify({
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
-        mobileNumber: input.phone,
+        mobileNumber: input.phone.trim(),
         password: input.password,
         confirmPassword: input.confirmPassword,
       }),
@@ -89,7 +89,7 @@ export const serverAuthService: AuthService = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        emailOrPhone: input.identifier,
+        emailOrPhone: input.identifier.trim(),
         password: input.password,
       }),
     });
