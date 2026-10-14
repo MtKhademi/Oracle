@@ -19,6 +19,7 @@ export function RecordWalletTransactionModal({ account, onClose, onTransactionRe
   const [formAmount, setFormAmount] = useState('');
   const [formDate, setFormDate] = useState(todayLocalIso());
   const [formNote, setFormNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -35,6 +36,7 @@ export function RecordWalletTransactionModal({ account, onClose, onTransactionRe
       return;
     }
     const newBalance = formType === 'increase' ? account.balance + amount : formType === 'decrease' ? Math.max(0, account.balance - amount) : amount;
+    setIsSubmitting(true);
     try {
       await walletTransactionService.addTransaction({ accountId: account.id, type: formType, amount, date: formDate, note: formNote.trim() || undefined });
       const next = await walletService.updateAccount(account.id, { balance: newBalance });
@@ -43,6 +45,8 @@ export function RecordWalletTransactionModal({ account, onClose, onTransactionRe
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ثبت تراکنش انجام نشد');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -66,8 +70,8 @@ export function RecordWalletTransactionModal({ account, onClose, onTransactionRe
         <label className="text-[11px] text-[#7a8097] grid gap-1">یادداشت (اختیاری)
           <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
-        <button type="submit" className={`text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2 cursor-pointer transition-colors ${formType === 'increase' ? 'bg-[#1f9d55]' : formType === 'decrease' ? 'bg-[#d95050]' : 'bg-[#d7a144]'}`}>
-          {formType === 'increase' ? 'ثبت تراکنش افزایش' : formType === 'decrease' ? 'ثبت تراکنش کاهش' : 'ثبت تراکنش جایگذاری'}
+        <button type="submit" disabled={isSubmitting} className={`text-white text-[12px] font-medium rounded-[12px] px-4 py-2 min-[560px]:col-span-2 cursor-pointer disabled:cursor-wait disabled:opacity-60 transition-colors ${formType === 'increase' ? 'bg-[#1f9d55]' : formType === 'decrease' ? 'bg-[#d95050]' : 'bg-[#d7a144]'}`}>
+          {isSubmitting ? 'در حال ثبت...' : formType === 'increase' ? 'ثبت تراکنش افزایش' : formType === 'decrease' ? 'ثبت تراکنش کاهش' : 'ثبت تراکنش جایگذاری'}
         </button>
       </form>
     </section>

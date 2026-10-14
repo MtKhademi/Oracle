@@ -242,23 +242,27 @@ export default function App() {
   const [isHealthCheckInFlight, setIsHealthCheckInFlight] = useState(false);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
-  const walletLoadedForUserRef = useRef<string | null>(null);
+  const healthCheckRequestRef = useRef(0);
 
   const checkBackendHealth = useCallback(async () => {
+    const requestId = ++healthCheckRequestRef.current;
     setIsHealthCheckInFlight(true);
     try {
       const healthy = await isBackendHealthy();
-      if (!healthy) walletLoadedForUserRef.current = null;
+      if (requestId !== healthCheckRequestRef.current) return;
       setBackendStatus(healthy ? 'available' : 'unavailable');
     } finally {
-      setIsHealthCheckInFlight(false);
+      if (requestId === healthCheckRequestRef.current) setIsHealthCheckInFlight(false);
     }
   }, []);
 
   useEffect(() => {
     void checkBackendHealth();
     const interval = window.setInterval(() => { void checkBackendHealth(); }, 15000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      healthCheckRequestRef.current += 1;
+    };
   }, [checkBackendHealth]);
 
   useEffect(() => {
@@ -320,28 +324,37 @@ export default function App() {
   // fully locked in the UI (§6aj/§6ak): an owner who deleted it back then left
   // a stored array without it, which the old `null`-only check would never
   // repair; it is never re-added while it is present, so no duplicates ever
-  // form. The per-user ref dedupes the dev-only StrictMode double effect run
-  // and also permits a fresh load after the backend recovers or a user signs
-  // in again.
+  // form. Cleanup guards prevent a late response for an old user or an
+  // unmounted StrictMode effect from overwriting the active user's state.
   useEffect(() => {
     if (backendStatus !== 'available' || !currentUser) {
       if (!currentUser) {
-        walletLoadedForUserRef.current = null;
         setWalletAccounts(null);
       }
       return;
     }
-    if (walletLoadedForUserRef.current === currentUser.id) return;
-    walletLoadedForUserRef.current = currentUser.id;
-    walletService.listAccounts().then(async stored => {
-      const current = stored ?? [];
-      const hasDefaultCashAccount = current.some(account => account.name === 'نقدی');
-      if (!hasDefaultCashAccount) {
-        setWalletAccounts(await walletService.addAccount({ name: 'نقدی', balance: 0 }));
-        return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stored = await walletService.listAccounts();
+        if (cancelled) return;
+        const current = stored ?? [];
+        const hasDefaultCashAccount = current.some(account => account.name === 'نقدی');
+        if (!hasDefaultCashAccount) {
+          const next = await walletService.addAccount({ name: 'نقدی', balance: 0 });
+          if (!cancelled) {
+            setWalletAccounts(next);
+          }
+          return;
+        }
+        setWalletAccounts(current);
+      } catch (error) {
+        if (cancelled) return;
+        setWalletAccounts([]);
+        toast.error(error instanceof Error ? error.message : 'دریافت حساب‌ها انجام نشد');
       }
-      setWalletAccounts(current);
-    });
+    })();
+    return () => { cancelled = true; };
   }, [backendStatus, currentUser]);
 
   useEffect(() => {
@@ -349,10 +362,18 @@ export default function App() {
       if (!currentUser) setItems([]);
       return;
     }
-    assetService.listAssets().then(stored => {
-      setItems(stored ?? []);
-    });
+    let cancelled = false;
+    void assetService.listAssets()
+      .then(stored => { if (!cancelled) setItems(stored ?? []); })
+      .catch(error => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : 'دریافت دارایی‌ها انجام نشد');
+      });
+    return () => { cancelled = true; };
   }, [backendStatus, currentUser]);
+
+  useEffect(() => {
+    lastSnapshotDateRef.current = null;
+  }, [currentUser?.id]);
 
   const handleLogout = async () => {
     await authService.logOut();
@@ -518,7 +539,7 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total + walletTotal} count={items.length} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('investment')}/>
+        <SummaryCard total={total + walletTotal} count={items.length} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('wallet')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'investment' ? 'دارایی‌های من' : activeSectionTab === 'wallet' ? 'کیف پول' : 'چشم بازار'}>

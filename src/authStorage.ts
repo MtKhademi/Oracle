@@ -128,5 +128,6 @@ export function saveServerExpiresAt(expiresAt: string): void {
 export function isServerSessionExpired(): boolean {
   const expiresAt = loadServerExpiresAt();
   if (!expiresAt) return true;
-  return new Date(expiresAt).getTime() <= Date.now();
+  const expiresAtTime = new Date(expiresAt).getTime();
+  return !Number.isFinite(expiresAtTime) || expiresAtTime <= Date.now();
 }

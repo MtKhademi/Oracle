@@ -14,7 +14,10 @@ type MeResponse = {
 
 function authorizationHeaders(): HeadersInit {
   const token = loadServerToken();
-  if (!token) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  if (!token) {
+    expireServerSession();
+    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  }
   return { Authorization: `Bearer ${token}` };
 }
 

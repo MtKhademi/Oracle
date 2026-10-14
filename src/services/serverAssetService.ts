@@ -28,7 +28,10 @@ type UserAssetResponse = {
 
 function authorizationHeaders(): HeadersInit {
   const token = loadServerToken();
-  if (!token) throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  if (!token) {
+    expireServerSession();
+    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
+  }
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -81,12 +84,7 @@ async function listUserAssets(): Promise<Asset[]> {
 
 export const serverAssetService: AssetService = {
   async listAssets() {
-    try {
-      return await listUserAssets();
-    } catch (error) {
-      console.error('Failed to fetch user assets:', error);
-      return null;
-    }
+    return listUserAssets();
   },
 
   async addAsset(asset) {

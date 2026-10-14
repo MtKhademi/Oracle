@@ -1,10 +1,11 @@
 import type { Asset } from './assets';
+import { getUserScopedStorageKey } from './userScopedStorage';
 
 const STORAGE_KEY = 'oracle_assets_v1';
 
 export function loadAssets(): Asset[] | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getUserScopedStorageKey(STORAGE_KEY));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : null;
@@ -15,7 +16,7 @@ export function loadAssets(): Asset[] | null {
 
 export function saveAssets(assets: Asset[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
+    localStorage.setItem(getUserScopedStorageKey(STORAGE_KEY), JSON.stringify(assets));
   } catch {
     // storage blocked or full — ignore, in-memory state still works
   }
@@ -31,7 +32,7 @@ const MARKET_WATCHLIST_STORAGE_KEY = 'oracle_market_watchlist_v1';
 // explicit empty watchlist.
 export function loadWatchedMarketItemIds(): string[] | null {
   try {
-    const raw = localStorage.getItem(MARKET_WATCHLIST_STORAGE_KEY);
+    const raw = localStorage.getItem(getUserScopedStorageKey(MARKET_WATCHLIST_STORAGE_KEY));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : null;
@@ -42,7 +43,7 @@ export function loadWatchedMarketItemIds(): string[] | null {
 
 export function saveWatchedMarketItemIds(ids: string[]): void {
   try {
-    localStorage.setItem(MARKET_WATCHLIST_STORAGE_KEY, JSON.stringify(ids));
+    localStorage.setItem(getUserScopedStorageKey(MARKET_WATCHLIST_STORAGE_KEY), JSON.stringify(ids));
   } catch {
     // storage blocked or full — ignore, in-memory state still works
   }
