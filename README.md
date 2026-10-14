@@ -1,5 +1,7 @@
 # Oracle
 
+Authentication uses the Oracle backend in both development and production. Vite proxies the relative `/iam` paths during development, and the production Nginx container proxies them to the `api` service.
+
 See TASK-WORKFLOW.md for the required step-by-step process to follow for every task.
 
 A simple single-page React app for displaying assets, suitable for both mobile and desktop browsers. Light color scheme — blue and white — based on the reference images.
