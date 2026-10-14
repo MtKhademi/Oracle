@@ -1,15 +1,9 @@
 import { expireServerSession, loadServerToken } from '../authStorage';
+import { loadWatchedMarketItemIds } from '../storage';
+import { loadCatalog, type CatalogAsset } from './assetCatalog';
 import type { LivePriceQuote, LivePrices, PriceService } from './priceService';
 
 const REFRESH_INTERVAL_MS = 60000;
-
-// The price API currently persists TGJU's provider symbol, while the asset
-// catalog uses GOLD18. Keep that boundary explicit until the backend exposes
-// one canonical symbol in both contracts.
-const requestedProviderSymbols = ['geram18'] as const;
-const assetSymbolByProviderSymbol: Readonly<Record<string, string>> = {
-  geram18: 'GOLD18',
-};
 
 type MarketPriceResponse = {
   symbol: string;
@@ -43,15 +37,15 @@ function parseTimestamp(value: string, fieldName: string): number {
   return timestamp;
 }
 
-function toQuote(response: MarketPriceResponse): LivePriceQuote | null {
-  const providerSymbol = response.symbol.trim().toLowerCase();
-  const assetSymbol = assetSymbolByProviderSymbol[providerSymbol];
-  if (!assetSymbol) return null;
+function toQuote(response: MarketPriceResponse, catalogBySymbol: ReadonlyMap<string, CatalogAsset>): LivePriceQuote | null {
+  const providerSymbol = response.symbol.trim();
+  const catalogAsset = catalogBySymbol.get(providerSymbol.toUpperCase());
+  if (!catalogAsset) return null;
   const numericPrice = Number(response.price);
   if (!Number.isFinite(numericPrice) || numericPrice < 0) throw new Error('قیمت نامعتبر از سرور دریافت شد');
   return {
-    assetSymbol,
-    providerSymbol,
+    assetSymbol: catalogAsset.symbol,
+    providerSymbol: providerSymbol.toLowerCase(),
     priceToman: toToman(numericPrice, response.currency),
     unit: response.unit,
     source: response.source,
@@ -67,7 +61,15 @@ async function fetchPrices(): Promise<LivePrices> {
     throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
   }
 
-  const query = new URLSearchParams({ symbols: requestedProviderSymbols.join(',') });
+  const catalog = await loadCatalog();
+  const catalogBySymbol = new Map(catalog.map(asset => [asset.symbol.toUpperCase(), asset]));
+  const watchedIds = loadWatchedMarketItemIds() ?? catalog.map(asset => asset.symbol);
+  const requestedSymbols = watchedIds
+    .map(id => catalog.find(asset => asset.id === id || asset.symbol === id)?.symbol)
+    .filter((symbol): symbol is string => Boolean(symbol));
+  if (requestedSymbols.length === 0) return { quotes: {}, updatedAt: null };
+
+  const query = new URLSearchParams({ symbols: requestedSymbols.join(',') });
   const response = await fetch(`/oracle/api/market/prices?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -82,10 +84,9 @@ async function fetchPrices(): Promise<LivePrices> {
 
   const data = await response.json() as MarketPriceResponse[];
   if (!Array.isArray(data)) throw new Error('پاسخ قیمت‌های لحظه‌ای نامعتبر است');
-  const quotes = data.map(toQuote).filter((quote): quote is LivePriceQuote => quote !== null);
-  if (quotes.length === 0) throw new Error('سرور برای نمادهای پشتیبانی‌شده قیمتی برنگرداند');
+  const quotes = data.map(response => toQuote(response, catalogBySymbol)).filter((quote): quote is LivePriceQuote => quote !== null);
   const bySymbol = Object.fromEntries(quotes.map(quote => [quote.assetSymbol, quote]));
-  return { quotes: bySymbol, updatedAt: Math.max(...quotes.map(quote => quote.observedAt)) };
+  return { quotes: bySymbol, updatedAt: quotes.length > 0 ? Math.max(...quotes.map(quote => quote.observedAt)) : null };
 }
 
 function notifySubscribers(prices: LivePrices) {
