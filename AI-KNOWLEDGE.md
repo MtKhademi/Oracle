@@ -4461,6 +4461,8 @@ creates a different browser origin; existing assets and profile data in
 - `authService` always selects `serverAuthService`, including production builds. The previous production-only localStorage simulation could show duplicate-registration errors without sending any request to the backend.
 - Production Nginx already proxies `/iam/` to the Atlas `api:8080` service, so the relative auth URLs work on the deployed frontend.
 
+- `profileService` always selects `serverProfileService`, and `walletService` always selects `serverWalletService`, including production builds. Their relative `/iam` and `/oracle` requests are handled by the production Nginx proxy.
+
 ## 6bm. Server-backed live market prices
 
 - The authenticated backend contract is `GET /oracle/api/market/prices?symbols=<comma-separated catalog symbols>`. Each quote contains its symbol, decimal price, currency, unit, source, `priceChangedAtUtc`, and `lastObservedAtUtc`; an empty symbol list is invalid, 404 means no persisted quote, and 401 expires the UI session.

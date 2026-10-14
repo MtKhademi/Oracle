@@ -2,6 +2,8 @@
 
 Authentication uses the Oracle backend in both development and production. Vite proxies the relative `/iam` paths during development, and the production Nginx container proxies them to the `api` service.
 
+Profile data and bank-account identity/details also use the backend in both environments. Wallet balances, PIN reminders, transaction histories, portfolio history and the personal market watchlist remain browser-local because the backend does not expose contracts for those datasets.
+
 See TASK-WORKFLOW.md for the required step-by-step process to follow for every task.
 
 A simple single-page React app for displaying assets, suitable for both mobile and desktop browsers. Light color scheme — blue and white — based on the reference images.
