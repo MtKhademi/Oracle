@@ -150,6 +150,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/authStorage.ts` | Stores local users/session plus the development server session. `loadServerUser`/`saveServerUser` persist the mapped user under `oracle_server_session_v1`; separate keys hold the JWT and expiry; `clearSession()` clears both local and server session keys. |
 | `src/services/authService.ts` | Defines `AuthService`; development uses `serverAuthService` and production retains `localAuthService` (see §6bb). |
 | `src/services/serverAuthService.ts` | Development auth client reached through Vite's proxy to `http://localhost:5000`: register sends all five required fields to `POST /api/auth/register`; login uses `POST /api/auth/login`; the mapped user, JWT and expiry persist until expiry/logout. |
+| `src/services/backendHealthService.ts` | Checks `GET /health` with `cache: 'no-store'` and a three-second timeout; only `{ status: 'ok' }` is accepted as a healthy Oracle backend. |
+| `src/components/BackendUnavailableScreen.tsx` | Full-page recovery state shown while the backend health check fails; explains the connection issue and exposes a retry action. |
 | `src/services/localAuthService.ts` | Browser-local auth used by production builds and as an offline fallback (see §6bb). |
 | `src/styles.css` | Single line: `@import "tailwindcss";` (Tailwind v4 entry, no config file). |
 | `vite.config.ts` | Registers the `@tailwindcss/vite` plugin. |
@@ -4439,6 +4441,13 @@ creates a different browser origin; existing assets and profile data in
 
 - `authStorage.expireServerSession()` is the single path for a missing/expired server token and for HTTP 401 from authenticated API calls. It clears the persisted server session and dispatches one browser event, deduplicated until the next successful login stores a token.
 - The server asset, wallet, profile and market-catalog services all call that path for 401. `App.tsx` listens for the event, closes authenticated overlays, clears the in-memory signed-in user and shows `نشست شما منقضی یا نامعتبر شده است. دوباره وارد شوید.`; the normal auth gate then renders the login screen.
+
+## 6bk. Backend health gate
+
+- `App.tsx` checks `GET /health` before loading protected app data. A health response is valid only when it is a successful JSON response with `{ status: 'ok' }`; network errors, non-2xx responses, invalid JSON and responses taking longer than three seconds all enter the unavailable state.
+- `BackendUnavailableScreen` replaces the application UI while unavailable, with a clear Persian explanation and a retry button. The health check repeats every 15 seconds, so a recovered backend returns the user to the normal auth/app flow without a browser reload.
+- Vite proxies `/health` to the same dynamically selected backend origin as `/iam` and `/oracle`, including the office/WSL routing logic in `scripts/dev.mjs`.
+- Protected wallet and asset data load only after both health confirmation and a signed-in user are available; a health recovery reloads the active user's data rather than retaining a stale pre-outage view.
 
 ## 6bf. WSL-aware development API proxy
 
