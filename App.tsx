@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { type Asset } from './src/assets';
@@ -6,6 +6,7 @@ import { assetService, type ImportEffectiveType, type ImportMode, type ImportRow
 import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } from './src/services/assetCatalog';
 import { authService } from './src/services/authService';
 import { SERVER_SESSION_EXPIRED_EVENT } from './src/authStorage';
+import { isBackendHealthy } from './src/services/backendHealthService';
 import { transactionService } from './src/services/transactionService';
 import { walletService, type WalletAccount } from './src/services/walletService';
 import type { TransactionType } from './src/types/transaction';
@@ -17,6 +18,7 @@ import { ImportModal } from './src/components/ImportModal';
 import { AssetRow } from './src/components/AssetRow';
 import type { AssetSortMode } from './src/components/AssetSortMenu';
 import { AuthScreen } from './src/components/AuthScreen';
+import { BackendUnavailableScreen } from './src/components/BackendUnavailableScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
 import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
@@ -236,9 +238,28 @@ export default function App() {
   const [sortMode, setSortMode] = useState<AssetSortMode>(readStoredSortMode);
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(readStoredBalanceHidden);
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[] | null>(null);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [isHealthCheckInFlight, setIsHealthCheckInFlight] = useState(false);
   const prices = useLivePrices();
   const lastSnapshotDateRef = useRef<string | null>(null);
-  const walletSeededRef = useRef(false);
+  const walletLoadedForUserRef = useRef<string | null>(null);
+
+  const checkBackendHealth = useCallback(async () => {
+    setIsHealthCheckInFlight(true);
+    try {
+      const healthy = await isBackendHealthy();
+      if (!healthy) walletLoadedForUserRef.current = null;
+      setBackendStatus(healthy ? 'available' : 'unavailable');
+    } finally {
+      setIsHealthCheckInFlight(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkBackendHealth();
+    const interval = window.setInterval(() => { void checkBackendHealth(); }, 15000);
+    return () => window.clearInterval(interval);
+  }, [checkBackendHealth]);
 
   useEffect(() => {
     const handleServerSessionExpiry = () => {
@@ -299,12 +320,19 @@ export default function App() {
   // fully locked in the UI (§6aj/§6ak): an owner who deleted it back then left
   // a stored array without it, which the old `null`-only check would never
   // repair; it is never re-added while it is present, so no duplicates ever
-  // form. The ref dedupes the dev-only StrictMode double effect run (without
-  // it both runs would seed before either write lands, so a fresh browser
-  // would get two "نقدی" accounts).
+  // form. The per-user ref dedupes the dev-only StrictMode double effect run
+  // and also permits a fresh load after the backend recovers or a user signs
+  // in again.
   useEffect(() => {
-    if (walletSeededRef.current) return;
-    walletSeededRef.current = true;
+    if (backendStatus !== 'available' || !currentUser) {
+      if (!currentUser) {
+        walletLoadedForUserRef.current = null;
+        setWalletAccounts(null);
+      }
+      return;
+    }
+    if (walletLoadedForUserRef.current === currentUser.id) return;
+    walletLoadedForUserRef.current = currentUser.id;
     walletService.listAccounts().then(async stored => {
       const current = stored ?? [];
       const hasDefaultCashAccount = current.some(account => account.name === 'نقدی');
@@ -314,13 +342,17 @@ export default function App() {
       }
       setWalletAccounts(current);
     });
-  }, []);
+  }, [backendStatus, currentUser]);
 
   useEffect(() => {
+    if (backendStatus !== 'available' || !currentUser) {
+      if (!currentUser) setItems([]);
+      return;
+    }
     assetService.listAssets().then(stored => {
       setItems(stored ?? []);
     });
-  }, []);
+  }, [backendStatus, currentUser]);
 
   const handleLogout = async () => {
     await authService.logOut();
@@ -457,6 +489,14 @@ export default function App() {
       toast.error(error instanceof Error ? error.message : 'ایمپورت دارایی انجام نشد');
     }
   };
+
+  if (backendStatus === 'checking') {
+    return <div className="min-h-screen bg-[#f5f6fb] grid place-items-center"><span className="text-[13px] text-[#969eb2]">در حال بررسی اتصال به بک‌اند...</span></div>;
+  }
+
+  if (backendStatus === 'unavailable') {
+    return <BackendUnavailableScreen isChecking={isHealthCheckInFlight} onRetry={() => { void checkBackendHealth(); }}/>;
+  }
 
   if (!isAuthChecked) {
     return <div className="min-h-screen bg-[#f5f6fb] grid place-items-center"><span className="text-[13px] text-[#969eb2]">در حال بارگذاری...</span></div>;
