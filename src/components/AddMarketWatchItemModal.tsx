@@ -7,8 +7,7 @@ import { CloseIcon } from './icons';
 // AddAssetModal.tsx (backdrop + centered card + CloseIcon + heading), holding
 // a searchable, category-grouped list built the same way AssetPicker.tsx
 // filters/groups the asset catalog, but reading from
-// marketWatchService.getAllItems() (the static 14-item catalog, not the
-// live-jittered snapshot) and excluding ids already in the current
+// marketWatchService.getAllItems() (the server catalog) and excluding ids already in the current
 // watchlist. Unlike AssetPicker, this list has no separate floating
 // dropdown panel to protect from the modal's own backdrop-click-to-close —
 // it IS the modal's whole body — so it doesn't need AssetPicker's

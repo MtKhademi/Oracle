@@ -80,7 +80,7 @@ export function SelectAssetForTransactionModal({ items, prices, onClose, onSelec
   const pickCatalogAsset = async (catalogAsset: CatalogAsset) => {
     if (pendingSymbol) return;
     // Quantity 0 on purpose — the very next step is a خرید (buy) transaction
-    // that sets the real amount/price. Unit price defaults to the live mock
+    // that sets the real amount/price. Unit price defaults to the live server
     // rate when livePriceMapping.ts knows this symbol (GOLD18/USDT) via
     // getEffectiveUnitPrice (the same source AssetRow/the total use), else
     // stays 0 — no separate price lookup invented.

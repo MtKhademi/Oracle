@@ -240,7 +240,7 @@ export default function App() {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[] | null>(null);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [isHealthCheckInFlight, setIsHealthCheckInFlight] = useState(false);
-  const prices = useLivePrices();
+  const prices = useLivePrices(backendStatus === 'available' && currentUser !== null);
   const lastSnapshotDateRef = useRef<string | null>(null);
   const healthCheckRequestRef = useRef(0);
 
@@ -400,13 +400,14 @@ export default function App() {
   // ready — guarded by a ref so it only re-runs when the calendar date
   // changes (or on first run this session), not on every 60s price tick.
   useEffect(() => {
-    if (prices === null || total <= 0) return;
+    const usdToman = prices?.quotes.USD?.priceToman ?? prices?.quotes.USDT?.priceToman;
+    const goldGramToman = prices?.quotes.GOLD18?.priceToman;
+    if (!usdToman || !goldGramToman || total <= 0) return;
     const today = new Date().toISOString().slice(0, 10);
     if (lastSnapshotDateRef.current === today) return;
     lastSnapshotDateRef.current = today;
     (async () => {
-      await portfolioHistoryService.seedMockHistoryIfEmpty(total, prices.usdToman, prices.goldGramToman);
-      await portfolioHistoryService.recordSnapshotIfNeeded(total, prices.usdToman, prices.goldGramToman);
+      await portfolioHistoryService.recordSnapshotIfNeeded(total, usdToman, goldGramToman);
       setHistoryVersion(v => v + 1);
     })();
   }, [total, prices]);
