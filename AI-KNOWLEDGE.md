@@ -4462,6 +4462,8 @@ creates a different browser origin; existing assets and profile data in
 ## 6bf. WSL-aware development API proxy
 
 - `scripts/dev.mjs` is the `npm run dev` entrypoint: it probes the office Oracle API at `10.1.111.8:5000/health` with an 800ms timeout and sets `VITE_API_PROXY_TARGET` only if that origin responds successfully. This means the same command uses the office API at work and does not retain that IP at home. `vite.config.ts` routes `/iam` and `/oracle` to `VITE_API_PROXY_TARGET` when supplied; an explicit ignored `.env.local` remains available for exceptional routes (the committed `.env.example` documents it). Otherwise, when Vite runs under WSL, it reads the dynamic Windows-host gateway from `/etc/resolv.conf` and targets that host on port 5000; native development continues to target `127.0.0.1:5000`.
+- `scripts/dev-home.mjs` is the isolated `npm run dev:home` entrypoint. It reads the ignored `.env.home` file and sets `VITE_API_PROXY_TARGET` directly, without probing or selecting the office API. `.env.home.example` documents the home LAN target and is safe to commit because it contains no credentials.
+- `scripts/dev.mjs` gives an explicit `VITE_API_PROXY_TARGET` in the ignored `.env.local` file precedence over office detection. This is the preferred per-machine override: `npm run dev` works unchanged at home, while the local target and any private values stay out of Git.
 - For the WSL route to work, the Windows-host backend must bind an externally reachable address such as `0.0.0.0:5000`; a Kestrel listener limited to `localhost:5000` rejects connections arriving at the WSL gateway.
 
 ## 12. Agent playbook (how to progress this app)

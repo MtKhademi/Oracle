@@ -27,6 +27,8 @@ In development, bank-account identity and shareable details use `GET/POST/PUT/DE
 
 When Vite runs inside WSL while the Oracle backend runs on Windows, the backend must listen on an externally reachable interface (for example, `ASPNETCORE_URLS=http://0.0.0.0:5000`), not only `localhost`. `npm run dev` checks the office Oracle API at `10.1.111.8:5000` with a short timeout and uses it only when it is reachable; elsewhere it falls back to WSL's current Windows-host gateway from `/etc/resolv.conf`. For another exceptional route, copy `.env.example` to the ignored `.env.local` and set `VITE_API_PROXY_TARGET`; do not add that local file or any credentials to Git.
 
+For a machine-specific route such as home development, copy `.env.example` to `.env.local`, set `VITE_API_PROXY_TARGET` to the local API address (for example, `http://192.168.1.10:5000`), and run the normal `npm run dev`. When `.env.local` contains this setting, it takes precedence and the office API is not probed. `.env.local` is ignored by Git and must never be committed. The optional `npm run dev:home` command remains available for the separate `.env.home` workflow.
+
 ```sh
 npm run build
 npm run preview
