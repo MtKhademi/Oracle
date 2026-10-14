@@ -4456,6 +4456,11 @@ creates a different browser origin; existing assets and profile data in
 - Bank-account cache reconciliation preserves a full local number only when it matches the latest server mask. Remote changes therefore surface as the new masked value, while `bankCode` and `isDefault` are retained across edits instead of silently clearing backend metadata.
 - Protected services treat a missing token like an unauthorized response and dispatch the same session-expiry event. Invalid expiry timestamps are expired instead of being accepted, and asset/bank initial-load failures are surfaced rather than silently converting failed requests into sample or stale data.
 
+## 6bn. Production server-backed authentication
+
+- `authService` always selects `serverAuthService`, including production builds. The previous production-only localStorage simulation could show duplicate-registration errors without sending any request to the backend.
+- Production Nginx already proxies `/iam/` to the Atlas `api:8080` service, so the relative auth URLs work on the deployed frontend.
+
 ## 6bm. Server-backed live market prices
 
 - The authenticated backend contract is `GET /oracle/api/market/prices?symbols=<comma-separated catalog symbols>`. Each quote contains its symbol, decimal price, currency, unit, source, `priceChangedAtUtc`, and `lastObservedAtUtc`; an empty symbol list is invalid, 404 means no persisted quote, and 401 expires the UI session.
