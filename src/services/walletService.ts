@@ -1,4 +1,3 @@
-import { localWalletService } from './localWalletService';
 import { serverWalletService } from './serverWalletService';
 
 // One cash/bank account tracked on the "کیف پول" tab — e.g. "نقد", "کارت
@@ -25,7 +24,7 @@ export interface WalletService {
   deleteAccount(id: string): Promise<WalletAccount[]>;
 }
 
-// Bank-account identity/details use the Oracle API during local development.
+// Bank-account identity/details use the Oracle API in every environment.
 // Balances, PIN reminders, and transaction history have no server contract yet
 // and remain browser-local through the same WalletAccount cache.
-export const walletService: WalletService = import.meta.env.DEV ? serverWalletService : localWalletService;
+export const walletService: WalletService = serverWalletService;
