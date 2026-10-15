@@ -7,7 +7,7 @@ Keep it current whenever behavior, structure, or decisions change.
 - **App name / brand:** `Oracle`
 - **Owner (approver):** `MtKhademi` (GitHub)
 - **Admin (day-to-day maintainer):** the AI agent working in this repo
-- **Working model:** owner + agent only; changes go through a branch + PR
+- **Working model:** owner + agent only; queued tasks run directly on a clean, updated `main`, are tested by the owner before commit, and are committed/pushed only after explicit acceptance
 
 ---
 
@@ -4276,7 +4276,7 @@ npm run typecheck      # tsc --noEmit
 
 **Run `npm run build` before delivering any change** (typecheck + bundle must pass).
 
-Production deploy: after the PR is merged into `main`, pushing a new `release-*`
+Production deploy: after an accepted change is committed to `main`, pushing a new `release-*`
 tag triggers `.github/workflows/deploy.yml`. The runner builds
 `oracle:<release-tag>` from the multi-stage `Dockerfile` (Node.js 22 build,
 Nginx runtime), pipes `docker save` over SSH to
@@ -4301,7 +4301,7 @@ creates a different browser origin; existing assets and profile data in
 ## 10. Repository state
 
 - Remote: `https://github.com/MtKhademi/Oracle.git` (renamed from `Darayi`; old URL redirects).
-- Branch: `main` (default). Non-trivial changes: feature branch → PR → merge.
+- Branch: `main` (default). Queued solo changes are implemented directly on a clean, updated `main`, tested by the owner before commit, then pushed without force after acceptance.
 - `.gitignore` excludes `node_modules/`, `dist/`, `.expo/`, `android/`, `ios/`, keystores,
   `.env*` (keeps `.env.example`), `*.xlsx/csv`, logs.
 - Git history (oldest → newest): initial → offline Excel asset manager (Expo) →
@@ -4311,6 +4311,7 @@ creates a different browser origin; existing assets and profile data in
 
 | Date | Decision |
 | ---- | -------- |
+| 2026-10-15 | Owner simplified solo delivery: queued tasks now run directly on a clean, updated `main`; automated checks and owner behavior testing happen before commit, and accepted work is committed/pushed without force. Task branches and routine PRs are no longer required while only the owner and agent are contributing. |
 | 2026-09-23 | Replaced the Expo native app with a plain React + Vite web overview. |
 | 2026-09-23 | Renamed project **Darayi → Oracle** (package name, docs, UI brand); kept Persian "asset" copy. |
 | 2026-09-23 | Established single-agent governance: AI agent is admin, owner approves via PR. |
@@ -4485,7 +4486,7 @@ For every change:
    it must be explicitly requested by the owner.
 3. Make the **minimal** edit; follow existing style (no comments unless asked).
 4. `npm run build` must pass.
-5. Branch + commit (clear message) + push + open a PR to `main`. Update this file
+5. Work on a clean, updated `main`; after build and owner behavior acceptance, commit with a clear message and push `main` without force. Update this file
    and `AGENTS.md`/`README.md` if behavior/structure/decisions changed.
 
 ## 13. Candidate next steps (NOT approved — needs owner request)

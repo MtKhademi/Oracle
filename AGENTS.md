@@ -17,5 +17,5 @@ For queued work, `/task-run` uses `docs/tasks/tasks.md` and requires the sibling
 
 - Owner (approver): MtKhademi (GitHub).
 - Admin (maintainer): the AI agent working in this repo, alongside the owner.
-- Progress this app only with the owner; non-trivial changes go via a branch + PR to `main`.
+- Progress this app only with the owner. For queued solo development, work directly on a clean, updated `main`, leave the feature running for owner testing, and commit/push only after explicit acceptance. Never force-push.
 - Keep AI-KNOWLEDGE.md current whenever behavior, structure, or decisions change.
