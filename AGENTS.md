@@ -2,6 +2,7 @@
 
 See TASK-WORKFLOW.md for the required step-by-step process to follow for every task.
 Follow `.claude/skills/task-workflow/SKILL.md` for how to execute every task.
+For queued work, `/task-run` uses `docs/tasks/tasks.md` and requires the sibling repositories `../Atlas` and `../Atlas.Admin` before it may start.
 
 - Plain React + TypeScript + Vite web app. Persian RTL; responsive mobile and desktop.
 - Work in one agent. Read README.md and src/assets.ts before changing behavior.
