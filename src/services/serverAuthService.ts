@@ -13,6 +13,7 @@ import {
 
 // Relative URL — Vite proxies `/api` to http://localhost:5000 in development.
 const API_BASE = '';
+const ORACLE_PRODUCT_KEY = 'oracle';
 
 function serverUserToAppUser(
   serverUser: { id: string; email: string | null; displayName: string },
@@ -59,6 +60,7 @@ export const serverAuthService: AuthService = {
         mobileNumber: input.phone.trim(),
         password: input.password,
         confirmPassword: input.confirmPassword,
+        productKey: ORACLE_PRODUCT_KEY,
       }),
     });
 

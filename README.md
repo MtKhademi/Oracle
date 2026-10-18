@@ -1,5 +1,7 @@
 # Oracle
 
+Registration explicitly requests the allowlisted Oracle product context (`productKey: "oracle"`) from the backend; login continues to use the backend-issued authorization claims.
+
 Authentication uses the Oracle backend in both development and production. Vite proxies the relative `/iam` paths during development, and the production Nginx container proxies them to the `api` service.
 
 Profile data and bank-account identity/details also use the backend in both environments. Wallet balances, PIN reminders, transaction histories, portfolio history and the personal market watchlist remain browser-local because the backend does not expose contracts for those datasets.
