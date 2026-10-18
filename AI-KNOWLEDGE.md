@@ -146,6 +146,8 @@ RTL via `<html lang="fa" dir="rtl">`. Numbers formatted with `Intl.NumberFormat(
 | `src/authStorage.ts` | Stores local users/session plus the development server session. `loadServerUser`/`saveServerUser` persist the mapped user under `oracle_server_session_v1`; separate keys hold the JWT and expiry; `clearSession()` clears both local and server session keys. |
 | `src/services/authService.ts` | Defines `AuthService`; development uses `serverAuthService` and production retains `localAuthService` (see §6bb). |
 | `src/services/serverAuthService.ts` | Auth client reached through Vite's proxy: register sends the required fields plus `productKey: "oracle"` to `POST /iam/api/auth/register`; login uses `POST /iam/api/auth/login`; the mapped user, JWT and expiry persist until expiry/logout. |
+| `src/services/oracleAccessService.ts` | Authenticated Oracle bootstrap check for `GET /oracle/api/access/me`; `401` expires the server session, while `403` is surfaced as missing Oracle access. |
+| `src/components/OracleAccessDeniedScreen.tsx` | Persian access-denied state shown after authentication when the account lacks active Oracle product access. |
 | `src/services/backendHealthService.ts` | Checks `GET /health` with `cache: 'no-store'` and a three-second timeout; only `{ status: 'ok' }` is accepted as a healthy Oracle backend. |
 | `src/components/BackendUnavailableScreen.tsx` | Full-page recovery state shown while the backend health check fails; explains the connection issue and exposes a retry action. |
 | `src/services/localAuthService.ts` | Browser-local auth used by production builds and as an offline fallback (see §6bb). |

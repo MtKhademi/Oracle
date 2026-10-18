@@ -7,6 +7,7 @@ import { getAssetIconForCatalogEntry, getCatalogAssetBySymbol, getUnitLabel } fr
 import { authService } from './src/services/authService';
 import { SERVER_SESSION_EXPIRED_EVENT } from './src/authStorage';
 import { isBackendHealthy } from './src/services/backendHealthService';
+import { checkOracleAccess } from './src/services/oracleAccessService';
 import { transactionService } from './src/services/transactionService';
 import { walletService, type WalletAccount } from './src/services/walletService';
 import type { TransactionType } from './src/types/transaction';
@@ -19,6 +20,7 @@ import { AssetRow } from './src/components/AssetRow';
 import type { AssetSortMode } from './src/components/AssetSortMenu';
 import { AuthScreen } from './src/components/AuthScreen';
 import { BackendUnavailableScreen } from './src/components/BackendUnavailableScreen';
+import { OracleAccessDeniedScreen } from './src/components/OracleAccessDeniedScreen';
 import { MarketWatchList } from './src/components/MarketWatchList';
 import { PortfolioTrendChart } from './src/components/PortfolioTrendChart';
 import { TransactionHistoryModal } from './src/components/TransactionHistoryModal';
@@ -240,6 +242,7 @@ export default function App() {
   const [walletAccounts, setWalletAccounts] = useState<WalletAccount[] | null>(null);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [isHealthCheckInFlight, setIsHealthCheckInFlight] = useState(false);
+  const [oracleAccessStatus, setOracleAccessStatus] = useState<'unchecked' | 'checking' | 'granted' | 'denied'>('unchecked');
   const prices = useLivePrices(backendStatus === 'available' && currentUser !== null);
   const lastSnapshotDateRef = useRef<string | null>(null);
   const healthCheckRequestRef = useRef(0);
@@ -268,6 +271,7 @@ export default function App() {
   useEffect(() => {
     const handleServerSessionExpiry = () => {
       setCurrentUser(null);
+      setOracleAccessStatus('unchecked');
       setIsMenuOpen(false);
       setIsProfileOpen(false);
       setIsImportModalOpen(false);
@@ -313,6 +317,21 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    if (backendStatus !== 'available' || !currentUser) {
+      setOracleAccessStatus('unchecked');
+      return;
+    }
+    let cancelled = false;
+    setOracleAccessStatus('checking');
+    void checkOracleAccess().then(result => {
+      if (!cancelled) setOracleAccessStatus(result.hasAccess ? 'granted' : 'denied');
+    }).catch(error => {
+      if (!cancelled && error instanceof Error && error.message === 'oracle-access-denied') setOracleAccessStatus('denied');
+    });
+    return () => { cancelled = true; };
+  }, [backendStatus, currentUser]);
+
   // Loads the "کیف پول" (cash/bank account) list (see §6ad/§6af/§6al) —
   // `null` stays until this resolves (WalletTab shows its own loading line),
   // after which every walletService mutation pushes the returned full list
@@ -327,7 +346,7 @@ export default function App() {
   // form. Cleanup guards prevent a late response for an old user or an
   // unmounted StrictMode effect from overwriting the active user's state.
   useEffect(() => {
-    if (backendStatus !== 'available' || !currentUser) {
+    if (backendStatus !== 'available' || oracleAccessStatus !== 'granted' || !currentUser) {
       if (!currentUser) {
         setWalletAccounts(null);
       }
@@ -355,10 +374,10 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [backendStatus, currentUser]);
+  }, [backendStatus, oracleAccessStatus, currentUser]);
 
   useEffect(() => {
-    if (backendStatus !== 'available' || !currentUser) {
+    if (backendStatus !== 'available' || oracleAccessStatus !== 'granted' || !currentUser) {
       if (!currentUser) setItems([]);
       return;
     }
@@ -369,7 +388,7 @@ export default function App() {
         if (!cancelled) toast.error(error instanceof Error ? error.message : 'دریافت دارایی‌ها انجام نشد');
       });
     return () => { cancelled = true; };
-  }, [backendStatus, currentUser]);
+  }, [backendStatus, oracleAccessStatus, currentUser]);
 
   useEffect(() => {
     lastSnapshotDateRef.current = null;
@@ -526,6 +545,14 @@ export default function App() {
 
   if (!currentUser) {
     return <AuthScreen onAuthenticated={setCurrentUser}/>;
+  }
+
+  if (oracleAccessStatus === 'checking' || oracleAccessStatus === 'unchecked') {
+    return <div className="min-h-screen bg-[#f5f6fb] grid place-items-center"><span className="text-[13px] text-[#969eb2]">در حال بررسی دسترسی Oracle...</span></div>;
+  }
+
+  if (oracleAccessStatus === 'denied') {
+    return <OracleAccessDeniedScreen/>;
   }
 
   const historyAsset = historyAssetId ? items.find(asset => asset.id === historyAssetId) : undefined;
