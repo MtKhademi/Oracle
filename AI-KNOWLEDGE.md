@@ -4499,3 +4499,10 @@ For every change:
 These remain ideas only; implement any of them **only when the owner asks**:
 - Multiple portfolios / categories, or a debts section.
 - Dark mode.
+
+## 14. Backend integration audit (2026-10-18)
+
+- Authentication is already server-backed through `POST /iam/api/auth/login` and registration/reset use the Atlas IAM contracts.
+- The Oracle backend has product-aware access at `GET /oracle/api/access/me`; the frontend must call this after authentication and before loading Oracle-scoped data. A successful login alone does not prove active Oracle entitlement.
+- Current server-backed Oracle data includes the market catalog, live market prices, current-user holdings and bank-account identity/details. Current browser-local data includes wallet balances and wallet transaction history, asset transaction history, portfolio history and the personal market watchlist.
+- The Oracle task queue now separates access bootstrap, contract hardening, server-backed data migration and portfolio/report features. Do not remove local storage sources until the corresponding backend contract is delivered and tested.
