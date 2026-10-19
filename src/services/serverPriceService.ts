@@ -1,7 +1,7 @@
-import { expireServerSession, loadServerToken } from '../authStorage';
 import { loadWatchedMarketItemIds } from '../storage';
 import { loadCatalog, type CatalogAsset } from './assetCatalog';
 import type { LivePriceQuote, LivePrices, PriceService } from './priceService';
+import { oracleRequest, OracleApiError } from './oracleApiClient';
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -55,12 +55,6 @@ function toQuote(response: MarketPriceResponse, catalogBySymbol: ReadonlyMap<str
 }
 
 async function fetchPrices(): Promise<LivePrices> {
-  const token = loadServerToken();
-  if (!token) {
-    expireServerSession();
-    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-  }
-
   const catalog = await loadCatalog();
   const catalogBySymbol = new Map(catalog.map(asset => [asset.symbol.toUpperCase(), asset]));
   const watchedIds = loadWatchedMarketItemIds() ?? catalog.map(asset => asset.symbol);
@@ -70,19 +64,13 @@ async function fetchPrices(): Promise<LivePrices> {
   if (requestedSymbols.length === 0) return { quotes: {}, updatedAt: null };
 
   const query = new URLSearchParams({ symbols: requestedSymbols.join(',') });
-  const response = await fetch(`/oracle/api/market/prices?${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    if (response.status === 401) {
-      expireServerSession();
-      throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-    }
-    if (response.status === 404) return { quotes: {}, updatedAt: null };
-    throw new Error(`دریافت قیمت‌های لحظه‌ای انجام نشد (${response.status})`);
+  let data: MarketPriceResponse[];
+  try {
+    data = await oracleRequest<MarketPriceResponse[]>(`/oracle/api/market/prices?${query}`, {}, [404]);
+  } catch (error) {
+    if (error instanceof OracleApiError && error.status === 404) return { quotes: {}, updatedAt: null };
+    throw error;
   }
-
-  const data = await response.json() as MarketPriceResponse[];
   if (!Array.isArray(data)) throw new Error('پاسخ قیمت‌های لحظه‌ای نامعتبر است');
   const quotes = data.map(response => toQuote(response, catalogBySymbol)).filter((quote): quote is LivePriceQuote => quote !== null);
   const bySymbol = Object.fromEntries(quotes.map(quote => [quote.assetSymbol, quote]));
