@@ -7,6 +7,20 @@ export const format = (value: number, decimals = 0) => new Intl.NumberFormat('fa
 // number-shaped placeholder, e.g. "۱,۸۹۶,۳۳۲,۵۴۶" -> "•,•••,•••,•••".
 export const maskAmount = (formatted: string) => formatted.replace(/[0-9۰-۹]/g, '•');
 
+export const stripCardNumber = (raw: string) => raw.replace(/[^0-9]/g, '').slice(0, 16);
+
+export const formatCardNumber = (raw: string) => {
+  const cleaned = raw.replace(/\s+/g, '');
+  return cleaned.match(/.{1,4}/g)?.join('-') ?? '';
+};
+
+export const stripCardExpiry = (raw: string) => raw.replace(/\D/g, '').slice(0, 4);
+
+export const formatCardExpiry = (raw: string) => {
+  const cleaned = stripCardExpiry(raw);
+  return cleaned.length > 2 ? `${cleaned.slice(0, 2)}/${cleaned.slice(2)}` : cleaned;
+};
+
 export const stripToNumberString = (raw: string) => {
   let cleaned = raw.replace(/[^\d.]/g, '');
   const firstDot = cleaned.indexOf('.');

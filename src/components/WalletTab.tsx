@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { walletService, type WalletAccount } from '../services/walletService';
 import { walletTransactionService } from '../services/walletTransactionService';
-import { format } from '../format';
+import { format, formatCardExpiry, formatCardNumber, stripCardExpiry, stripCardNumber } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, HistoryIcon, PlusIcon, TrashIcon } from './icons';
@@ -20,14 +20,15 @@ const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center roun
 // walletService call + toasts), so the modal closes itself on success only.
 // Exported since §6an: only `ManageWalletAccountsModal` opens it now (the
 // wallet tab's "+" button routes there).
-export function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string) => Promise<boolean> }) {
+export function WalletAccountModal({ account, onClose, onSubmit }: { account: WalletAccount | null; onClose: () => void; onSubmit: (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardCvv?: string, cardExpiry?: string) => Promise<boolean> }) {
   const [formName, setFormName] = useState(account ? account.name : '');
   const [formBankName, setFormBankName] = useState(account?.bankName ?? '');
   const [formCardNumber, setFormCardNumber] = useState(account?.cardNumber ?? '');
   const [formAccountNumber, setFormAccountNumber] = useState(account?.accountNumber ?? '');
   const [formShebaNumber, setFormShebaNumber] = useState(account?.shebaNumber ?? '');
   const [formCardPin1, setFormCardPin1] = useState(account?.cardPin1 ?? '');
-  const [formCardPin2, setFormCardPin2] = useState(account?.cardPin2 ?? '');
+  const [formCardCvv, setFormCardCvv] = useState(account?.cardCvv ?? '');
+  const [formCardExpiry, setFormCardExpiry] = useState(account?.cardExpiry ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -48,14 +49,15 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
       return;
     }
     const bankName = formBankName.trim() || undefined;
-    const cardNumber = formCardNumber.trim() || undefined;
+    const cardNumber = stripCardNumber(formCardNumber) || undefined;
     const accountNumber = formAccountNumber.trim() || undefined;
     const shebaNumber = formShebaNumber.trim() || undefined;
     const cardPin1 = formCardPin1.trim() || undefined;
-    const cardPin2 = formCardPin2.trim() || undefined;
+    const cardCvv = formCardCvv.trim() || undefined;
+    const cardExpiry = formCardExpiry.trim() || undefined;
     setIsSubmitting(true);
     try {
-      const saved = await onSubmit(name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2);
+      const saved = await onSubmit(name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardCvv, cardExpiry);
       if (saved) onClose();
     } finally {
       setIsSubmitting(false);
@@ -74,7 +76,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
           <input type="text" value={formBankName} onChange={e => setFormBankName(e.target.value)} placeholder="مثلا: بانک رسالت" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">شماره کارت
-          <input type="text" value={formCardNumber} onChange={e => setFormCardNumber(e.target.value)} placeholder="مثلا: 6104 3399 0000 0000" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <input type="text" inputMode="numeric" dir="ltr" value={formatCardNumber(formCardNumber)} onChange={e => setFormCardNumber(stripCardNumber(e.target.value))} placeholder="مثلا: 5022-2915-0808-4454" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">شماره حساب
           <input type="text" value={formAccountNumber} onChange={e => setFormAccountNumber(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
@@ -82,12 +84,17 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
         <label className="text-[11px] text-[#7a8097] grid gap-1">شماره شبا
           <input type="text" value={formShebaNumber} onChange={e => setFormShebaNumber(e.target.value)} placeholder="IRxx xxx xxx xxx xxx xxxx xxx" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
-        <label className="text-[11px] text-[#7a8097] grid gap-1">رمز اول
-          <input type="text" inputMode="numeric" value={formCardPin1} onChange={e => setFormCardPin1(e.target.value)} placeholder="مثلا: 1234" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-        </label>
-        <label className="text-[11px] text-[#7a8097] grid gap-1">رمز دوم
-          <input type="text" inputMode="numeric" value={formCardPin2} onChange={e => setFormCardPin2(e.target.value)} placeholder="مثلا: 5678" className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
-        </label>
+        <div className="grid grid-cols-3 gap-[8px]">
+          <label className="text-[11px] text-[#7a8097] grid gap-1">رمز اول
+            <input type="text" inputMode="numeric" value={formCardPin1} onChange={e => setFormCardPin1(e.target.value)} placeholder="1234" className="w-full min-w-0 border border-[#eef0f7] rounded-[10px] px-2 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">CVV
+            <input type="text" inputMode="numeric" value={formCardCvv} onChange={e => setFormCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123" dir="ltr" className="w-full min-w-0 border border-[#eef0f7] rounded-[10px] px-2 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+          <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ انقضا
+            <input type="text" inputMode="numeric" value={formatCardExpiry(formCardExpiry)} onChange={e => setFormCardExpiry(stripCardExpiry(e.target.value))} placeholder="YY/MM" dir="ltr" className="w-full min-w-0 border border-[#eef0f7] rounded-[10px] px-2 py-2 text-[13px] text-[#2a2f3d]" />
+          </label>
+        </div>
         <button type="submit" disabled={isSubmitting} className="text-white text-[12px] font-medium rounded-[12px] px-4 py-2 bg-[#5264e8] disabled:bg-[#aeb5f2] cursor-pointer disabled:cursor-wait transition-colors">{isSubmitting ? 'در حال ذخیره...' : account ? 'ذخیره تغییرات' : 'افزودن حساب'}</button>
       </form>
     </section>

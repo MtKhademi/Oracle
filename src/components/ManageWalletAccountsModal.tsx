@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { authService } from '../services/authService';
 import { profileService } from '../services/profileService';
 import { walletService, type WalletAccount } from '../services/walletService';
+import { formatCardNumber } from '../format';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
 import { CloseIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from './icons';
@@ -42,10 +43,10 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose, modal, recordFor]);
 
-  const handleAccountSubmit = async (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardPin2?: string): Promise<boolean> => {
+  const handleAccountSubmit = async (name: string, bankName?: string, cardNumber?: string, accountNumber?: string, shebaNumber?: string, cardPin1?: string, cardCvv?: string, cardExpiry?: string): Promise<boolean> => {
     const editing = modal?.account ?? null;
     try {
-      const details = { name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardPin2 };
+      const details = { name, bankName, cardNumber, accountNumber, shebaNumber, cardPin1, cardCvv, cardExpiry };
       const next = editing
         ? await walletService.updateAccount(editing.id, details)
         : await walletService.addAccount({ ...details, balance: 0 });
@@ -78,7 +79,7 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
     const owner = [name, phone].filter(Boolean).join(' : ');
     const fields: Array<[string, string | undefined]> = [
       ['نام بانک', account.bankName],
-      ['شماره کارت', account.cardNumber],
+      ['شماره کارت', account.cardNumber ? formatCardNumber(account.cardNumber) : undefined],
       ['شماره حساب', account.accountNumber],
       ['شماره شبا', account.shebaNumber],
     ];
@@ -123,7 +124,6 @@ export function ManageWalletAccountsModal({ accounts, onAccountsChanged, onClose
                 {statusLine('حساب', account.accountNumber)}
                 {statusLine('شبا', account.shebaNumber)}
                 {statusLine('رمز اول', account.cardPin1)}
-                {statusLine('رمز دوم', account.cardPin2)}
               </div>
             </div>
           </div>

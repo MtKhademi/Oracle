@@ -2,6 +2,7 @@ import { loadWalletAccounts, saveWalletAccounts } from '../walletStorage';
 import { getActiveStorageUserId } from '../userScopedStorage';
 import type { WalletAccount, WalletService } from './walletService';
 import { oracleRequest } from './oracleApiClient';
+import { generateUuidV4 } from '../uuid';
 
 type BankAccountResponse = {
   id: string;
@@ -123,7 +124,8 @@ function toWalletAccount(apiAccount: BankAccountResponse, cached?: WalletAccount
     accountNumber: resolveBankValue(cached?.accountNumber, apiAccount.accountNumberMasked),
     shebaNumber: resolveBankValue(cached?.shebaNumber, apiAccount.ibanMasked),
     cardPin1: cached?.cardPin1,
-    cardPin2: cached?.cardPin2,
+    cardCvv: cached?.cardCvv,
+    cardExpiry: cached?.cardExpiry,
   };
 }
 
@@ -152,7 +154,7 @@ export const serverWalletService: WalletService = {
     const ownerId = getActiveStorageUserId();
     if (account.name === 'نقدی') {
       const current = loadWalletAccounts(ownerId) ?? [];
-      const next = [...current, { ...account, id: crypto.randomUUID() }];
+      const next = [...current, { ...account, id: generateUuidV4() }];
       saveWalletAccounts(next, ownerId);
       return next;
     }
@@ -169,7 +171,7 @@ export const serverWalletService: WalletService = {
     const existing = current.find(account => account.id === id);
     if (!existing) throw new Error('حساب پیدا نشد');
     const updated = { ...existing, ...changes };
-    if (updated.name !== 'نقدی' && Object.keys(changes).some(key => key !== 'balance' && key !== 'cardPin1' && key !== 'cardPin2')) {
+    if (updated.name !== 'نقدی' && Object.keys(changes).some(key => key !== 'balance' && key !== 'cardPin1' && key !== 'cardCvv' && key !== 'cardExpiry')) {
       await request<BankAccountResponse>(`/oracle/api/me/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(toRequest(requireCachedDetails(updated))) });
     }
     const next = current.map(account => account.id === id ? updated : account);
