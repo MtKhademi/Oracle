@@ -15,7 +15,7 @@ This queue coordinates with the sibling backend at `../Atlas`. Login and passwor
 | ORA-FE-WATCHLIST | server-backed-watchlist | in progress | ORA-FE-CONTRACT-AUDIT | `ORA-WATCHLIST-01` |
 | ORA-FE-PORTFOLIO-SUMMARY | portfolio-summary | in progress | ORA-FE-HOLDINGS, ORA-FE-LIVE-PRICES | `ORA-PORTFOLIO-01` |
 | ORA-FE-PORTFOLIO-PERFORMANCE | portfolio-performance | in progress | ORA-FE-PORTFOLIO-SUMMARY | `ORA-PORTFOLIO-02` |
-| ORA-FE-TRANSACTION-HISTORY | server-transaction-history | planned | ORA-FE-HOLDINGS | backend transaction contract |
+| ORA-FE-TRANSACTION-HISTORY | server-transaction-history | in progress | ORA-FE-HOLDINGS | backend transaction contract |
 | ORA-FE-REPORT-EXPORT | portfolio-report-export | planned | ORA-FE-PORTFOLIO-PERFORMANCE | `ORA-REPORT-01` |
 | ORA-FE-SESSION-RELIABILITY | session-and-request-observability | planned | ORA-FE-ACCESS-GATE | `X-Log-System-Id` |
 
