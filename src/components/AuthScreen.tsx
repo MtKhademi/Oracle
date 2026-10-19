@@ -6,7 +6,10 @@ import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 const inputClass = 'border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]';
 const labelClass = 'text-[11px] text-[#7a8097] grid gap-1';
-const developmentTestUser = { identifier: 'oracle-user@example.test', password: 'Oracle-User-2026!' };
+const developmentTestUsers = [
+  { label: 'حساب تست Oracle', identifier: 'oracle-user@example.test', password: 'Oracle-User-2026!' },
+  { label: 'حساب تست موبایل — 989399172550', identifier: '989399172550', password: 'Mohande38915443' },
+];
 
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
@@ -87,14 +90,18 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
         </label>
         <button type="submit" disabled={isSubmitting} className="bg-[#5264e8] disabled:bg-[#aeb5f2] text-white text-[12px] font-medium rounded-[12px] px-4 py-2 mt-1 cursor-pointer disabled:cursor-wait">{isSubmitting ? 'در حال ورود...' : 'ورود'}</button>
         <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[11px] text-[#5264e8] justify-self-center cursor-pointer hover:underline">رمز عبور را فراموش کرده‌اید؟</button>
-        {import.meta.env.DEV && <button
-          type="button"
-          onClick={() => {
-            setLoginIdentifier(developmentTestUser.identifier);
-            setLoginPassword(developmentTestUser.password);
-          }}
-          className="text-[10px] text-[#7a8097] justify-self-center cursor-pointer hover:text-[#5264e8] hover:underline"
-        >پر کردن حساب تست توسعه</button>}
+        {import.meta.env.DEV && <div className="grid gap-1 justify-items-center">
+          <span className="text-[10px] text-[#969eb2]">حساب تست توسعه</span>
+          {developmentTestUsers.map(testUser => <button
+            key={testUser.identifier}
+            type="button"
+            onClick={() => {
+              setLoginIdentifier(testUser.identifier);
+              setLoginPassword(testUser.password);
+            }}
+            className="text-[10px] text-[#7a8097] cursor-pointer hover:text-[#5264e8] hover:underline"
+          >{testUser.label}</button>)}
+        </div>}
       </form> : <form onSubmit={handleSignupSubmit} className="grid gap-[10px]">
         <label className={labelClass}>نام
           <input type="text" name="firstName" id="signup-first-name" autoComplete="given-name" value={signupFirstName} onChange={e => setSignupFirstName(e.target.value)} className={inputClass} required />
