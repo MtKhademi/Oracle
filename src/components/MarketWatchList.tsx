@@ -72,7 +72,7 @@ export function MarketWatchList({ tabs }: { tabs?: ReactNode } = {}) {
                 <div className="text-left flex items-baseline gap-[6px]">
                   {item.priceToman === null
                     ? <span className="text-[#a2a8b9] text-[10px]">قیمت موجود نیست</span>
-                    : <><strong className="text-[14px] font-bold [font-variant-numeric:tabular-nums] max-[351px]:text-[12px]">{format(item.priceToman)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></>}
+                    : <><strong className={`text-[14px] font-bold [font-variant-numeric:tabular-nums] max-[351px]:text-[12px] ${item.isStale ? 'text-[#b07b20]' : ''}`}>{format(item.priceToman)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span>{item.isStale && <span className="text-[#b07b20] text-[9px]">قدیمی</span>}</>}
                 </div>
                 <IconButton icon={<TrashIcon/>} onClick={() => remove(item.id)} ariaLabel={`حذف ${item.name} از چشم بازار`} tone="danger" variant="ghost"/>
               </div>

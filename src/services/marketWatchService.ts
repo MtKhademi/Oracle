@@ -1,5 +1,5 @@
 import { loadCatalog, type CatalogAsset } from './assetCatalog';
-import { priceService, type LivePrices } from './priceService';
+import { isLivePriceStale, priceService, type LivePrices } from './priceService';
 
 export type MarketCategory = 'gold' | 'silver' | 'currency' | 'crypto' | 'fund' | 'stock' | 'index' | 'cash';
 
@@ -8,6 +8,8 @@ export type MarketItem = {
   name: string;
   category: MarketCategory;
   priceToman: number | null;
+  observedAt: number | null;
+  isStale: boolean;
 };
 
 export type MarketSnapshot = {
@@ -41,6 +43,8 @@ function buildSnapshot(): MarketSnapshot {
       name: asset.name,
       category: asset.category as MarketCategory,
       priceToman: currentPrices?.quotes[asset.symbol]?.priceToman ?? null,
+      observedAt: currentPrices?.quotes[asset.symbol]?.observedAt ?? null,
+      isStale: currentPrices?.quotes[asset.symbol] ? isLivePriceStale(currentPrices.quotes[asset.symbol].observedAt) : false,
     }));
   current = { items, updatedAt: currentPrices?.updatedAt ?? null };
   return current;

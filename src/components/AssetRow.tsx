@@ -1,6 +1,6 @@
 import type { Asset } from '../assets';
 import { format, maskAmount } from '../format';
-import type { LivePrices } from '../services/priceService';
+import { isLivePriceStale, type LivePrices } from '../services/priceService';
 import { getEffectiveUnitPrice, getLivePriceForAsset } from '../services/livePriceMapping';
 import { AssetIcon, iconTint } from './AssetIcon';
 import { IconButton } from './IconButton';
@@ -17,7 +17,7 @@ export function AssetRow({ asset, prices, isBalanceHidden, onDelete, onRecordTra
     <div className="flex-1 min-w-0">
       <h3 className="text-[14px] font-medium [overflow-wrap:anywhere] max-[481px]:text-[12px]">{asset.name}</h3>
       <p className="text-[11px] text-[#999fb2] mt-[5px]">{format(asset.quantity, 8)} {asset.unit}</p>
-      {livePrice && <p className="text-[10px] text-[#a2a8b9] mt-[2px]">{format(effectiveUnitPrice)} تومان / {asset.unit}</p>}
+      {livePrice && <p className={`text-[10px] mt-[2px] ${isLivePriceStale(livePrice.observedAt) ? 'text-[#b07b20]' : 'text-[#a2a8b9]'}`}>{format(effectiveUnitPrice)} تومان / {asset.unit}{isLivePriceStale(livePrice.observedAt) && ' · قدیمی'}</p>}
     </div>
     <div className="text-left shrink-0 flex flex-col gap-[6px] items-end">
       <div className="flex items-baseline gap-[6px]"><strong className="text-[16px] font-bold [font-variant-numeric:tabular-nums] min-[1050px]:text-[14px] [@media(min-width:351px)_and_(max-width:480px)]:text-[14px] max-[351px]:text-[12px]">{isBalanceHidden ? maskAmount(format(asset.quantity * effectiveUnitPrice)) : format(asset.quantity * effectiveUnitPrice)}</strong><span className="text-[#a2a8b9] text-[10px]">تومان</span></div>
