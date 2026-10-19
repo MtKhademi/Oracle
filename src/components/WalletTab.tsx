@@ -10,6 +10,7 @@ import { SectionHeaderCard } from './SectionHeaderCard';
 import { RecordWalletTransactionModal } from './RecordWalletTransactionModal';
 import { WalletTransactionHistoryModal } from './WalletTransactionHistoryModal';
 import { ManageWalletAccountsModal } from './ManageWalletAccountsModal';
+import { PersianMonthPicker } from './PersianMonthPicker';
 
 const accountIconBase = 'w-[46px] h-[46px] shrink-0 grid place-items-center rounded-[15px] max-[481px]:rounded-[13px] [@media(min-width:351px)_and_(max-width:480px)]:w-[41px] [@media(min-width:351px)_and_(max-width:480px)]:h-[41px] max-[351px]:w-[35px] max-[351px]:h-[35px]';
 
@@ -92,7 +93,7 @@ export function WalletAccountModal({ account, onClose, onSubmit }: { account: Wa
             <input type="text" inputMode="numeric" value={formCardCvv} onChange={e => setFormCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123" dir="ltr" className="w-full min-w-0 border border-[#eef0f7] rounded-[10px] px-2 py-2 text-[13px] text-[#2a2f3d]" />
           </label>
           <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ انقضا
-            <input type="text" inputMode="numeric" value={formatCardExpiry(formCardExpiry)} onChange={e => setFormCardExpiry(stripCardExpiry(e.target.value))} placeholder="YY/MM" dir="ltr" className="w-full min-w-0 border border-[#eef0f7] rounded-[10px] px-2 py-2 text-[13px] text-[#2a2f3d]" />
+            <PersianMonthPicker value={formCardExpiry} onChange={setFormCardExpiry} />
           </label>
         </div>
         <button type="submit" disabled={isSubmitting} className="text-white text-[12px] font-medium rounded-[12px] px-4 py-2 bg-[#5264e8] disabled:bg-[#aeb5f2] cursor-pointer disabled:cursor-wait transition-colors">{isSubmitting ? 'در حال ذخیره...' : account ? 'ذخیره تغییرات' : 'افزودن حساب'}</button>
