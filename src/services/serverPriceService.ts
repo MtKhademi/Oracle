@@ -1,7 +1,7 @@
-import { loadWatchedMarketItemIds } from '../storage';
 import { loadCatalog, type CatalogAsset } from './assetCatalog';
 import type { LivePriceQuote, LivePrices, PriceService } from './priceService';
 import { oracleRequest, OracleApiError } from './oracleApiClient';
+import { marketWatchlistService } from './marketWatchlistService';
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -57,7 +57,7 @@ function toQuote(response: MarketPriceResponse, catalogBySymbol: ReadonlyMap<str
 async function fetchPrices(): Promise<LivePrices> {
   const catalog = await loadCatalog();
   const catalogBySymbol = new Map(catalog.map(asset => [asset.symbol.toUpperCase(), asset]));
-  const watchedIds = loadWatchedMarketItemIds() ?? catalog.map(asset => asset.symbol);
+  const watchedIds = await marketWatchlistService.getWatchedIds();
   const requestedSymbols = watchedIds
     .map(id => catalog.find(asset => asset.id === id || asset.symbol === id)?.symbol)
     .filter((symbol): symbol is string => Boolean(symbol));

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { marketWatchService, type MarketSnapshot } from '../services/marketWatchService';
 import { marketWatchlistService } from '../services/marketWatchlistService';
+import { toast } from 'sonner';
 
 // Subscribes to the market watch service on mount, unsubscribes on unmount.
 // Returns null until the first callback arrives (so callers can render a
@@ -30,16 +31,22 @@ export function useMarketWatchlist(): { watchedIds: string[] | null; add: (id: s
     let cancelled = false;
     marketWatchlistService.getWatchedIds().then(ids => {
       if (!cancelled) setWatchedIds(ids);
+    }).catch(error => {
+      if (!cancelled) toast.error(error instanceof Error ? error.message : 'دریافت چشم بازار انجام نشد');
     });
     return () => { cancelled = true; };
   }, []);
 
   const add = useCallback((id: string) => {
-    marketWatchlistService.addItem(id).then(setWatchedIds);
+    marketWatchlistService.addItem(id).then(setWatchedIds).catch(error => {
+      toast.error(error instanceof Error ? error.message : 'افزودن به چشم بازار انجام نشد');
+    });
   }, []);
 
   const remove = useCallback((id: string) => {
-    marketWatchlistService.removeItem(id).then(setWatchedIds);
+    marketWatchlistService.removeItem(id).then(setWatchedIds).catch(error => {
+      toast.error(error instanceof Error ? error.message : 'حذف از چشم بازار انجام نشد');
+    });
   }, []);
 
   return { watchedIds, add, remove };

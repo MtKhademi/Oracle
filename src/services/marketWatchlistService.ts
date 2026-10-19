@@ -1,4 +1,4 @@
-import { localMarketWatchlistService } from './localMarketWatchlistService';
+import { serverMarketWatchlistService } from './serverMarketWatchlistService';
 
 // The personal "چشم بازار" watchlist — which of the fixed market catalog's
 // ids (see marketWatchService.ts's getAllItems()) the owner has chosen to
@@ -11,4 +11,4 @@ export interface MarketWatchlistService {
   removeItem(id: string): Promise<string[]>;
 }
 
-export const marketWatchlistService: MarketWatchlistService = localMarketWatchlistService;
+export const marketWatchlistService: MarketWatchlistService = serverMarketWatchlistService;

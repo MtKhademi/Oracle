@@ -12,7 +12,7 @@ This queue coordinates with the sibling backend at `../Atlas`. Login and passwor
 | ORA-FE-LIVE-PRICES | live-market-prices | done | ORA-FE-CONTRACT-AUDIT | `MD-05` |
 | ORA-FE-HOLDINGS | server-backed-holdings | done | ORA-FE-CONTRACT-AUDIT | `UA-02`..`UA-05` |
 | ORA-FE-BANK-ACCOUNTS | server-backed-bank-accounts | done | ORA-FE-CONTRACT-AUDIT | `BA-01`..`BA-04` |
-| ORA-FE-WATCHLIST | server-backed-watchlist | planned | ORA-FE-CONTRACT-AUDIT | `ORA-WATCHLIST-01` |
+| ORA-FE-WATCHLIST | server-backed-watchlist | in progress | ORA-FE-CONTRACT-AUDIT | `ORA-WATCHLIST-01` |
 | ORA-FE-PORTFOLIO-SUMMARY | portfolio-summary | planned | ORA-FE-HOLDINGS, ORA-FE-LIVE-PRICES | `ORA-PORTFOLIO-01` |
 | ORA-FE-PORTFOLIO-PERFORMANCE | portfolio-performance | planned | ORA-FE-PORTFOLIO-SUMMARY | `ORA-PORTFOLIO-02` |
 | ORA-FE-TRANSACTION-HISTORY | server-transaction-history | planned | ORA-FE-HOLDINGS | backend transaction contract |
