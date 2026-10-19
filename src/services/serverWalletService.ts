@@ -1,7 +1,7 @@
-import { expireServerSession, loadServerToken } from '../authStorage';
 import { loadWalletAccounts, saveWalletAccounts } from '../walletStorage';
 import { getActiveStorageUserId } from '../userScopedStorage';
 import type { WalletAccount, WalletService } from './walletService';
+import { oracleRequest } from './oracleApiClient';
 
 type BankAccountResponse = {
   id: string;
@@ -72,32 +72,7 @@ function toBankCode(bankName?: string): string | null {
   throw new Error('نام بانک را وارد کنید؛ کد فنی آن باید دست‌کم دو حرف یا عدد انگلیسی داشته باشد.');
 }
 
-function authorizationHeaders(): HeadersInit {
-  const token = loadServerToken();
-  if (!token) {
-    expireServerSession();
-    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-  }
-  return { Authorization: `Bearer ${token}` };
-}
-
-async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...authorizationHeaders(), ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as { detail?: string; title?: string; errors?: Record<string, string[]> } | null;
-    if (response.status === 401) {
-      expireServerSession();
-      throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-    }
-    if (response.status === 409) throw new Error('این حساب بانکی قبلاً ثبت شده است');
-    const validationMessages = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
-    throw new Error(validationMessages || body?.detail || body?.title || `عملیات حساب بانکی انجام نشد (${response.status})`);
-  }
-  return response.status === 204 ? (undefined as T) : await response.json() as T;
-}
+const request = oracleRequest;
 
 function toRequest(account: Omit<WalletAccount, 'id'>): BankAccountRequest {
   return {

@@ -1,7 +1,7 @@
-import { expireServerSession, loadServerToken } from '../authStorage';
 import type { Asset } from '../assets';
 import { getAssetIconForCatalogEntry, getUnitLabel } from './assetCatalog';
 import type { AssetService, ImportResult } from './assetService';
+import { oracleRequest } from './oracleApiClient';
 
 type MarketAssetResponse = {
   id: string;
@@ -25,15 +25,6 @@ type UserAssetResponse = {
   averageUnitCost: number | null;
   note: string | null;
 };
-
-function authorizationHeaders(): HeadersInit {
-  const token = loadServerToken();
-  if (!token) {
-    expireServerSession();
-    throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-  }
-  return { Authorization: `Bearer ${token}` };
-}
 
 function toAsset(apiAsset: MarketAssetResponse): Asset {
   return {
@@ -59,23 +50,7 @@ function toUserAsset(apiAsset: UserAssetResponse): Asset {
   };
 }
 
-async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...authorizationHeaders(), ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as { detail?: string; title?: string; errors?: Record<string, string[]> } | null;
-    if (response.status === 409) throw new Error('این دارایی قبلاً ثبت شده است');
-    if (response.status === 401) {
-      expireServerSession();
-      throw new Error('نشست شما معتبر نیست. دوباره وارد شوید.');
-    }
-    const validationMessages = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
-    throw new Error(validationMessages || body?.detail || body?.title || `عملیات دارایی انجام نشد (${response.status})`);
-  }
-  return response.status === 204 ? (undefined as T) : (await response.json() as T);
-}
+const request = oracleRequest;
 
 async function listUserAssets(): Promise<Asset[]> {
   const data = await request<UserAssetResponse[]>('/oracle/api/me/assets');

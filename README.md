@@ -6,6 +6,8 @@ After authentication, the app checks `GET /oracle/api/access/me` before loading 
 
 Authentication uses the Oracle backend in both development and production. Vite proxies the relative `/iam` paths during development, and the production Nginx container proxies them to the `api` service.
 
+In Vite development only, the login screen includes a test-user helper below the password-recovery link that fills the configured Oracle test email and password; it is excluded from production builds.
+
 Profile data and bank-account identity/details also use the backend in both environments. Wallet balances, PIN reminders, transaction histories, portfolio history and the personal market watchlist remain browser-local because the backend does not expose contracts for those datasets.
 
 See TASK-WORKFLOW.md for the required step-by-step process to follow for every task.

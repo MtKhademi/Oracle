@@ -1,20 +1,13 @@
-import { expireServerSession, loadServerToken } from '../authStorage';
+import { oracleRequest } from './oracleApiClient';
 
 export type OracleAccessResult = { productKey: string; hasAccess: boolean };
 
 export async function checkOracleAccess(): Promise<OracleAccessResult> {
-  const token = loadServerToken();
-  const response = await fetch('/oracle/api/access/me', {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: 'no-store',
-  });
-
-  if (response.status === 401) {
-    expireServerSession();
-    throw new Error('session-expired');
+  try {
+    return await oracleRequest<OracleAccessResult>('/oracle/api/access/me', { cache: 'no-store' });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('دسترسی Oracle')) throw new Error('oracle-access-denied');
+    if (error instanceof Error && error.message.includes('نشست')) throw new Error('session-expired');
+    throw new Error('oracle-access-check-failed');
   }
-  if (response.status === 403) throw new Error('oracle-access-denied');
-  if (!response.ok) throw new Error('oracle-access-check-failed');
-
-  return await response.json() as OracleAccessResult;
 }
