@@ -8,6 +8,7 @@ import { getEffectiveUnitPrice } from '../services/livePriceMapping';
 import { formatWithThousands, stripToNumberString, todayLocalIso } from '../format';
 import { CloseIcon, DollarIcon } from './icons';
 import { IconButton } from './IconButton';
+import { PersianDatePicker } from './PersianDatePicker';
 
 export function RecordTransactionModal({ asset, prices, onClose, onTransactionRecorded }: { asset: Asset; prices: LivePrices | null; onClose: () => void; onTransactionRecorded: (assetId: string, type: TransactionType, quantity: number, unitPrice: number) => void }) {
   const lastPrice = getEffectiveUnitPrice(asset, prices);
@@ -66,7 +67,7 @@ export function RecordTransactionModal({ asset, prices, onClose, onTransactionRe
           </label>
         </div>
         <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ
-          <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <PersianDatePicker value={formDate} onChange={setFormDate}/>
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">یادداشت (اختیاری)
           <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />

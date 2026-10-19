@@ -36,6 +36,7 @@ import { WalletTab } from './src/components/WalletTab';
 import { Toolbar } from './src/components/Toolbar';
 import type { LivePrices } from './src/services/priceService';
 import type { User } from './src/types';
+import { getPortfolioSummary, type PortfolioSummary } from './src/services/portfolioSummaryService';
 
 const ASSET_SORT_MODE_STORAGE_KEY = 'oracle_asset_sort_mode_v1';
 const ASSET_SORT_MODES: readonly AssetSortMode[] = ['value', 'type'];
@@ -243,9 +244,15 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [isHealthCheckInFlight, setIsHealthCheckInFlight] = useState(false);
   const [oracleAccessStatus, setOracleAccessStatus] = useState<'unchecked' | 'checking' | 'granted' | 'denied'>('unchecked');
+  const [portfolioSummary, setPortfolioSummary] = useState<PortfolioSummary | null>(null);
   const prices = useLivePrices(backendStatus === 'available' && currentUser !== null);
   const lastSnapshotDateRef = useRef<string | null>(null);
   const healthCheckRequestRef = useRef(0);
+
+  const refreshPortfolioSummary = useCallback(async () => {
+    const summary = await getPortfolioSummary();
+    setPortfolioSummary(summary);
+  }, []);
 
   const checkBackendHealth = useCallback(async () => {
     const requestId = ++healthCheckRequestRef.current;
@@ -378,6 +385,18 @@ export default function App() {
 
   useEffect(() => {
     if (backendStatus !== 'available' || oracleAccessStatus !== 'granted' || !currentUser) {
+      setPortfolioSummary(null);
+      return;
+    }
+    let cancelled = false;
+    void refreshPortfolioSummary().catch(error => {
+      if (!cancelled) toast.error(error instanceof Error ? error.message : 'دریافت خلاصهٔ پرتفوی انجام نشد');
+    });
+    return () => { cancelled = true; };
+  }, [backendStatus, oracleAccessStatus, currentUser, refreshPortfolioSummary]);
+
+  useEffect(() => {
+    if (backendStatus !== 'available' || oracleAccessStatus !== 'granted' || !currentUser) {
       if (!currentUser) setItems([]);
       return;
     }
@@ -400,7 +419,7 @@ export default function App() {
     setIsMenuOpen(false);
   };
 
-  const total = items.reduce((sum, asset) => sum + asset.quantity * getEffectiveUnitPrice(asset, prices), 0);
+  const total = portfolioSummary?.marketValueToman ?? 0;
 
   // "کیف پول" (cash/bank account) balances — `walletAccounts` is still
   // `null` until the mount-time load resolves, so guard the reduce (see §6ae).
@@ -440,6 +459,7 @@ export default function App() {
       const next = await assetService.addAsset({ ...pendingNewAsset, quantity, unitPrice });
       setItems(next);
       setPendingNewAsset(null);
+      await refreshPortfolioSummary();
       return;
     }
     const currentAsset = items.find(asset => asset.id === assetId);
@@ -447,11 +467,13 @@ export default function App() {
     if (type === 'replace') {
       const next = await assetService.updateAsset(assetId, { quantity, unitPrice });
       setItems(next);
+      await refreshPortfolioSummary();
       return;
     }
     const newQuantity = type === 'buy' ? currentAsset.quantity + quantity : Math.max(0, currentAsset.quantity - quantity);
     const next = await assetService.updateAsset(assetId, { quantity: newQuantity });
     setItems(next);
+    await refreshPortfolioSummary();
   };
 
   const handleDelete = async (id: string) => {
@@ -567,7 +589,7 @@ export default function App() {
     </div></header>
     <main className="max-w-[800px] mx-auto mt-[-89px] px-6 pb-9 relative min-[1050px]:max-w-[900px] min-[1050px]:grid min-[1050px]:grid-cols-[300px_1fr] min-[1050px]:gap-5 min-[1050px]:items-start min-[1050px]:mt-[-65px] max-[481px]:mt-[-77px] max-[481px]:px-[18px] max-[481px]:pb-[28px]">
       <div>
-        <SummaryCard total={total + walletTotal} count={items.length} prices={prices} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('wallet')}/>
+        <SummaryCard total={total + walletTotal} count={portfolioSummary?.positions.length ?? 0} prices={prices} valuationStatus={portfolioSummary?.valuationStatus ?? null} isBalanceHidden={isBalanceHidden} onToggleBalanceHidden={handleToggleBalanceHidden} onOpenWallet={() => setActiveSectionTab('wallet')}/>
         <PortfolioTrendChart refreshKey={historyVersion}/>
       </div>
       <section className="mt-[31px] min-[1050px]:mt-0 min-[1050px]:bg-white min-[1050px]:border min-[1050px]:border-[#eceef5] min-[1050px]:rounded-[22px] min-[1050px]:p-[22px] max-[481px]:mt-[27px]" aria-label={activeSectionTab === 'investment' ? 'دارایی‌های من' : activeSectionTab === 'wallet' ? 'کیف پول' : 'چشم بازار'}>

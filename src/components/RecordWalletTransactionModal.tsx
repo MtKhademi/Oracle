@@ -5,6 +5,7 @@ import { walletTransactionService } from '../services/walletTransactionService';
 import type { WalletTransactionType } from '../types/walletTransaction';
 import { formatWithThousands, stripToNumberString, todayLocalIso } from '../format';
 import { CloseIcon } from './icons';
+import { PersianDatePicker } from './PersianDatePicker';
 
 // The "ثبت تراکنش" (record wallet transaction) modal — the wallet-side
 // equivalent of RecordTransactionModal, minus the unit-price concept. Same
@@ -65,7 +66,7 @@ export function RecordWalletTransactionModal({ account, onClose, onTransactionRe
           <input type="text" inputMode="numeric" value={formatWithThousands(formAmount)} onChange={e => setFormAmount(stripToNumberString(e.target.value))} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">تاریخ
-          <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />
+          <PersianDatePicker value={formDate} onChange={setFormDate}/>
         </label>
         <label className="text-[11px] text-[#7a8097] grid gap-1">یادداشت (اختیاری)
           <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} className="border border-[#eef0f7] rounded-[10px] px-3 py-2 text-[13px] text-[#2a2f3d]" />

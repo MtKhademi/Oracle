@@ -7,7 +7,7 @@ import { DollarIcon, EyeClosedIcon, GoldBarIcon, MarketEyeIcon, RefreshIcon } fr
 
 const SPIN_DURATION_MS = 700;
 
-export function SummaryCard({ total, count, prices, isBalanceHidden, onToggleBalanceHidden, onOpenWallet }: { total: number; count: number; prices: LivePrices | null; isBalanceHidden: boolean; onToggleBalanceHidden: () => void; onOpenWallet: () => void }) {
+export function SummaryCard({ total, count, prices, valuationStatus, isBalanceHidden, onToggleBalanceHidden, onOpenWallet }: { total: number; count: number; prices: LivePrices | null; valuationStatus: 'empty' | 'current' | 'stale' | 'missing' | null; isBalanceHidden: boolean; onToggleBalanceHidden: () => void; onOpenWallet: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const isFirstPrices = useRef(true);
   const usdToman = prices?.quotes.USD?.priceToman ?? prices?.quotes.USDT?.priceToman ?? null;
@@ -40,6 +40,8 @@ export function SummaryCard({ total, count, prices, isBalanceHidden, onToggleBal
       </span>
     </div>
     <div className="flex items-baseline gap-[10px] mt-4 min-[1050px]:mt-5 max-[481px]:mt-3 min-[1050px]:flex-wrap min-[1050px]:gap-[0_8px]"><strong className="text-[44px] font-bold text-[#4659d9] leading-[1.55] tracking-[-1px] min-[1050px]:text-[35px] [@media(min-width:351px)_and_(max-width:480px)]:text-[35px] max-[351px]:text-[30px]">{isBalanceHidden ? maskAmount(format(total)) : format(total)}</strong><span className="text-[13px] text-[#8990a9]">تومان</span></div>
+    {valuationStatus === 'stale' && <p className="text-[10px] text-[#b07b20] mt-1">ارزش‌گذاری بر اساس قیمت قدیمی</p>}
+    {valuationStatus === 'missing' && <p className="text-[10px] text-[#b07b20] mt-1">بخشی از قیمت‌ها در دسترس نیست</p>}
     <div className="flex flex-col gap-[7px] mt-2 mb-[23px] max-[481px]:mb-[19px] min-h-[55px]">
       {usdToman !== null && <div className="flex items-center gap-[8px]">
         <span className="w-6 h-6 rounded-[8px] grid place-items-center bg-[#d7f5e0] text-[#1f9d55] shrink-0"><DollarIcon/></span>
