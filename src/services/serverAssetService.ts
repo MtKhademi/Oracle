@@ -26,6 +26,14 @@ type UserAssetResponse = {
   note: string | null;
 };
 
+function irrToToman(value: number | null): number {
+  return value === null ? 0 : value / 10;
+}
+
+function tomanToIrr(value: number | null): number | null {
+  return value === null || !Number.isFinite(value) ? null : value * 10;
+}
+
 function toAsset(apiAsset: MarketAssetResponse): Asset {
   return {
     id: apiAsset.id,
@@ -44,7 +52,7 @@ function toUserAsset(apiAsset: UserAssetResponse): Asset {
     name: apiAsset.name,
     quantity: apiAsset.quantity,
     unit: getUnitLabel(apiAsset.unit),
-    unitPrice: apiAsset.averageUnitCost ?? 0,
+    unitPrice: irrToToman(apiAsset.averageUnitCost),
     icon: getAssetIconForCatalogEntry({ id: apiAsset.marketAssetId, symbol: apiAsset.symbol, name: apiAsset.name, category: apiAsset.category, unit: apiAsset.unit }),
     code: apiAsset.symbol,
   };
@@ -66,7 +74,7 @@ export const serverAssetService: AssetService = {
     if (asset.quantity <= 0) throw new Error('مقدار دارایی باید بیشتر از صفر باشد');
     await request<UserAssetResponse>('/oracle/api/me/assets', {
       method: 'POST',
-      body: JSON.stringify({ marketAssetId: asset.code ? (await findMarketAssetId(asset.code)) : asset.id, quantity: asset.quantity, averageUnitCost: asset.unitPrice, note: null }),
+      body: JSON.stringify({ marketAssetId: asset.code ? (await findMarketAssetId(asset.code)) : asset.id, quantity: asset.quantity, averageUnitCost: tomanToIrr(asset.unitPrice), note: null }),
     });
     return listUserAssets();
   },
@@ -80,7 +88,7 @@ export const serverAssetService: AssetService = {
     }
     const updated = await request<UserAssetResponse>(`/oracle/api/me/assets/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ quantity: changes.quantity ?? current.quantity, averageUnitCost: changes.unitPrice ?? current.unitPrice, note: null }),
+      body: JSON.stringify({ quantity: changes.quantity ?? current.quantity, averageUnitCost: tomanToIrr(changes.unitPrice ?? current.unitPrice), note: null }),
     });
     const result = toUserAsset(updated);
     return (await listUserAssets()).map(asset => asset.id === result.id ? result : asset);
@@ -116,14 +124,14 @@ export const serverAssetService: AssetService = {
       } else if (existing) {
         const updatedResponse = await request<UserAssetResponse>(`/oracle/api/me/assets/${existing.id}`, {
           method: 'PUT',
-          body: JSON.stringify({ quantity: nextQuantity, averageUnitCost: row.asset.unitPrice, note: null }),
+          body: JSON.stringify({ quantity: nextQuantity, averageUnitCost: tomanToIrr(row.asset.unitPrice), note: null }),
         });
         assets = assets.map(asset => asset.id === existing.id ? toUserAsset(updatedResponse) : asset);
         updated += 1;
       } else if (nextQuantity > 0) {
         const created = await request<UserAssetResponse>('/oracle/api/me/assets', {
           method: 'POST',
-          body: JSON.stringify({ marketAssetId: row.asset.id, quantity: nextQuantity, averageUnitCost: row.asset.unitPrice, note: null }),
+        body: JSON.stringify({ marketAssetId: row.asset.id, quantity: nextQuantity, averageUnitCost: tomanToIrr(row.asset.unitPrice), note: null }),
         });
         assets = [...assets, toUserAsset(created)];
         added += 1;
